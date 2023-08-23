@@ -46,7 +46,7 @@ runs:
 
           const installedDependencies = new Map();
 
-          for (const dependency in dependencies) {
+          for (const dependency of dependencies) {
             
             let command = `${{ steps.get-package-manager.outputs.package-manager }} list --depth=1" --pattern "${dependency}"`;
 

@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: touch yarn.lock
+      - run: rm -f package-lock.json
 
       - id: get-package-manager
         uses: ./actions/get-package-manager
@@ -28,9 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: |
-          rm -f yarn.lock
-          touch package-lock.json
+      - run: rm -f yarn.lock
 
       - id: get-package-manager
         uses: ./actions/get-package-manager

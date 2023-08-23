@@ -5,7 +5,7 @@
 <!-- end title -->
 <!-- start description -->
 
-Action to detect the package manager used. Supports Yarn and NPM
+Action to detect the package manager used. Supports Yarn and npm
 
 <!-- end description -->
 <!-- start contents -->

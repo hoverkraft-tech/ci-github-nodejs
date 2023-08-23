@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - run: |
-          touch yarn.lock
+          rm -f package-lock.json
           echo "lts/*" > .nvmrc
 
       - id: setup-node
@@ -32,7 +32,6 @@ jobs:
 
       - run: |
           rm -f yarn.lock
-          echo "{}" > package-lock.json
           echo "lts/*" > .nvmrc
 
       - id: setup-node
