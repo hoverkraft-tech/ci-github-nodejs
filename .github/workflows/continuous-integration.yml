@@ -104,7 +104,7 @@ jobs:
       - id: setup-node
         uses: ./self-workflow/actions/setup-node
 
-      - id: installed-dependencies
+      - id: has-installed-dependencies
         uses: ./self-workflow/actions/has-installed-dependencies
         with:
           dependencies: |
@@ -112,7 +112,7 @@ jobs:
             prettier
 
       - name: ♻️ NX cache
-        if: steps.installed-dependencies.outputs.nx == 'true'
+        if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).nx == true
         uses: actions/cache@v3.3.1
         with:
           path: node_modules/.cache/nx
@@ -121,7 +121,7 @@ jobs:
             ${{ runner.os }}-cache-nx-
 
       - name: ♻️ Prettier cache
-        if: steps.installed-dependencies.outputs.prettier == 'true'
+        if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).prettier == true
         uses: actions/cache@v3.3.1
         with:
           path: node_modules/.cache/prettier
@@ -157,7 +157,7 @@ jobs:
       - id: setup-node
         uses: ./self-workflow/actions/setup-node
 
-      - id: installed-dependencies
+      - id: has-installed-dependencies
         uses: ./self-workflow/actions/has-installed-dependencies
         with:
           dependencies: |
@@ -166,7 +166,7 @@ jobs:
             storybook
 
       - name: ♻️ Gatsby cache
-        if: steps.installed-dependencies.outputs.gatsby == 'true'
+        if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).gatsby == true
         uses: actions/cache@v3.3.1
         with:
           path: |
@@ -177,7 +177,7 @@ jobs:
             ${{ runner.os }}-cache-gatsby-
 
       - name: ♻️ Storybook cache
-        if: steps.installed-dependencies.outputs.storybook == 'true'
+        if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).storybook == true
         uses: actions/cache@v3.3.1
         with:
           path: node_modules/.cache/storybook
@@ -225,7 +225,7 @@ jobs:
       - id: setup-node
         uses: ./self-workflow/actions/setup-node
 
-      - id: installed-dependencies
+      - id: has-installed-dependencies
         uses: ./self-workflow/actions/has-installed-dependencies
         with:
           dependencies: |
@@ -233,7 +233,7 @@ jobs:
 
       - name: ♻️ Get Jest cache dir
         id: jest-cache-dir-path
-        if: steps.installed-dependencies.outputs.jest == 'true'
+        if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).jest == true
         run: |
           JEST_CACHE_DIR=$(${{ steps.setup-node.outputs.run-script-command }} jest --showConfig | grep -oP '(?<="cacheDirectory": ")[^"]+(?=")')
           echo "dir=$JEST_CACHE_DIR" >> "$GITHUB_OUTPUT"

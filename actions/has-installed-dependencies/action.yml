@@ -13,7 +13,7 @@ inputs:
 outputs:
   installed-dependencies:
     description: "A map of dependencies and the status weither they have been installed or not."
-    value: ${{ steps.has-dependencies.outputs.has-dependencies }}
+    value: ${{ steps.has-dependencies.outputs.installed-dependencies }}
 
 runs:
   using: "composite"
@@ -35,31 +35,78 @@ runs:
       uses: actions/github-script@v6.4.1
       with:
         script: |
-          const dependenciesPatterns = {
-            nx: "nx@",
-            gatsby: "gatsby@",
-            storybook: "@storybook/[-a-z]*@",
-            prettier: "prettier@",
-          }
+          const dependenciesPatterns = {            
+            storybook: /@storybook\/[-a-z]+/,
+            nx: /@nx\/[-a-z]+/,
+          };
 
-          const dependencies = `${{ inputs.dependencies }}`.split('\n').map(x => x.trim()).filter(x => x !== '')
+          const dependencies = `${{ inputs.dependencies }}`.split('\n').map(x => x.trim()).filter(x => x !== '');
 
-          const installedDependencies = new Map();
+          const hasDependencies = Object.fromEntries(dependencies.map(dependency => [dependency, false]));
 
-          for (const dependency of dependencies) {
-            
-            let command = `${{ steps.get-package-manager.outputs.package-manager }} list --depth=1" --pattern "${dependency}"`;
+          const setHasDependencies = (dependency) => {
+            for (const dependencyName of Object.keys(hasDependencies)) {
+              if (hasDependencies[dependencyName]) {
+                continue;
+              }
 
-            const dependencyPattern = dependenciesPatterns[dependency];
-            if (!dependencyPattern) {
-              command += ` | grep "${dependencyPattern}"`;
+              if (dependencyName === dependency) {
+                hasDependencies[dependencyName] = true;
+                continue;
+              }
+
+              if (dependenciesPatterns[dependencyName] && dependenciesPatterns[dependencyName].test(dependency)) {
+                hasDependencies[dependencyName] = true;
+                continue;
+              }
             }
+          };
 
-            command += ` && echo "true" || echo "false"`;
-           
-            const { stdout } = await exec.getExecOutput(command);
+          const parseNpmDependencies = (dependencies) => {
+            for (const dependencyName of Object.keys(dependencies)) {
+              const dependency = dependencies[dependencyName];
+              setHasDependencies(dependencyName);
 
-            installedDependencies.set(dependency, stdout === 'true');
-          }
+              if (Object.values(hasDependencies).every(Boolean)) {
+                break;
+              }
 
-          core.setOutput('installed-dependencies', installedDependencies);
+              if (dependency.dependencies) {
+                parseNpmDependencies(dependency.dependencies);
+              }
+            }
+          };
+
+          const parseYarnDependencies = (dependencies) => {
+            for (const dependency of dependencies.data.trees) {
+
+              const dependencyName = dependency.name.split('@').slice(0, -1).join('@');
+              setHasDependencies(dependencyName);
+
+              if (Object.values(hasDependencies).every(Boolean)) {
+                break;
+              }
+            }
+          };
+
+          const parseDependencies = async () => {
+            const { stdout } = await exec.getExecOutput(
+              `${{ steps.get-package-manager.outputs.package-manager }} list --depth=1 --json --no-progress --pattern="${dependencies.join('|')}" --non-interactive`
+            );
+
+            const allInstalledDependencies = JSON.parse(stdout);
+
+            switch (`${{ steps.get-package-manager.outputs.package-manager }}`) {
+              case 'npm':
+                parseNpmDependencies(allInstalledDependencies.dependencies);
+                break;
+
+              case 'yarn':
+                parseYarnDependencies(allInstalledDependencies);
+                break;
+            }
+          };
+
+          await parseDependencies();
+
+          core.setOutput('installed-dependencies', hasDependencies);

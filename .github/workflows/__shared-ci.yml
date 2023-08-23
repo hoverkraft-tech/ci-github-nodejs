@@ -12,6 +12,11 @@ jobs:
     needs: linter
     uses: ./.github/workflows/__test-action-get-package-manager.yml
 
+  test-action-has-installed-dependencies:
+    name: Test action "has-installed-dependencies"
+    needs: linter
+    uses: ./.github/workflows/__test-action-has-installed-dependencies.yml
+
   test-action-setup-node:
     name: Test action "setup-node"
     needs: linter
