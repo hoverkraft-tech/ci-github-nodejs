@@ -11,7 +11,15 @@ Opinionated GitHub actions and workflows for continuous integration in NodeJs co
 
 ## Actions
 
+### - [Get package manager](actions/get-package-manager/README.md)
+
+### - [Has installed dependencies](actions/has-installed-dependencies/README.md)
+
+### - [Setup node](actions/setup-node/README.md)
+
 ## Workflows
+
+### - [Continuous Integration](.github/workflows/continuous-integration.md)
 
 ## Contributing
 
