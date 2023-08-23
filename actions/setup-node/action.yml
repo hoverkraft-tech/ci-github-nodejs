@@ -1,0 +1,62 @@
+name: "Setup NodeJS"
+description: "Action to setup NodeJS and install dependencies according to the package manager used."
+author: Hoverkraft
+branding:
+  icon: settings
+  color: gray-dark
+
+outputs:
+  run-script-command:
+    description: "The command to run a script in the package.json file"
+    value: ${{ steps.prepare-variables.outputs.run-script-command }}
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+      run: mkdir -p ./self-actions/ && cp -r $GITHUB_ACTION_PATH/../* ./self-actions/
+
+    - id: get-package-manager
+      if: inputs.package-manager == ''
+      uses: ./self-actions/get-package-manager
+
+    - shell: bash
+      # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+      run: |
+        rm -fr ./self-actions
+
+    - id: prepare-variables
+      shell: bash
+      run: |
+        PACKAGE_MANAGER="${{ steps.get-package-manager.outputs.package-manager }}"
+
+        # Yarn
+        if [[ "$PACKAGE_MANAGER" == "yarn" ]]; then
+          echo "cache-dependency-path=**/yarn.lock" >> $GITHUB_OUTPUT
+          echo "install-command=yarn install --frozen-lockfile" >> $GITHUB_OUTPUT
+          echo "run-script-command=yarn" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # NPM
+        if [[ "$PACKAGE_MANAGER" == "npm" ]]; then
+          echo "cache-dependency-path=**/package-lock.json" >> $GITHUB_OUTPUT
+          echo "install-command=npm ci" >> $GITHUB_OUTPUT
+          echo "run-script-command=npm run" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Node version file
+        if [ -f ".nvmrc" ]; then
+          echo "node-version-file=.nvmrc" >> $GITHUB_OUTPUT          
+          exit 0
+        fi
+
+    - uses: actions/setup-node@v3.6.0
+      with:
+        node-version-file: ${{ steps.get-package-manager.outputs.node-version-file }}
+        cache: ${{ steps.get-package-manager.outputs.package-manager }}
+        cache-dependency-path: ${{ steps.prepare-variables.outputs.cache-dependency-path }}
+
+    - shell: bash
+      run: ${{ steps.prepare-variables.outputs.install-command }}

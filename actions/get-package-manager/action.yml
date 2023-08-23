@@ -1,0 +1,32 @@
+name: "Get package manager"
+description: "Action to detect the package manager used. Supports Yarn and NPM"
+author: Hoverkraft
+branding:
+  icon: package
+  color: gray-dark
+
+outputs:
+  package-manager:
+    description: "The package manager used"
+    value: ${{ steps.get-package-manager.outputs.package-manager }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: get-package-manager
+      shell: bash
+      run: |
+        # Yarn
+        if [[ -f "yarn.lock" ]]; then
+          echo "package-manager=yarn" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # NPM
+        if [[ -f "package-lock.json" ]]; then
+          echo "package-manager=npm" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        echo "Unable to detect package manager"
+        exit 1

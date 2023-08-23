@@ -1,0 +1,8 @@
+name: Internal - Test Continuous integration workflow
+
+on:
+  workflow_call:
+
+jobs:
+  tests:
+    uses: ./.github/workflows/continuous-integration.yml

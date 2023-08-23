@@ -1,0 +1,46 @@
+name: Internal - Tests for "setup-node" action
+
+on:
+  workflow_call:
+
+jobs:
+  test-yarn:
+    name: Tests with Yarn package manager
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: |
+          touch yarn.lock
+          echo "lts/*" > .nvmrc
+
+      - id: setup-node
+        uses: ./actions/setup-node
+
+      - name: Check "setup-node" outputs
+        run: |
+          if [ "${{ steps.setup-node.outputs.run-script-command }}" != 'yarn' ]; then
+            echo "setup-node outputs result is not valid"
+            exit 1
+          fi
+
+  test-npm:
+    name: Tests with Npm package manager
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: |
+          rm -f yarn.lock
+          echo "{}" > package-lock.json
+          echo "lts/*" > .nvmrc
+
+      - id: setup-node
+        uses: ./actions/setup-node
+
+      - name: Check "setup-node" outputs
+        run: |
+          if [ "${{ steps.setup-node.outputs.run-script-command }}" != 'npm run' ]; then
+            echo "setup-node outputs result is not valid"
+            exit 1
+          fi

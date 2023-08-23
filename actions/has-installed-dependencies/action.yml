@@ -1,0 +1,65 @@
+name: "Has installed dependencies"
+description: "Action to check if dependencies have been installed according to the package manager used."
+author: Hoverkraft
+branding:
+  icon: settings
+  color: gray-dark
+
+inputs:
+  dependencies:
+    description: "The dependencies to check."
+    required: true
+
+outputs:
+  installed-dependencies:
+    description: "A map of dependencies and the status weither they have been installed or not."
+    value: ${{ steps.has-dependencies.outputs.has-dependencies }}
+
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+      run: mkdir -p ./self-actions/ && cp -r $GITHUB_ACTION_PATH/../* ./self-actions/
+
+    - id: get-package-manager
+      if: inputs.package-manager == ''
+      uses: ./self-actions/get-package-manager
+
+    - shell: bash
+      # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+      run: |
+        rm -fr ./self-actions
+
+    - id: has-dependencies
+      uses: actions/github-script@v6.4.1
+      with:
+        script: |
+          const dependenciesPatterns = {
+            nx: "nx@",
+            gatsby: "gatsby@",
+            storybook: "@storybook/[-a-z]*@",
+            prettier: "prettier@",
+          }
+
+          const dependencies = `${{ inputs.dependencies }}`.split('\n').map(x => x.trim()).filter(x => x !== '')
+
+          const installedDependencies = new Map();
+
+          for (const dependency in dependencies) {
+            
+            let command = `${{ steps.get-package-manager.outputs.package-manager }} list --depth=1" --pattern "${dependency}"`;
+
+            const dependencyPattern = dependenciesPatterns[dependency];
+            if (!dependencyPattern) {
+              command += ` | grep "${dependencyPattern}"`;
+            }
+
+            command += ` && echo "true" || echo "false"`;
+           
+            const { stdout } = await exec.getExecOutput(command);
+
+            installedDependencies.set(dependency, stdout === 'true');
+          }
+
+          core.setOutput('installed-dependencies', installedDependencies);
