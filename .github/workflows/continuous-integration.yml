@@ -1,0 +1,256 @@
+# NodeJS Continuous Integration
+# ==========================
+# Workflow to performs continuous integration steps agains a NodeJs project:
+# - CodeQL analysis
+# - Linting
+# - Build
+# - Test
+
+name: NodeJS Continuous Integration
+
+on:
+  workflow_call:
+    inputs:
+      build:
+        description: Build parameters. Must be a string or a json object.
+        type: string
+        required: false
+        default: "build"
+      checks:
+        description: "Optional flag to enable check steps."
+        type: boolean
+        required: false
+        default: true
+      lint:
+        description: "Optional flag to enable linting"
+        type: boolean
+        required: false
+        default: true
+      code-ql:
+        description: "Code QL analysis language. See https://github.com/github/codeql-action"
+        type: string
+        required: false
+        default: "typescript"
+      test:
+        description: "Optional flag to enable test."
+        type: boolean
+        required: false
+        default: true
+      coverage:
+        description: "Specifify code coverage reporter. Supported values: 'codecov'"
+        type: string
+        required: false
+        default: "codecov"
+
+jobs:
+  code-ql:
+    name: 🛡️ CodeQL Analysis
+    if: inputs.checks == true && inputs.code-ql != ''
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.7.1
+      - uses: github/codeql-action/init@v2.20.1
+        with:
+          languages: ${{ inputs.code-ql }}
+      - uses: github/codeql-action/analyze@v2.20.1
+
+  setup:
+    name: ⚙️ Setup
+    runs-on: "ubuntu-latest"
+    # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+      # jscpd:ignore-start
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.7.1
+
+      - id: oidc
+        uses: ChristopherHX/oidc@v2
+      - uses: actions/checkout@v3 # checks out called workflow
+        with:
+          path: ./self-workflow
+          repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
+          ref: ${{ steps.oidc.outputs.job_workflow_repo_ref }}
+      # jscpd:ignore-end
+
+      - id: setup-node
+        uses: ./self-workflow/actions/setup-node
+
+  lint:
+    name: 👕 Lint
+    if: inputs.checks == true && inputs.lint != false
+    runs-on: "ubuntu-latest"
+    needs: setup
+    # jscpd:ignore-start
+    # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.7.1
+
+      - id: oidc
+        uses: ChristopherHX/oidc@v2
+      - uses: actions/checkout@v3 # checks out called workflow
+        with:
+          path: ./self-workflow
+          repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
+          ref: ${{ steps.oidc.outputs.job_workflow_repo_ref }}
+      # jscpd:ignore-end
+
+      - id: setup-node
+        uses: ./self-workflow/actions/setup-node
+
+      - id: installed-dependencies
+        uses: ./self-workflow/actions/has-installed-dependencies
+        with:
+          dependencies: |
+            nx
+            prettier
+
+      - name: ♻️ NX cache
+        if: steps.installed-dependencies.outputs.nx == 'true'
+        uses: actions/cache@v3.3.1
+        with:
+          path: node_modules/.cache/nx
+          key: ${{ runner.os }}-cache-nx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-cache-nx-
+
+      - name: ♻️ Prettier cache
+        if: steps.installed-dependencies.outputs.prettier == 'true'
+        uses: actions/cache@v3.3.1
+        with:
+          path: node_modules/.cache/prettier
+          key: ${{ runner.os }}-cache-prettier-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-cache-prettier-
+
+      - run: ${{ steps.setup-node.outputs.run-script-command }} lint
+
+  build:
+    name: 🏗️ Build
+    if: inputs.checks == true && inputs.build != ''
+    runs-on: "ubuntu-latest"
+    needs: setup
+    # jscpd:ignore-start
+    # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.7.1
+
+      - id: oidc
+        uses: ChristopherHX/oidc@v2
+      - uses: actions/checkout@v3 # checks out called workflow
+        with:
+          path: ./self-workflow
+          repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
+          ref: ${{ steps.oidc.outputs.job_workflow_repo_ref }}
+      # jscpd:ignore-end
+
+      - id: setup-node
+        uses: ./self-workflow/actions/setup-node
+
+      - id: installed-dependencies
+        uses: ./self-workflow/actions/has-installed-dependencies
+        with:
+          dependencies: |
+            nx
+            gatsby
+            storybook
+
+      - name: ♻️ Gatsby cache
+        if: steps.installed-dependencies.outputs.gatsby == 'true'
+        uses: actions/cache@v3.3.1
+        with:
+          path: |
+            .cache
+            public
+          key: ${{ runner.os }}-cache-gatsby-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-cache-gatsby-
+
+      - name: ♻️ Storybook cache
+        if: steps.installed-dependencies.outputs.storybook == 'true'
+        uses: actions/cache@v3.3.1
+        with:
+          path: node_modules/.cache/storybook
+          key: ${{ runner.os }}-cache-storybook-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-cache-storybook-
+
+      - run: |
+          BUILD_COMMANDS="${{ inputs.build }}"
+
+          echo "$BUILD_COMMANDS" | while IFS= read -r COMMAND ; do
+              # Trim whitespace
+              COMMAND=$(echo "$COMMAND" | xargs)
+
+              # Skip empty lines
+              if [ -z "$COMMAND" ]; then
+                  continue
+              fi
+
+              echo -e "\n - Running $COMMAND"
+              yarn "$COMMAND"
+          done
+
+  test:
+    name: 🧪 Test
+    if: inputs.checks == true && inputs.test == true
+    runs-on: "ubuntu-latest"
+    needs: setup
+    # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.7.1
+
+      - id: oidc
+        uses: ChristopherHX/oidc@v2
+      - uses: actions/checkout@v3 # checks out called workflow
+        with:
+          path: ./self-workflow
+          repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
+          ref: ${{ steps.oidc.outputs.job_workflow_repo_ref }}
+
+      - id: setup-node
+        uses: ./self-workflow/actions/setup-node
+
+      - id: installed-dependencies
+        uses: ./self-workflow/actions/has-installed-dependencies
+        with:
+          dependencies: |
+            jest
+
+      - name: ♻️ Get Jest cache dir
+        id: jest-cache-dir-path
+        if: steps.installed-dependencies.outputs.jest == 'true'
+        run: |
+          JEST_CACHE_DIR=$(${{ steps.setup-node.outputs.run-script-command }} jest --showConfig | grep -oP '(?<="cacheDirectory": ")[^"]+(?=")')
+          echo "dir=$JEST_CACHE_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: ♻️ Test cache
+        if: steps.jest-cache-dir-path.outputs.dir
+        uses: actions/cache@v3.3.1
+        with:
+          path: ${{ steps.jest-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-test-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-test-
+
+      - run: ${{ steps.setup-node.outputs.run-script-command }} test:ci
+        env:
+          CI: "true"
+
+      - name: 📊 Code coverage
+        if: inputs.coverage == 'codecov'
+        uses: codecov/codecov-action@v3.1.4

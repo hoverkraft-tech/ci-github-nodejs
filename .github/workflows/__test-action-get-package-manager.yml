@@ -1,0 +1,43 @@
+name: Internal - Tests for "get-package-manager" action
+
+on:
+  workflow_call:
+
+jobs:
+  test-yarn:
+    name: Tests with Yarn package manager
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: touch yarn.lock
+
+      - id: get-package-manager
+        uses: ./actions/get-package-manager
+
+      - name: Check "get-package-manager" outputs
+        run: |
+          if [ "${{ steps.get-package-manager.outputs.package-manager }}" != 'yarn' ]; then
+            echo "get-package-manager outputs result is not valid"
+            exit 1
+          fi
+
+  test-npm:
+    name: Tests with Npm package manager
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: |
+          rm -f yarn.lock
+          touch package-lock.json
+
+      - id: get-package-manager
+        uses: ./actions/get-package-manager
+
+      - name: Check "get-package-manager" outputs
+        run: |
+          if [ "${{ steps.get-package-manager.outputs.package-manager }}" != 'npm' ]; then
+            echo "get-package-manager outputs result is not valid"
+            exit 1
+          fi
