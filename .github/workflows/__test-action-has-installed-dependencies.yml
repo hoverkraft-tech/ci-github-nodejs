@@ -1,0 +1,108 @@
+name: Internal - Tests for "has-installed-dependencies" action
+
+on:
+  workflow_call:
+
+jobs:
+  test-yarn:
+    name: Tests with Yarn package manager
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: rm -f package-lock.json
+
+      - uses: ./actions/setup-node
+
+      - id: has-installed-dependencies
+        uses: ./actions/has-installed-dependencies
+        with:
+          dependencies: |
+            nx
+            gatsby
+            storybook
+            prettier
+            unknown
+
+      - name: Check "has-installed-dependencies" outputs
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const assert = require("assert");
+
+            const installedDependenciesOutput = `${{ steps.has-installed-dependencies.outputs.installed-dependencies }}`;
+            assert(installedDependenciesOutput.length, `"installed-dependencies" output is empty`);
+
+            // Check if is valid Json
+            let installedDependencies = null;
+            try {
+              installedDependencies = JSON.parse(installedDependenciesOutput);
+            } catch (error) {
+              throw new Error(`"installed-dependencies" output is not a valid JSON: ${error}`);
+            }
+
+            const expectedResult = {
+              nx: true,
+              gatsby: true,
+              storybook: true,
+              prettier: true,
+              unknown: false,
+            };
+
+            assert.equal(
+              installedDependencies,
+              expectedResult,
+              `"installed-dependencies" output is not valid`
+            );
+
+  test-npm:
+    name: Tests with Npm package manager
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: rm -f yarn.lock
+
+      - id: has-installed-dependencies
+        uses: ./actions/has-installed-dependencies
+        with:
+          dependencies: |
+            nx
+            gatsby
+            storybook
+            prettier
+            unknown
+
+      - name: Check "has-installed-dependencies" outputs
+        uses: actions/github-script@v6
+        with:
+          script: |
+            // jscpd:ignore-start
+            const assert = require("assert");
+
+            const installedDependenciesOutput = `${{ steps.has-installed-dependencies.outputs.installed-dependencies }}`;
+            assert(installedDependenciesOutput.length, `"installed-dependencies" output is empty`);
+
+            // Check if is valid Json
+            let installedDependencies = null;
+            try {
+              installedDependencies = JSON.parse(installedDependenciesOutput);
+            } catch (error) {
+              throw new Error(`"installed-dependencies" output is not a valid JSON: ${error}`);
+            }
+
+            const expectedResult = {
+              nx: true,
+              gatsby: true,
+              storybook: true,
+              prettier: true,
+              unknown: false,
+            };
+
+            assert.equal(
+              installedDependencies,
+              expectedResult,
+              `"installed-dependencies" output is not valid`
+            );
+
+            // jscpd:ignore-end
