@@ -68,7 +68,7 @@ jobs:
 
       - id: oidc
         uses: ChristopherHX/oidc@v2
-      - uses: actions/checkout@v3 # checks out called workflow
+      - uses: actions/checkout@v4 # checks out called workflow
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
@@ -94,7 +94,7 @@ jobs:
 
       - id: oidc
         uses: ChristopherHX/oidc@v2
-      - uses: actions/checkout@v3 # checks out called workflow
+      - uses: actions/checkout@v4 # checks out called workflow
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
@@ -147,7 +147,7 @@ jobs:
 
       - id: oidc
         uses: ChristopherHX/oidc@v2
-      - uses: actions/checkout@v3 # checks out called workflow
+      - uses: actions/checkout@v4 # checks out called workflow
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
@@ -216,7 +216,7 @@ jobs:
 
       - id: oidc
         uses: ChristopherHX/oidc@v2
-      - uses: actions/checkout@v3 # checks out called workflow
+      - uses: actions/checkout@v4 # checks out called workflow
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
