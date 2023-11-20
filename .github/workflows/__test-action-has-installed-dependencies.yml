@@ -25,7 +25,7 @@ jobs:
             unknown
 
       - name: Check "has-installed-dependencies" outputs
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             const assert = require("assert");
@@ -76,7 +76,7 @@ jobs:
             unknown
 
       - name: Check "has-installed-dependencies" outputs
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             // jscpd:ignore-start
