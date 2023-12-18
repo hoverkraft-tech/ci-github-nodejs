@@ -52,7 +52,7 @@ runs:
           exit 0
         fi
 
-    - uses: actions/setup-node@v4.0.0
+    - uses: actions/setup-node@v4.0.1
       with:
         node-version-file: ${{ steps.get-package-manager.outputs.node-version-file }}
         cache: ${{ steps.get-package-manager.outputs.package-manager }}
