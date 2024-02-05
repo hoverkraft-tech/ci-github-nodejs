@@ -67,7 +67,7 @@ jobs:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.11.2
 
       - id: oidc
-        uses: ChristopherHX/oidc@v2
+        uses: ChristopherHX/oidc@v3
       - uses: actions/checkout@v4 # checks out called workflow
         with:
           path: ./self-workflow
@@ -93,7 +93,7 @@ jobs:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.11.2
 
       - id: oidc
-        uses: ChristopherHX/oidc@v2
+        uses: ChristopherHX/oidc@v3
       - uses: actions/checkout@v4 # checks out called workflow
         with:
           path: ./self-workflow
@@ -146,7 +146,7 @@ jobs:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.11.2
 
       - id: oidc
-        uses: ChristopherHX/oidc@v2
+        uses: ChristopherHX/oidc@v3
       - uses: actions/checkout@v4 # checks out called workflow
         with:
           path: ./self-workflow
@@ -215,7 +215,7 @@ jobs:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.11.2
 
       - id: oidc
-        uses: ChristopherHX/oidc@v2
+        uses: ChristopherHX/oidc@v3
       - uses: actions/checkout@v4 # checks out called workflow
         with:
           path: ./self-workflow
