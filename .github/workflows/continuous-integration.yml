@@ -41,6 +41,10 @@ on:
         type: string
         required: false
         default: "codecov"
+    secrets:
+      codecov-token:
+        description: "Codecov token. See [https://github.com/codecov/codecov-action](https://github.com/codecov/codecov-action)"
+        required: false
 
 jobs:
   code-ql:
@@ -321,3 +325,5 @@ jobs:
       - name: 📊 Code coverage
         if: inputs.coverage == 'codecov'
         uses: codecov/codecov-action@v4.0.1
+        with:
+          token: ${{ secrets.codecov-token }}

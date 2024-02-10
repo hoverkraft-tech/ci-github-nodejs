@@ -26,3 +26,4 @@ jobs:
     name: Test workflow "continuous-integration"
     needs: linter
     uses: ./.github/workflows/__test-workflow-continuous-integration.yml
+    secrets: inherit
