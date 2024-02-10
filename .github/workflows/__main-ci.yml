@@ -5,6 +5,10 @@ on:
     branches: [main]
     tags: ["*"]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ci:
     uses: ./.github/workflows/__shared-ci.yml
