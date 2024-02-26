@@ -54,7 +54,7 @@ jobs:
       security-events: write
     runs-on: "ubuntu-latest"
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.12.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.12.1
       - uses: github/codeql-action/init@v3.24.5
         with:
           languages: ${{ inputs.code-ql }}
@@ -73,7 +73,7 @@ jobs:
     steps:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       # jscpd:ignore-start
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.12.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.12.1
 
       - id: oidc
         uses: ChristopherHX/oidc@v3
@@ -147,7 +147,7 @@ jobs:
       id-token: write
     steps:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.12.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.12.1
 
       - id: oidc
         uses: ChristopherHX/oidc@v3
@@ -200,7 +200,7 @@ jobs:
       id-token: write
     steps:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.12.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.12.1
 
       - id: oidc
         uses: ChristopherHX/oidc@v3
@@ -277,7 +277,7 @@ jobs:
       id-token: write
     steps:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.12.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.12.1
 
       - if: needs.setup.outputs.build-artifact
         uses: actions/download-artifact@v4
