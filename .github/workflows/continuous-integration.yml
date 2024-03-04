@@ -324,6 +324,6 @@ jobs:
 
       - name: 📊 Code coverage
         if: inputs.coverage == 'codecov'
-        uses: codecov/codecov-action@v4.0.2
+        uses: codecov/codecov-action@v4.1.0
         with:
           token: ${{ secrets.codecov-token }}
