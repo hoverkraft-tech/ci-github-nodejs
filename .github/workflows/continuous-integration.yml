@@ -170,7 +170,7 @@ jobs:
 
       - name: ♻️ NX cache
         if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).nx == true
-        uses: actions/cache@v4.0.0
+        uses: actions/cache@v4.0.1
         with:
           path: node_modules/.cache/nx
           key: ${{ runner.os }}-cache-nx-${{ github.sha }}
@@ -179,7 +179,7 @@ jobs:
 
       - name: ♻️ Prettier cache
         if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).prettier == true
-        uses: actions/cache@v4.0.0
+        uses: actions/cache@v4.0.1
         with:
           path: node_modules/.cache/prettier
           key: ${{ runner.os }}-cache-prettier-${{ github.sha }}
@@ -224,7 +224,7 @@ jobs:
 
       - name: ♻️ Gatsby cache
         if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).gatsby == true
-        uses: actions/cache@v4.0.0
+        uses: actions/cache@v4.0.1
         with:
           path: |
             .cache
@@ -235,7 +235,7 @@ jobs:
 
       - name: ♻️ Storybook cache
         if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).storybook == true
-        uses: actions/cache@v4.0.0
+        uses: actions/cache@v4.0.1
         with:
           path: node_modules/.cache/storybook
           key: ${{ runner.os }}-cache-storybook-${{ github.sha }}
@@ -311,7 +311,7 @@ jobs:
 
       - name: ♻️ Test cache
         if: steps.jest-cache-dir-path.outputs.dir
-        uses: actions/cache@v4.0.0
+        uses: actions/cache@v4.0.1
         with:
           path: ${{ steps.jest-cache-dir-path.outputs.dir }}
           key: ${{ runner.os }}-test-${{ github.sha }}
