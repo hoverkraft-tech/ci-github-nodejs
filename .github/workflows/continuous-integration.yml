@@ -55,10 +55,10 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.12.1
-      - uses: github/codeql-action/init@v3.24.6
+      - uses: github/codeql-action/init@v3.24.8
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@v3.24.6
+      - uses: github/codeql-action/analyze@v3.24.8
 
   setup:
     name: ⚙️ Setup
