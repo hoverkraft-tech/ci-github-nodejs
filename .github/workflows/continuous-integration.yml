@@ -160,33 +160,14 @@ jobs:
 
       - id: setup-node
         uses: ./self-workflow/actions/setup-node
-
-      - id: has-installed-dependencies
-        uses: ./self-workflow/actions/has-installed-dependencies
         with:
-          dependencies: |
+          dependencies-cache: |
             nx
             prettier
 
-      - name: ♻️ NX cache
-        if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).nx == true
-        uses: actions/cache@v4.0.1
-        with:
-          path: node_modules/.cache/nx
-          key: ${{ runner.os }}-cache-nx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-cache-nx-
-
-      - name: ♻️ Prettier cache
-        if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).prettier == true
-        uses: actions/cache@v4.0.1
-        with:
-          path: node_modules/.cache/prettier
-          key: ${{ runner.os }}-cache-prettier-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-cache-prettier-
-
       - run: ${{ steps.setup-node.outputs.run-script-command }} lint
+        env:
+          NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
   build:
     name: 🏗️ Build
@@ -213,43 +194,11 @@ jobs:
 
       - id: setup-node
         uses: ./self-workflow/actions/setup-node
-
-      - id: has-installed-dependencies
-        uses: ./self-workflow/actions/has-installed-dependencies
         with:
-          dependencies: |
+          dependencies-cache: |
             nx
             gatsby
             storybook
-
-      - name: ♻️ NX cache
-        if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).nx == true
-        uses: actions/cache@v4.0.1
-        with:
-          path: .nx/cache
-          key: ${{ runner.os }}-cache-nx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-cache-nx-
-
-      - name: ♻️ Gatsby cache
-        if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).gatsby == true
-        uses: actions/cache@v4.0.1
-        with:
-          path: |
-            .cache
-            public
-          key: ${{ runner.os }}-cache-gatsby-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-cache-gatsby-
-
-      - name: ♻️ Storybook cache
-        if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).storybook == true
-        uses: actions/cache@v4.0.1
-        with:
-          path: node_modules/.cache/storybook
-          key: ${{ runner.os }}-cache-storybook-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-cache-storybook-
 
       - run: |
           BUILD_COMMANDS="${{ needs.setup.outputs.build-commands }}"
@@ -266,6 +215,8 @@ jobs:
               echo -e "\n - Running $COMMAND"
               ${{ steps.setup-node.outputs.run-script-command }} "$COMMAND"
           done
+        env:
+          NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
       - if: needs.setup.outputs.build-artifact
         uses: actions/upload-artifact@v4
@@ -304,32 +255,15 @@ jobs:
 
       - id: setup-node
         uses: ./self-workflow/actions/setup-node
-
-      - id: has-installed-dependencies
-        uses: ./self-workflow/actions/has-installed-dependencies
         with:
-          dependencies: |
+          dependencies-cache: |
+            nx
             jest
-
-      - name: ♻️ Get Jest cache dir
-        id: jest-cache-dir-path
-        if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).jest == true
-        run: |
-          JEST_CACHE_DIR=$(${{ steps.setup-node.outputs.run-script-command }} jest --showConfig | grep -oP '(?<="cacheDirectory": ")[^"]+(?=")')
-          echo "dir=$JEST_CACHE_DIR" >> "$GITHUB_OUTPUT"
-
-      - name: ♻️ Test cache
-        if: steps.jest-cache-dir-path.outputs.dir
-        uses: actions/cache@v4.0.1
-        with:
-          path: ${{ steps.jest-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-test-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-test-
 
       - run: ${{ steps.setup-node.outputs.run-script-command }} test:ci
         env:
           CI: "true"
+          NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
       - name: 📊 Code coverage
         if: inputs.coverage == 'codecov'

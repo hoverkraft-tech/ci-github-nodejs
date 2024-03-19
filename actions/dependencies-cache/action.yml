@@ -1,0 +1,85 @@
+name: "Dependencies cache"
+description: "Action to setup dependencies cache managment."
+author: Hoverkraft
+branding:
+  icon: archive
+  color: gray-dark
+
+inputs:
+  dependencies:
+    description: "List of dependencies for which the cache should be managed."
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+      run: mkdir -p ./self-dependencies-cache-action/ && cp -r $GITHUB_ACTION_PATH/../* ./self-dependencies-cache-action/
+
+    - id: has-installed-dependencies
+      if: inputs.dependencies != ''
+      uses: ./self-dependencies-cache-action/has-installed-dependencies
+      with:
+        dependencies: ${{ inputs.dependencies }}
+
+    - name: ♻️ NX cache
+      if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).nx == true
+      uses: actions/cache@v4.0.1
+      with:
+        path: node_modules/.cache/nx
+        key: ${{ runner.os }}-cache-nx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-cache-nx-
+
+    - name: ♻️ Prettier cache
+      if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).prettier == true
+      uses: actions/cache@v4.0.1
+      with:
+        path: node_modules/.cache/prettier
+        key: ${{ runner.os }}-cache-prettier-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-cache-prettier-
+
+    - name: ♻️ Gatsby cache
+      if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).gatsby == true
+      uses: actions/cache@v4.0.1
+      with:
+        path: |
+          .cache
+          public
+        key: ${{ runner.os }}-cache-gatsby-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-cache-gatsby-
+
+    - name: ♻️ Storybook cache
+      if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).storybook == true
+      uses: actions/cache@v4.0.1
+      with:
+        path: node_modules/.cache/storybook
+        key: ${{ runner.os }}-cache-storybook-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-cache-storybook-
+
+    - name: ♻️ Get Jest cache dir
+      id: jest-cache-dir-path
+      if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).jest == true
+      shell: bash
+      run: |
+        JEST_CACHE_DIR=$(${{ steps.setup-node.outputs.run-script-command }} jest --showConfig | grep -oP '(?<="cacheDirectory": ")[^"]+(?=")')
+        echo "dir=$JEST_CACHE_DIR" >> "$GITHUB_OUTPUT"
+
+    - name: ♻️ Test cache
+      if: steps.jest-cache-dir-path.outputs.dir
+      uses: actions/cache@v4.0.1
+      with:
+        path: ${{ steps.jest-cache-dir-path.outputs.dir }}
+        key: ${{ runner.os }}-test-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-test-
+
+    # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+    - shell: bash
+      if: always()
+      run: |
+        rm -fr ./self-dependencies-cache-action
