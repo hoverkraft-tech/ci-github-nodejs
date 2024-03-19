@@ -222,6 +222,15 @@ jobs:
             gatsby
             storybook
 
+      - name: ♻️ NX cache
+        if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).nx == true
+        uses: actions/cache@v4.0.1
+        with:
+          path: .nx/cache
+          key: ${{ runner.os }}-cache-nx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-cache-nx-
+
       - name: ♻️ Gatsby cache
         if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).gatsby == true
         uses: actions/cache@v4.0.1
@@ -255,7 +264,7 @@ jobs:
               fi
 
               echo -e "\n - Running $COMMAND"
-              yarn "$COMMAND"
+              ${{ steps.setup-node.outputs.run-script-command }} "$COMMAND"
           done
 
       - if: needs.setup.outputs.build-artifact
@@ -283,7 +292,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: build
-          path: '/'
+          path: "/"
 
       - id: oidc
         uses: ChristopherHX/oidc@v3
