@@ -22,6 +22,8 @@ Action to check if dependencies have been installed according to the package man
 <!-- end usage -->
 <!-- start inputs -->
 
+## Inputs
+
 | **Input**                     | **Description**            | **Default** | **Required** |
 | ----------------------------- | -------------------------- | ----------- | ------------ |
 | **<code>dependencies</code>** | The dependencies to check. |             | **true**     |
@@ -29,9 +31,11 @@ Action to check if dependencies have been installed according to the package man
 <!-- end inputs -->
 <!-- start outputs -->
 
-| \***\*Output\*\***                  | \***\*Description\*\***                                                       | \***\*Default\*\*** | \***\*Required\*\*** |
-| ----------------------------------- | ----------------------------------------------------------------------------- | ------------------- | -------------------- |
-| <code>installed-dependencies</code> | A map of dependencies and the status weither they have been installed or not. | undefined           | undefined            |
+## Outputs
+
+| **Output**                          | **Description**                                                               | **Default** | **Required** |
+| ----------------------------------- | ----------------------------------------------------------------------------- | ----------- | ------------ |
+| <code>installed-dependencies</code> | A map of dependencies and the status weither they have been installed or not. | undefined   | undefined    |
 
 <!-- end outputs -->
 <!-- start [.github/ghadocs/examples/] -->
