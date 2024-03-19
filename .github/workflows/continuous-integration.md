@@ -108,7 +108,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: build
-          path: dist
+          path: /
 
       - name: Publish
         run: |

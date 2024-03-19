@@ -48,7 +48,7 @@ runs:
 
         # Node version file
         if [ -f ".nvmrc" ]; then
-          echo "node-version-file=.nvmrc" >> $GITHUB_OUTPUT          
+          echo "node-version-file=.nvmrc" >> $GITHUB_OUTPUT
           exit 0
         fi
 
