@@ -7,8 +7,17 @@ branding:
 
 outputs:
   package-manager:
-    description: "The package manager used"
+    description: "The package manager used."
     value: ${{ steps.get-package-manager.outputs.package-manager }}
+  cache-dependency-path:
+    description: "The path to the dependency file for cache management."
+    value: ${{ steps.get-package-manager.outputs.cache-dependency-path }}
+  install-command:
+    description: "The command to install dependencies."
+    value: ${{ steps.get-package-manager.outputs.install-command }}
+  run-script-command:
+    description: "The command to run a script in the package.json file."
+    value: ${{ steps.get-package-manager.outputs.run-script-command }}
 
 runs:
   using: "composite"
@@ -19,12 +28,18 @@ runs:
         # Yarn
         if [[ -f "yarn.lock" ]]; then
           echo "package-manager=yarn" >> $GITHUB_OUTPUT
+          echo "cache-dependency-path=**/yarn.lock" >> $GITHUB_OUTPUT
+          echo "install-command=yarn install --frozen-lockfile" >> $GITHUB_OUTPUT
+          echo "run-script-command=yarn" >> $GITHUB_OUTPUT
           exit 0
         fi
 
         # NPM
         if [[ -f "package-lock.json" ]]; then
           echo "package-manager=npm" >> $GITHUB_OUTPUT
+          echo "cache-dependency-path=**/package-lock.json" >> $GITHUB_OUTPUT
+          echo "install-command=npm ci" >> $GITHUB_OUTPUT
+          echo "run-script-command=npm run" >> $GITHUB_OUTPUT
           exit 0
         fi
 
