@@ -18,10 +18,11 @@ jobs:
         uses: ./actions/has-installed-dependencies
         with:
           dependencies: |
-            nx
             gatsby
-            storybook
+            jest
+            nx
             prettier
+            storybook
             unknown
 
       - name: Check "has-installed-dependencies" outputs
@@ -42,10 +43,11 @@ jobs:
             }
 
             const expectedResult = {
-              nx: true,
               gatsby: true,
-              storybook: true,
+              jest: true,
+              nx: true,
               prettier: true,
+              storybook: true,
               unknown: false,
             };
 

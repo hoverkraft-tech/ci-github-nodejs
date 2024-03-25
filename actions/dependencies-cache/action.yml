@@ -23,6 +23,10 @@ runs:
       with:
         dependencies: ${{ inputs.dependencies }}
 
+    - id: get-package-manager
+      if: inputs.package-manager == ''
+      uses: ./self-setup-node-action/get-package-manager
+
     - name: ♻️ NX cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).nx == true
       uses: actions/cache@v4.0.2
@@ -66,7 +70,7 @@ runs:
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).jest == true
       shell: bash
       run: |
-        JEST_CACHE_DIR=$(${{ steps.setup-node.outputs.run-script-command }} jest --showConfig | grep -oP '(?<="cacheDirectory": ")[^"]+(?=")')
+        JEST_CACHE_DIR=$(${{ steps.get-package-manager.outputs.run-script-command }} jest --showConfig | grep -oP '(?<="cacheDirectory": ")[^"]+(?=")')
         echo "dir=$JEST_CACHE_DIR" >> "$GITHUB_OUTPUT"
 
     - name: ♻️ Test cache
