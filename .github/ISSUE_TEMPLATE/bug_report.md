@@ -1,40 +1,40 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Create a bug report
 title: ""
-labels: ""
+labels: bug, needs triage
 assignees: ""
 ---
 
-**Describe the bug**
+<!--- Please direct any generic questions related to actions to our support community forum at https://github.community/c/code-to-cloud/github-actions/41 --->
+<!--- Before opening up a new bug report, please make sure to check for similar existing issues -->
+
+**Description:**
 A clear and concise description of what the bug is.
 
-**To Reproduce**
-Steps to reproduce the behavior:
+**Action version:**
+Specify the action version
 
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**Platform:**
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+- [ ] Ubuntu
+- [ ] macOS
+- [ ] Windows
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Runner type:**
 
-**Desktop (please complete the following information):**
+- [ ] Hosted
+- [ ] Self-hosted
 
-- OS: [e.g. iOS]
-- Browser [e.g. chrome, safari]
-- Version [e.g. 22]
+**Tools version:**
 
-**Mobile phone (please complete the following information):**
+<!--- Please specify versions of node and package manager (npm, yarn, pnpm and etc)-->
 
-- Device: [e.g. iPhone6]
-- OS: [e.g. iOS8.1]
-- Browser [e.g. stock browser, safari]
-- Version [e.g. 22]
+**Repro steps:**  
+A description with steps to reproduce the issue. If you have a public example or repository to share, please provide the link.
 
-**Additional context**
-Add any other context about the problem here.
+**Expected behavior:**
+A description of what you expected to happen.
+
+**Actual behavior:**
+A description of what is actually happening.

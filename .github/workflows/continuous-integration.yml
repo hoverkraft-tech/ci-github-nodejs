@@ -88,6 +88,7 @@ jobs:
         uses: ./self-workflow/actions/setup-node
 
       - id: build-variables
+        if: inputs.build != ''
         uses: actions/github-script@v7
         with:
           script: |
@@ -171,7 +172,7 @@ jobs:
 
   build:
     name: 🏗️ Build
-    if: inputs.checks == true && inputs.build != ''
+    if: inputs.checks == true && needs.setup.outputs.build-commands
     runs-on: "ubuntu-latest"
     needs: setup
     # jscpd:ignore-start
