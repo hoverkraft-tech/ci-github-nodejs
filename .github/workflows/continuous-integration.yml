@@ -22,12 +22,12 @@ on:
         required: false
         default: true
       lint:
-        description: "Optional flag to enable linting"
+        description: "Optional flag to enable linting."
         type: boolean
         required: false
         default: true
       code-ql:
-        description: "Code QL analysis language. See https://github.com/github/codeql-action"
+        description: "Code QL analysis language. See https://github.com/github/codeql-action."
         type: string
         required: false
         default: "typescript"
@@ -37,13 +37,13 @@ on:
         required: false
         default: true
       coverage:
-        description: "Specifify code coverage reporter. Supported values: 'codecov'"
+        description: "Specifify code coverage reporter. Supported values: 'codecov'."
         type: string
         required: false
         default: "codecov"
     secrets:
       codecov-token:
-        description: "Codecov token. See [https://github.com/codecov/codecov-action](https://github.com/codecov/codecov-action)"
+        description: "Codecov token. See https://github.com/codecov/codecov-action."
         required: false
 
 jobs:
