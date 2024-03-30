@@ -1,5 +1,17 @@
 version: 2
 updates:
+  - package-ecosystem: docker
+    open-pull-requests-limit: 20
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: friday
+      time: "04:00"
+    groups:
+      docker-dependencies:
+        patterns:
+          - "*"
+
   - package-ecosystem: github-actions
     directory: "/"
     open-pull-requests-limit: 20
