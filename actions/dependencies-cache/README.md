@@ -1,6 +1,6 @@
 <!-- start title -->
 
-# GitHub Action: Dependencies cache
+# <img src=".github/ghadocs/branding.svg" width="60px" align="center" alt="branding<icon:archive color:gray-dark>" /> GitHub Action: Dependencies cache
 
 <!-- end title -->
 <!-- start description -->
@@ -13,21 +13,19 @@ Action to setup dependencies cache managment.
 <!-- start usage -->
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/dependencies-cache@0.3.0
+- uses: hoverkraft-tech/ci-github-nodejs@0.4.2
   with:
-    dependencies: |
-      nx
-      jest
+    # Description: List of dependencies for which the cache should be managed.
+    #
+    dependencies: ""
 ```
 
 <!-- end usage -->
 <!-- start inputs -->
 
-## Inputs
-
-| **Input**                     | **Description**                                             | **Default** | **Required** |
-| ----------------------------- | ----------------------------------------------------------- | ----------- | ------------ |
-| **<code>dependencies</code>** | List of dependencies for which the cache should be managed. |             | **true**     |
+| **Input**                 | **Description**                                             | **Default** | **Required** |
+| ------------------------- | ----------------------------------------------------------- | ----------- | ------------ |
+| <code>dependencies</code> | List of dependencies for which the cache should be managed. |             | **true**     |
 
 <!-- end inputs -->
 <!-- start outputs -->
