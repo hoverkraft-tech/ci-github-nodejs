@@ -1,6 +1,6 @@
 <!-- start title -->
 
-# GitHub Action: Has installed dependencies
+# <img src=".github/ghadocs/branding.svg" width="60px" align="center" alt="branding<icon:settings color:gray-dark>" /> GitHub Action: Has installed dependencies
 
 <!-- end title -->
 <!-- start description -->
@@ -13,29 +13,26 @@ Action to check if dependencies have been installed according to the package man
 <!-- start usage -->
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/has-installed-dependencies@v0.1.0
+- uses: hoverkraft-tech/ci-github-nodejs@0.4.2
   with:
-    # The dependencies to check.
+    # Description: The dependencies to check.
+    #
     dependencies: ""
 ```
 
 <!-- end usage -->
 <!-- start inputs -->
 
-## Inputs
-
-| **Input**                     | **Description**            | **Default** | **Required** |
-| ----------------------------- | -------------------------- | ----------- | ------------ |
-| **<code>dependencies</code>** | The dependencies to check. |             | **true**     |
+| **Input**                 | **Description**            | **Default** | **Required** |
+| ------------------------- | -------------------------- | ----------- | ------------ |
+| <code>dependencies</code> | The dependencies to check. |             | **true**     |
 
 <!-- end inputs -->
 <!-- start outputs -->
 
-## Outputs
-
-| **Output**                          | **Description**                                                               | **Default** | **Required** |
-| ----------------------------------- | ----------------------------------------------------------------------------- | ----------- | ------------ |
-| <code>installed-dependencies</code> | A map of dependencies and the status weither they have been installed or not. | undefined   | undefined    |
+| **Output**                          | **Description**                                                               |
+| ----------------------------------- | ----------------------------------------------------------------------------- |
+| <code>installed-dependencies</code> | A map of dependencies and the status weither they have been installed or not. |
 
 <!-- end outputs -->
 <!-- start [.github/ghadocs/examples/] -->
