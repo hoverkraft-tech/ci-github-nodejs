@@ -27,24 +27,19 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  security-events: write
+  # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+  id-token: write
+
 jobs:
   continuous-integration:
     uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@0.4.2
-    permissions:
-      id-token: write
-      security-events: write
-      contents: read
 ```
 
 <!-- end usage -->
 <!-- start secrets -->
-
-## Secrets
-
-| **Secret**                     | **Description**                                                 | **Required** |
-| ------------------------------ | --------------------------------------------------------------- | ------------ |
-| **<code>codecov-token</code>** | Codecov token. See <https://github.com/codecov/codecov-action>. | **false**    |
-
 <!-- end secrets -->
 <!-- start inputs -->
 

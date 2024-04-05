@@ -3,6 +3,9 @@ name: Internal - Tests for "get-package-manager" action
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   test-yarn:
     name: Tests with Yarn package manager
