@@ -3,8 +3,12 @@ name: Internal - Test Continuous integration workflow
 on:
   workflow_call:
 
+permissions:
+  contents: read
+  security-events: write
+  # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+  id-token: write
+
 jobs:
   tests:
     uses: ./.github/workflows/continuous-integration.yml
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}

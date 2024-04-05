@@ -3,6 +3,9 @@ name: Internal - Tests for "has-installed-dependencies" action
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   test-yarn:
     name: Tests with Yarn package manager

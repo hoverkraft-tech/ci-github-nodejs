@@ -3,9 +3,16 @@ name: Internal - Common Continuous Integration tasks
 on:
   workflow_call:
 
+permissions:
+  contents: read
+  security-events: write
+  statuses: write
+  # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+  id-token: write
+
 jobs:
   linter:
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@0.12.1
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@0.13.1
 
   test-action-get-package-manager:
     name: Test action "get-package-manager"
