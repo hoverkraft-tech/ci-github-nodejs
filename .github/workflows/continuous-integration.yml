@@ -114,18 +114,11 @@ jobs:
                     .map(artifact => artifact.trim())
                     .filter(Boolean)
                     .map(artifact => {
-                      if (!artifact.includes('*')) {
-                        if (artifact.startsWith('/')) {
-                          return artifact;
-                        }
-
-                        return `${{ github.workspace }}/${artifact}`;
-                      }
-
                       // FIXME: Workaround to preserve full path to artifact
+                      const fullpath = artifact.startsWith('/') ? artifact : `${{ github.workspace }}/${artifact}`;
+
                       // Add a wildcard to the first folder of the path
-                      const workspace = `${{ github.workspace }}`.replace(/\/([^/]+)/, '/*$1');
-                      return `${workspace}/${artifact}`;
+                      return fullpath.replace(/\/([^/]+)/, '/*$1');
                     });
 
                   core.setOutput('artifact', sanitizedArtifacts.join('\n'));
