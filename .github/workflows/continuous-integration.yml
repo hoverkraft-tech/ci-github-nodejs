@@ -114,8 +114,12 @@ jobs:
                     .map(artifact => artifact.trim())
                     .filter(Boolean)
                     .map(artifact => {
-                      if(!artifact.includes('*')) {
-                        return artifact;
+                      if (!artifact.includes('*')) {
+                        if (artifact.startsWith('/')) {
+                          return artifact;
+                        }
+
+                        return `${{ github.workspace }}/${artifact}`;
                       }
 
                       // FIXME: Workaround to preserve full path to artifact
