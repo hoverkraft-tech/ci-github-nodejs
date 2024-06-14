@@ -57,10 +57,10 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.13.2
-      - uses: github/codeql-action/init@v3.25.8
+      - uses: github/codeql-action/init@v3.25.10
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@v3.25.8
+      - uses: github/codeql-action/analyze@v3.25.10
 
   setup:
     name: ⚙️ Setup
@@ -272,6 +272,6 @@ jobs:
 
       - name: 📊 Code coverage
         if: inputs.coverage == 'codecov'
-        uses: codecov/codecov-action@v4.4.1
+        uses: codecov/codecov-action@v4.5.0
         with:
           use_oidc: true
