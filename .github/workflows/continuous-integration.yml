@@ -56,11 +56,11 @@ jobs:
       security-events: write
     runs-on: "ubuntu-latest"
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.13.3
-      - uses: github/codeql-action/init@v3.25.10
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.14.0
+      - uses: github/codeql-action/init@v3.25.12
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@v3.25.10
+      - uses: github/codeql-action/analyze@v3.25.12
 
   setup:
     name: ⚙️ Setup
@@ -75,7 +75,7 @@ jobs:
     steps:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       # jscpd:ignore-start
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.13.3
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.14.0
 
       - id: oidc
         uses: ChristopherHX/oidc@v3
@@ -147,7 +147,7 @@ jobs:
       id-token: write
     steps:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.13.3
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.14.0
 
       - id: oidc
         uses: ChristopherHX/oidc@v3
@@ -181,7 +181,7 @@ jobs:
       id-token: write
     steps:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.13.3
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.14.0
         if: needs.setup.outputs.build-commands
 
       - id: oidc
@@ -242,7 +242,7 @@ jobs:
       id-token: write
     steps:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.13.3
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.14.0
 
       - if: needs.setup.outputs.build-artifact
         uses: actions/download-artifact@v4
