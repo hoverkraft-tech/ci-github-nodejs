@@ -27,10 +27,15 @@ on:
         required: false
         default: true
       code-ql:
-        description: "Code QL analysis language. See https://github.com/github/codeql-action."
+        description: "Code QL analysis language. See <https://github.com/github/codeql-action>."
         type: string
         required: false
         default: "typescript"
+      dependency-review:
+        description: "Enable dependency review scan. See <https://github.com/actions/dependency-review-action>."
+        type: boolean
+        required: false
+        default: true
       test:
         description: "Optional flag to enable test."
         type: boolean
@@ -61,6 +66,16 @@ jobs:
         with:
           languages: ${{ inputs.code-ql }}
       - uses: github/codeql-action/analyze@v3.25.14
+
+  dependency-review:
+    name: 🛡️ Dependency Review
+    if: github.event_name == 'pull_request' && inputs.checks == true && inputs.dependency-review
+    permissions:
+      contents: read
+    runs-on: "ubuntu-latest"
+    steps:      
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.14.0
+      - uses: actions/dependency-review-action@v4
 
   setup:
     name: ⚙️ Setup
