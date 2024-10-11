@@ -1,11 +1,11 @@
-# Continuous Integration - GitHub - NodeJS
+# Continuous Integration - GitHub - Node.js
 
 [![Continuous Integration](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/workflows/__main-ci.yml/badge.svg)](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/workflows/__main-ci.yml)
 [![GitHub tag](https://img.shields.io/github/tag/hoverkraft-tech/ci-github-nodejs?include_prereleases=&sort=semver&color=blue)](https://github.com/hoverkraft-tech/ci-github-nodejs/releases/)
 [![License](https://img.shields.io/badge/License-MIT-blue)](#license)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-Opinionated GitHub actions and workflows for continuous integration in NodeJs context
+Opinionated GitHub Actions and workflows for continuous integration in Node.js context
 
 ---
 
@@ -29,8 +29,8 @@ Opinionated GitHub actions and workflows for continuous integration in NodeJs co
 
 🏢 **Hoverkraft <contact@hoverkraft.cloud>**
 
-- Website: [https://hoverkraft.cloud](https://hoverkraft.cloud)
-- Github: [@hoverkraft-tech](https://github.com/hoverkraft-tech)
+- Site: [https://hoverkraft.cloud](https://hoverkraft.cloud)
+- GitHub: [@hoverkraft-tech](https://github.com/hoverkraft-tech)
 
 ## License
 

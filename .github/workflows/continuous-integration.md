@@ -1,11 +1,11 @@
 <!-- start title -->
 
-# GitHub Reusable Workflow: NodeJS Continuous Integration
+# GitHub Reusable Workflow: Node.js Continuous Integration
 
 <!-- end title -->
 <!-- start description -->
 
-Workflow to performs continuous integration steps agains a NodeJs project:
+Workflow to performs continuous integration steps agains a Node.js project:
 
 - CodeQL analysis
 - Linting
