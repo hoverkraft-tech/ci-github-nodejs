@@ -1,11 +1,11 @@
 <!-- start title -->
 
-# <img src=".github/ghadocs/branding.svg" width="60px" align="center" alt="branding<icon:settings color:gray-dark>" /> GitHub Action: Setup Node.js
+# <img src=".github/ghadocs/branding.svg" width="60px" align="center" alt="branding<icon:settings color:gray-dark>" /> GitHub Action: Setup NodeJS
 
 <!-- end title -->
 <!-- start description -->
 
-Action to setup Node.js and install dependencies according to the package manager used.
+Action to setup NodeJS and install dependencies according to the package manager used.
 
 <!-- end description -->
 <!-- start contents -->
@@ -13,7 +13,7 @@ Action to setup Node.js and install dependencies according to the package manage
 <!-- start usage -->
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs@0.6.0
+- uses: hoverkraft-tech/ci-github-nodejs@0.7.0
   with:
     # Description: List of dependencies for which the cache should be managed
     #
