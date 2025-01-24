@@ -13,7 +13,7 @@ Action to setup dependencies cache managment.
 <!-- start usage -->
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs@0.7.0
+- uses: hoverkraft-tech/ci-github-nodejs@0.8.0
   with:
     # Description: List of dependencies for which the cache should be managed.
     #
