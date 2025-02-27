@@ -13,7 +13,7 @@ Action to detect the package manager used. Supports Yarn and npm
 <!-- start usage -->
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs@0.8.0
+- uses: hoverkraft-tech/ci-github-nodejs@0.8.1
   with:
 ```
 
