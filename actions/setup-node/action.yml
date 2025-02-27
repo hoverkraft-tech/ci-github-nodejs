@@ -1,5 +1,5 @@
-name: "Setup NodeJS"
-description: "Action to setup NodeJS and install dependencies according to the package manager used."
+name: "Setup Node.js"
+description: "Action to setup Node.js and install dependencies according to the package manager used."
 author: Hoverkraft
 branding:
   icon: settings

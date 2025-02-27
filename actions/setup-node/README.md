@@ -1,11 +1,11 @@
 <!-- start title -->
 
-# <img src=".github/ghadocs/branding.svg" width="60px" align="center" alt="branding<icon:settings color:gray-dark>" /> GitHub Action: Setup NodeJS
+# <img src=".github/ghadocs/branding.svg" width="60px" align="center" alt="branding<icon:settings color:gray-dark>" /> GitHub Action: Setup Node.js
 
 <!-- end title -->
 <!-- start description -->
 
-Action to setup NodeJS and install dependencies according to the package manager used.
+Action to setup Node.js and install dependencies according to the package manager used.
 
 <!-- end description -->
 <!-- start contents -->
