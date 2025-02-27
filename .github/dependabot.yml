@@ -28,7 +28,7 @@ updates:
 
   - package-ecosystem: npm
     open-pull-requests-limit: 20
-    versioning-strategy: widen
+    versioning-strategy: increase
     directory: "/"
     schedule:
       interval: weekly
