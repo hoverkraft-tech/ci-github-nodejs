@@ -13,7 +13,7 @@ Action to setup Node.js and install dependencies according to the package manage
 <!-- start usage -->
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs@0.8.0
+- uses: hoverkraft-tech/ci-github-nodejs@0.8.1
   with:
     # Description: List of dependencies for which the cache should be managed
     #
