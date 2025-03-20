@@ -13,7 +13,7 @@ Action to check if dependencies have been installed according to the package man
 <!-- start usage -->
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs@0.8.1
+- uses: hoverkraft-tech/ci-github-nodejs@0.9.0
   with:
     # Description: The dependencies to check.
     #
