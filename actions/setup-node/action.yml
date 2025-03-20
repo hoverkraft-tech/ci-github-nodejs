@@ -39,7 +39,7 @@ runs:
           exit 0
         fi
 
-    - uses: actions/setup-node@v4.2.0
+    - uses: actions/setup-node@v4.3.0
       with:
         node-version-file: ${{ steps.get-node-version-file.outputs.node-version-file }}
         cache: ${{ steps.get-package-manager.outputs.package-manager }}
