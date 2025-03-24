@@ -27,21 +27,21 @@ runs:
       run: |
         # Yarn
         if [ -f "yarn.lock" ]; then
-          echo "package-manager=yarn" >> "$GITHUB_OUTPUT"
-          echo "cache-dependency-path=**/yarn.lock" >> "$GITHUB_OUTPUT"
-          echo "install-command=yarn install --frozen-lockfile" >> "$GITHUB_OUTPUT"
-          echo "run-script-command=yarn" >> "$GITHUB_OUTPUT"
-          exit 0
+          echo "package-manager=yarn" >> "$GITHUB_OUTPUT";
+          echo "cache-dependency-path=**/yarn.lock" >> "$GITHUB_OUTPUT";
+          echo "install-command=yarn install --frozen-lockfile" >> "$GITHUB_OUTPUT";
+          echo "run-script-command=yarn" >> "$GITHUB_OUTPUT";
+          exit 0;
         fi
 
         # NPM
         if [ -f "package-lock.json" ]; then
-          echo "package-manager=npm" >> "$GITHUB_OUTPUT"
-          echo "cache-dependency-path=**/package-lock.json" >> "$GITHUB_OUTPUT"
-          echo "install-command=npm ci" >> "$GITHUB_OUTPUT"
-          echo "run-script-command=npm run" >> "$GITHUB_OUTPUT"
-          exit 0
+          echo "package-manager=npm" >> "$GITHUB_OUTPUT";
+          echo "cache-dependency-path=**/package-lock.json" >> "$GITHUB_OUTPUT";
+          echo "install-command=npm ci" >> "$GITHUB_OUTPUT";
+          echo "run-script-command=npm run" >> "$GITHUB_OUTPUT";
+          exit 0;
         fi
 
-        echo "Unable to detect package manager"
-        exit 1
+        echo "::error ::Unable to detect package manager";
+        exit 1;
