@@ -61,11 +61,11 @@ jobs:
       security-events: write
     runs-on: "ubuntu-latest"
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.18.0
-      - uses: github/codeql-action/init@v3.28.12
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@edc1e53751a82ce335e7c3208a32b6ee03856a9f # 0.20.0
+      - uses: github/codeql-action/init@1b549b9259bda1cb5ddde3b41741a82a2d15a841 # v3.28.13
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@v3.28.12
+      - uses: github/codeql-action/analyze@1b549b9259bda1cb5ddde3b41741a82a2d15a841 # v3.28.13
 
   dependency-review:
     name: 🛡️ Dependency Review
@@ -74,8 +74,8 @@ jobs:
       contents: read
     runs-on: "ubuntu-latest"
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.18.0
-      - uses: actions/dependency-review-action@v4
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@edc1e53751a82ce335e7c3208a32b6ee03856a9f # 0.20.0
+      - uses: actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019 # v4.5.0
 
   setup:
     name: ⚙️ Setup
@@ -88,13 +88,13 @@ jobs:
       build-commands: ${{ steps.build-variables.outputs.commands }}
       build-artifact: ${{ steps.build-variables.outputs.artifact }}
     steps:
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@edc1e53751a82ce335e7c3208a32b6ee03856a9f # 0.20.0
+
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       # jscpd:ignore-start
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.18.0
-
       - id: oidc
-        uses: ChristopherHX/oidc@v3
-      - uses: actions/checkout@v4 # checks out called workflow
+        uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
@@ -106,7 +106,7 @@ jobs:
 
       - id: build-variables
         if: inputs.build != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
             const buildInput = `${{ inputs.build }}`.trim();
@@ -161,12 +161,12 @@ jobs:
       contents: read
       id-token: write
     steps:
-      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.18.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@edc1e53751a82ce335e7c3208a32b6ee03856a9f # 0.20.0
 
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       - id: oidc
-        uses: ChristopherHX/oidc@v3
-      - uses: actions/checkout@v4 # checks out called workflow
+        uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
@@ -190,19 +190,19 @@ jobs:
     runs-on: "ubuntu-latest"
     needs: setup
     # jscpd:ignore-start
-    # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
     permissions:
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       contents: read
       id-token: write
     steps:
-      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.18.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@edc1e53751a82ce335e7c3208a32b6ee03856a9f # 0.20.0
         if: needs.setup.outputs.build-commands
 
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       - id: oidc
         if: needs.setup.outputs.build-commands
-        uses: ChristopherHX/oidc@v3
-      - uses: actions/checkout@v4 # checks out called workflow
+        uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         if: needs.setup.outputs.build-commands
         with:
           path: ./self-workflow
@@ -239,7 +239,7 @@ jobs:
           NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
       - if: needs.setup.outputs.build-commands && needs.setup.outputs.build-artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: build
           path: ${{ needs.setup.outputs.build-artifact }}
@@ -256,18 +256,17 @@ jobs:
       contents: read
       id-token: write
     steps:
-      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@0.18.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@edc1e53751a82ce335e7c3208a32b6ee03856a9f # 0.20.0
 
       - if: needs.setup.outputs.build-artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: build
           path: "/"
-
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       - id: oidc
-        uses: ChristopherHX/oidc@v3
-      - uses: actions/checkout@v4 # checks out called workflow
+        uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
@@ -287,7 +286,7 @@ jobs:
 
       - name: 📊 Code coverage
         if: inputs.coverage == 'codecov'
-        uses: codecov/codecov-action@v5.4.0
+        uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574 # v5.4.0
         with:
           use_oidc: true
           disable_telem: true

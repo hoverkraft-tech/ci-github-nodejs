@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Setup NodeJS
         uses: hoverkraft-tech/ci-github-nodejs/actions/setup-node@0.2.2
