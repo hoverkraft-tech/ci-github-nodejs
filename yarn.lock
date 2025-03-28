@@ -2506,12 +2506,12 @@
   resolved "https://registry.npmjs.org/@socket.io/component-emitter/-/component-emitter-3.1.0.tgz"
   integrity sha512-+9jVqKhRSpsc591z5vX+X5Yyw+he/HCB4iQ/RYxw35CEPaY1gnsNE43nf9n9AaYjAQrTiI/mOwKUKdUs9vf7Xg==
 
-"@storybook/core@8.6.9":
-  version "8.6.9"
-  resolved "https://registry.yarnpkg.com/@storybook/core/-/core-8.6.9.tgz#e311037f4876c4d339712c1fa53aac595833940d"
-  integrity sha512-psYxJAlj34ZaDAk+OvT/He6ZuUh0eGiHVtZNe0xWbNp5pQvOBjf+dg48swdI6KEbVs3aeU+Wnyra/ViU2RtA+Q==
+"@storybook/core@8.6.10":
+  version "8.6.10"
+  resolved "https://registry.yarnpkg.com/@storybook/core/-/core-8.6.10.tgz#9e1f4391845e1c6c3beb3cb98791de58c610eb5f"
+  integrity sha512-VyhE/9/idPeeObsx+DyD8RR2iEwLJGL9rYz61r+1IrpndIVnlYD+vjxc0Y/1jTG1RvShWzEF2A/vzsJ9PzXqcw==
   dependencies:
-    "@storybook/theming" "8.6.9"
+    "@storybook/theming" "8.6.10"
     better-opn "^3.0.2"
     browser-assert "^1.2.1"
     esbuild "^0.18.0 || ^0.19.0 || ^0.20.0 || ^0.21.0 || ^0.22.0 || ^0.23.0 || ^0.24.0 || ^0.25.0"
@@ -2523,10 +2523,10 @@
     util "^0.12.5"
     ws "^8.2.3"
 
-"@storybook/theming@8.6.9":
-  version "8.6.9"
-  resolved "https://registry.yarnpkg.com/@storybook/theming/-/theming-8.6.9.tgz#493a80bdf9b7ffedd3db02e0c28e6fa0ff2f1e90"
-  integrity sha512-FQafe66itGnIh0V42R65tgFKyz0RshpIs0pTrxrdByuB2yKsep+f8ZgKLJE3fCKw/Egw4bUuICo2m8d7uOOumA==
+"@storybook/theming@8.6.10":
+  version "8.6.10"
+  resolved "https://registry.yarnpkg.com/@storybook/theming/-/theming-8.6.10.tgz#0a24d38ca7d462ae965d59b04b831932edfa8a00"
+  integrity sha512-4E5ArcJ/bhrWtlYzQDbtA3O3pha/Ys0Ja6X4waJQ5UJENzUMdVz6vTLSUHtG5hNRmSqreogxe4Ed88+0JtY7NQ==
 
 "@swc/helpers@^0.4.12":
   version "0.4.36"
@@ -10742,12 +10742,12 @@ statuses@2.0.1:
   resolved "https://registry.npmjs.org/statuses/-/statuses-2.0.1.tgz"
   integrity sha512-RwNA9Z/7PrK06rYLIzFMlaF+l73iwpzsqRIFgbMLbTcLD6cOao82TaWefPXQvB2fOC4AjuYSEndS7N/mTCbkdQ==
 
-storybook@^8.6.9:
-  version "8.6.9"
-  resolved "https://registry.yarnpkg.com/storybook/-/storybook-8.6.9.tgz#e90a70f8f9d022134becaf3ddf974f8fe35a3d3b"
-  integrity sha512-Iw4+R4V3yX7MhXJaLBAT4oLtZ+SaTzX8KvUNZiQzvdD+TrFKVA3QKV8gvWjstGyU2dd+afE1Ph6EG5Xa2Az2CA==
+storybook@^8.6.10:
+  version "8.6.10"
+  resolved "https://registry.yarnpkg.com/storybook/-/storybook-8.6.10.tgz#c3daa8c39abaeaddd5a8eae3dc7078fcd566a8e5"
+  integrity sha512-7LUD9hNllMZZhDJutxgejrpWI89rsBF+p2kCfWoJ9EuBTgRy8bbVQZlG7bE1gf7qLmnabnklsFslTakS2SbKRw==
   dependencies:
-    "@storybook/core" "8.6.9"
+    "@storybook/core" "8.6.10"
 
 streamsearch@^1.1.0:
   version "1.1.0"
