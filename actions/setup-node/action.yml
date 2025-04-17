@@ -10,6 +10,10 @@ inputs:
     description: "List of dependencies for which the cache should be managed"
     required: false
     default: ""
+  working-directory:
+    description: "Working directory where the dependencies are installed."
+    required: false
+    default: "."
 
 outputs:
   run-script-command:
@@ -25,19 +29,44 @@ runs:
     - id: get-package-manager
       if: inputs.package-manager == ''
       uses: ./self-setup-node-action/get-package-manager
+      with:
+        working-directory: ${{ inputs.working-directory }}
 
     - id: get-node-version-file
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: |
-        # Node version file
-        if [ -f ".nvmrc" ]; then
-          echo "node-version-file=.nvmrc" >> $GITHUB_OUTPUT
-          exit 0
+        SUPPORTED_FILES=(".nvmrc" ".node-version")
+
+        # Check if any of the supported files exist
+        for file in "${SUPPORTED_FILES[@]}"; do
+          if [ -f "$file" ]; then
+            NODE_VERSION_FILE=$(realpath -s --relative-to="$GITHUB_WORKSPACE" "$(pwd)/$file")
+            echo "node-version-file=$NODE_VERSION_FILE" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+        done
+
+    # FIXME: workaround until will be merged: https://github.com/actions/setup-node/pull/901
+    - id: get-pnpm-version
+      if: steps.get-package-manager.outputs.package-manager == 'pnpm'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        if [ -f "package.json" ]; then
+          if [ -n "$(jq -r '.packageManager//empty' package.json)" ]; then
+            # pnpm/action-setup supports "packageManager" field in package.json
+            exit 0
+          fi
         fi
-        if [ -f ".node-version" ]; then
-          echo "node-version-file=.node-version" >> $GITHUB_OUTPUT
-          exit 0
-        fi
+        echo "pnpm-version=latest" >> "$GITHUB_OUTPUT"
+
+    - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      if: steps.get-package-manager.outputs.package-manager == 'pnpm'
+      with:
+        version: ${{ steps.get-pnpm-version.outputs.pnpm-version }}
+        package_json_file: ${{ inputs.working-directory }}/package.json
+        run_install: false
 
     - uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
       with:
@@ -46,12 +75,14 @@ runs:
         cache-dependency-path: ${{ steps.get-package-manager.outputs.cache-dependency-path }}
 
     - shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: ${{ steps.get-package-manager.outputs.install-command }}
 
     - if: inputs.dependencies-cache != ''
       uses: ./self-setup-node-action/dependencies-cache
       with:
         dependencies: ${{ inputs.dependencies-cache }}
+        working-directory: ${{ inputs.working-directory }}
 
     # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
     - shell: bash

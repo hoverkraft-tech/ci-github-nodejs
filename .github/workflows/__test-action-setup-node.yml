@@ -7,42 +7,45 @@ permissions:
   contents: read
 
 jobs:
-  test-yarn:
-    name: Tests with Yarn package manager
+  test:
+    name: Test "setup-node" (${{ matrix.working-directory }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - working-directory: tests/npm
+            package-manager: npm
+            lock-file: package-lock.json
+            run-script-command: npm run
+
+          - working-directory: tests/pnpm
+            package-manager: pnpm
+            lock-file: pnpm-lock.yaml
+            run-script-command: pnpm
+
+          - working-directory: tests/pnpm-package-manager
+            package-manager: pnpm
+            lock-file: pnpm-lock.yaml
+            run-script-command: pnpm
+
+          - working-directory: tests/yarn
+            package-manager: yarn
+            lock-file: yarn.lock
+            run-script-command: yarn
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - run: |
-          rm -f package-lock.json
-          echo "lts/*" > .nvmrc
+      - run: echo "lts/*" > .nvmrc
+        working-directory: ${{ matrix.working-directory }}
 
       - id: setup-node
         uses: ./actions/setup-node
+        with:
+          working-directory: ${{ matrix.working-directory }}
 
       - name: Check "setup-node" outputs
         run: |
-          if [ "${{ steps.setup-node.outputs.run-script-command }}" != 'yarn' ]; then
-            echo "setup-node outputs result is not valid"
-            exit 1
-          fi
-
-  test-npm:
-    name: Tests with Npm package manager
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - run: |
-          rm -f yarn.lock
-          echo "lts/*" > .nvmrc
-
-      - id: setup-node
-        uses: ./actions/setup-node
-
-      - name: Check "setup-node" outputs
-        run: |
-          if [ "${{ steps.setup-node.outputs.run-script-command }}" != 'npm run' ]; then
-            echo "setup-node outputs result is not valid"
+          if [ "${{ steps.setup-node.outputs.run-script-command }}" != "${{ matrix.run-script-command }}" ]; then
+            echo "get-package-manager outputs run-script-command is not valid"
             exit 1
           fi

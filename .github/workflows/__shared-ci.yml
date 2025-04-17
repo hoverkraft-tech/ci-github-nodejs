@@ -14,6 +14,11 @@ jobs:
   linter:
     uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@198d391bd7046a3c8ca503d3387ad9c5ba8f9f29 # 0.22.0
 
+  test-action-dependencies-cache:
+    name: Test action "dependencies-cache"
+    needs: linter
+    uses: ./.github/workflows/__test-action-dependencies-cache.yml
+
   test-action-get-package-manager:
     name: Test action "get-package-manager"
     needs: linter

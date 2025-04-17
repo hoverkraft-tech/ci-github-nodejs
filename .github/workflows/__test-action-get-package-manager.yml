@@ -7,38 +7,65 @@ permissions:
   contents: read
 
 jobs:
-  test-yarn:
-    name: Tests with Yarn package manager
+  test:
+    name: Test "get-package-manager" (${{ matrix.working-directory }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - working-directory: tests/npm
+            package-manager: npm
+            lock-file: package-lock.json
+            cache-dependency-path: "**/package-lock.json"
+            install-command: npm ci
+            run-script-command: npm run
+
+          - working-directory: tests/pnpm
+            package-manager: pnpm
+            lock-file: pnpm-lock.yaml
+            cache-dependency-path: "**/pnpm-lock.yaml"
+            install-command: pnpm install --frozen-lockfile
+            run-script-command: pnpm
+
+          - working-directory: tests/pnpm-package-manager
+            package-manager: pnpm
+            lock-file: pnpm-lock.yaml
+            cache-dependency-path: "**/pnpm-lock.yaml"
+            install-command: pnpm install --frozen-lockfile
+            run-script-command: pnpm
+
+          - working-directory: tests/yarn
+            package-manager: yarn
+            lock-file: yarn.lock
+            cache-dependency-path: "**/yarn.lock"
+            install-command: yarn install --frozen-lockfile
+            run-script-command: yarn
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - run: rm -f package-lock.json
-
       - id: get-package-manager
         uses: ./actions/get-package-manager
+        with:
+          working-directory: ${{ matrix.working-directory }}
 
       - name: Check "get-package-manager" outputs
         run: |
-          if [ "${{ steps.get-package-manager.outputs.package-manager }}" != 'yarn' ]; then
+          if [ "${{ steps.get-package-manager.outputs.package-manager }}" != '${{ matrix.package-manager }}' ]; then
             echo "get-package-manager outputs result is not valid"
             exit 1
           fi
 
-  test-npm:
-    name: Tests with Npm package manager
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+          if [ "${{ steps.get-package-manager.outputs.cache-dependency-path }}" != '${{ matrix.cache-dependency-path }}' ]; then
+            echo "get-package-manager outputs cache-dependency-path is not valid"
+            exit 1
+          fi
 
-      - run: rm -f yarn.lock
+          if [ "${{ steps.get-package-manager.outputs.install-command }}" != '${{ matrix.install-command }}' ]; then
+            echo "get-package-manager outputs install-command is not valid"
+            exit 1
+          fi
 
-      - id: get-package-manager
-        uses: ./actions/get-package-manager
-
-      - name: Check "get-package-manager" outputs
-        run: |
-          if [ "${{ steps.get-package-manager.outputs.package-manager }}" != 'npm' ]; then
-            echo "get-package-manager outputs result is not valid"
+          if [ "${{ steps.get-package-manager.outputs.run-script-command }}" != '${{ matrix.run-script-command }}' ]; then
+            echo "get-package-manager outputs run-script-command is not valid"
             exit 1
           fi

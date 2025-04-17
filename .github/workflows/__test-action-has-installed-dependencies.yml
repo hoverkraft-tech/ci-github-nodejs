@@ -7,19 +7,47 @@ permissions:
   contents: read
 
 jobs:
-  test-yarn:
-    name: Tests with Yarn package manager
+  test:
+    name: Test "has-installed-dependencies" (${{ matrix.working-directory }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - working-directory: tests/npm
+            package-manager: npm
+            lock-file: package-lock.json
+
+          - working-directory: tests/pnpm
+            package-manager: pnpm
+            lock-file: pnpm-lock.yaml
+
+          - working-directory: tests/pnpm-package-manager
+            package-manager: pnpm
+            lock-file: pnpm-lock.yaml
+
+          - working-directory: tests/yarn
+            package-manager: yarn
+            lock-file: yarn.lock
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - run: rm -f package-lock.json
+      - id: setup-node
+        uses: ./actions/setup-node
+        with:
+          working-directory: ${{ matrix.working-directory }}
 
-      - uses: ./actions/setup-node
+      - name: Check that package manager is the expected one
+        id: check-package-manager
+        run: |
+          if [[ "${{ steps.setup-node.outputs.run-script-command }}" != "${{ matrix.package-manager }}"* ]]; then
+            echo "Package manager is not ${{ matrix.package-manager }}"
+            exit 1
+          fi
 
       - id: has-installed-dependencies
         uses: ./actions/has-installed-dependencies
         with:
+          working-directory: ${{ matrix.working-directory }}
           dependencies: |
             gatsby
             jest
@@ -59,57 +87,3 @@ jobs:
               JSON.stringify(expectedResult),
               `"installed-dependencies" output is not valid`
             );
-
-  test-npm:
-    name: Tests with Npm package manager
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - run: rm -f yarn.lock
-
-      - uses: ./actions/setup-node
-
-      - id: has-installed-dependencies
-        uses: ./actions/has-installed-dependencies
-        with:
-          dependencies: |
-            nx
-            gatsby
-            storybook
-            prettier
-            unknown
-
-      - name: Check "has-installed-dependencies" outputs
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        with:
-          script: |
-            // jscpd:ignore-start
-            const assert = require("assert");
-
-            const installedDependenciesOutput = `${{ steps.has-installed-dependencies.outputs.installed-dependencies }}`;
-            assert(installedDependenciesOutput.length, `"installed-dependencies" output is empty`);
-
-            // Check if is valid Json
-            let installedDependencies = null;
-            try {
-              installedDependencies = JSON.parse(installedDependenciesOutput);
-            } catch (error) {
-              throw new Error(`"installed-dependencies" output is not a valid JSON: ${error}`);
-            }
-
-            const expectedResult = {
-              nx: true,
-              gatsby: true,
-              storybook: true,
-              prettier: true,
-              unknown: false,
-            };
-
-            assert.equal(
-              JSON.stringify(installedDependencies),
-              JSON.stringify(expectedResult),
-              `"installed-dependencies" output is not valid`
-            );
-
-            // jscpd:ignore-end

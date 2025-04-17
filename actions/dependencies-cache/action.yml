@@ -9,6 +9,10 @@ inputs:
   dependencies:
     description: "List of dependencies for which the cache should be managed."
     required: true
+  working-directory:
+    description: "Working directory where the dependencies are installed."
+    required: false
+    default: "."
 
 runs:
   using: "composite"
@@ -22,16 +26,19 @@ runs:
       uses: ./self-dependencies-cache-action/has-installed-dependencies
       with:
         dependencies: ${{ inputs.dependencies }}
+        working-directory: ${{ inputs.working-directory }}
 
     - id: get-package-manager
       if: inputs.package-manager == ''
-      uses: ./self-setup-node-action/get-package-manager
+      uses: ./self-dependencies-cache-action/get-package-manager
+      with:
+        working-directory: ${{ inputs.working-directory }}
 
     - name: ♻️ NX cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).nx == true
       uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
       with:
-        path: node_modules/.cache/nx
+        path: ${{ inputs.working-directory }}/node_modules/.cache/nx
         key: ${{ runner.os }}-cache-nx-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-cache-nx-
@@ -40,7 +47,7 @@ runs:
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).prettier == true
       uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
       with:
-        path: node_modules/.cache/prettier
+        path: ${{ inputs.working-directory }}/node_modules/.cache/prettier
         key: ${{ runner.os }}-cache-prettier-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-cache-prettier-
@@ -50,8 +57,8 @@ runs:
       uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
       with:
         path: |
-          .cache
-          public
+          ${{ inputs.working-directory }}/.cache
+          ${{ inputs.working-directory }}/public
         key: ${{ runner.os }}-cache-gatsby-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-cache-gatsby-
@@ -60,7 +67,7 @@ runs:
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).storybook == true
       uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
       with:
-        path: node_modules/.cache/storybook
+        path: ${{ inputs.working-directory }}/node_modules/.cache/storybook
         key: ${{ runner.os }}-cache-storybook-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-cache-storybook-
@@ -69,8 +76,33 @@ runs:
       id: jest-cache-dir-path
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).jest == true
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: |
-        JEST_CACHE_DIR=$(${{ steps.get-package-manager.outputs.run-script-command }} jest -- --showConfig | grep -oP '(?<="cacheDirectory": ")[^"]+(?=")')
+        case "${{ steps.get-package-manager.outputs.package-manager }}" in
+          npm)
+            JEST_CONFIG=$(${{ steps.get-package-manager.outputs.package-manager }} exec jest -- --showConfig)
+            ;;
+          *)
+            JEST_CONFIG=$(${{ steps.get-package-manager.outputs.package-manager }} jest --showConfig)
+            ;;
+        esac
+
+        if [ -z "$JEST_CONFIG" ]; then
+          echo "::error::Unable to get Jest config"
+          exit 1
+        fi
+
+        echo "::debug::Jest config: $JEST_CONFIG"
+
+        JEST_CACHE_DIR=$(echo "$JEST_CONFIG" | grep -oP '(?<="cacheDirectory": ")[^"]+(?=")')
+
+        if [ -z "$JEST_CACHE_DIR" ]; then
+          echo "::error ::Unable to get Jest cache directory from config: $JEST_CONFIG"
+          exit 1
+        fi
+
+        echo "::debug::Jest cache directory: $JEST_CACHE_DIR"
+
         echo "dir=$JEST_CACHE_DIR" >> "$GITHUB_OUTPUT"
 
     - name: ♻️ Test cache
