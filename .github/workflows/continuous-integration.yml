@@ -46,6 +46,11 @@ on:
         type: string
         required: false
         default: "codecov"
+      working-directory:
+        description: "Working directory where the dependencies are installed."
+        type: string
+        required: false
+        default: "."
 
 permissions:
   contents: read
@@ -103,6 +108,8 @@ jobs:
 
       - id: setup-node
         uses: ./self-workflow/actions/setup-node
+        with:
+          working-directory: ${{ inputs.working-directory }}
 
       - id: build-variables
         if: inputs.build != ''
@@ -176,11 +183,13 @@ jobs:
       - id: setup-node
         uses: ./self-workflow/actions/setup-node
         with:
+          working-directory: ${{ inputs.working-directory }}
           dependencies-cache: |
             nx
             prettier
 
       - run: ${{ steps.setup-node.outputs.run-script-command }} lint
+        working-directory: ${{ inputs.working-directory }}
         env:
           NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
@@ -214,12 +223,14 @@ jobs:
         if: needs.setup.outputs.build-commands
         uses: ./self-workflow/actions/setup-node
         with:
+          working-directory: ${{ inputs.working-directory }}
           dependencies-cache: |
             nx
             gatsby
             storybook
 
       - if: needs.setup.outputs.build-commands
+        working-directory: ${{ inputs.working-directory }}
         run: |
           BUILD_COMMANDS="${{ needs.setup.outputs.build-commands }}"
 
@@ -275,11 +286,13 @@ jobs:
       - id: setup-node
         uses: ./self-workflow/actions/setup-node
         with:
+          working-directory: ${{ inputs.working-directory }}
           dependencies-cache: |
             nx
             jest
 
       - run: ${{ steps.setup-node.outputs.run-script-command }} test:ci
+        working-directory: ${{ inputs.working-directory }}
         env:
           CI: "true"
           NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"

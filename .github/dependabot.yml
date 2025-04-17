@@ -29,7 +29,12 @@ updates:
   - package-ecosystem: npm
     open-pull-requests-limit: 20
     versioning-strategy: increase
-    directory: "/"
+    directories:
+      - "/"
+      - "/tests/npm"
+      - "/tests/pnpm"
+      - "/tests/pnpm-package-manager"
+      - "/tests/yarn"
     schedule:
       interval: weekly
       day: friday

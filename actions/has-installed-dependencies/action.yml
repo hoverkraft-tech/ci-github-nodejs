@@ -9,6 +9,10 @@ inputs:
   dependencies:
     description: "The dependencies to check."
     required: true
+  working-directory:
+    description: "Working directory where the dependencies are installed."
+    required: false
+    default: "."
 
 outputs:
   installed-dependencies:
@@ -25,6 +29,8 @@ runs:
     - id: get-package-manager
       if: inputs.package-manager == ''
       uses: ./self-actions/get-package-manager
+      with:
+        working-directory: ${{ inputs.working-directory }}
 
     - shell: bash
       # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
@@ -89,24 +95,53 @@ runs:
             }
           };
 
-          const parseDependencies = async () => {
-            const { stdout } = await exec.getExecOutput(
-              `${{ steps.get-package-manager.outputs.package-manager }} list --depth=1 --json --no-progress --pattern="${dependencies.join('|')}" --non-interactive`
-            );
+          const parseDependencies = async (command) => {
+            const { stdout } = await exec.getExecOutput(command, undefined, {
+              cwd: `${{ inputs.working-directory }}` || undefined,
+            });
+
+            if (stdout === '') {
+              return;
+            }
 
             const allInstalledDependencies = JSON.parse(stdout);
 
-            switch (`${{ steps.get-package-manager.outputs.package-manager }}`) {
-              case 'npm':
-                parseNpmDependencies(allInstalledDependencies.dependencies);
-                break;
+            return allInstalledDependencies;
+          }
 
-              case 'yarn':
-                parseYarnDependencies(allInstalledDependencies);
-                break;
-            }
-          };
+          let allInstalledDependencies, parser;
+          switch (`${{ steps.get-package-manager.outputs.package-manager }}`) {
+            case 'npm':
+              allInstalledDependencies = await parseDependencies(
+                `${{ steps.get-package-manager.outputs.package-manager }} list --depth=1 --json --no-progress --pattern="${dependencies.join('|')}" --non-interactive`
+              );
+              allInstalledDependencies = allInstalledDependencies?.dependencies;
+              parser = parseNpmDependencies;
+              break;
 
-          await parseDependencies();
+            case 'pnpm':
+              allInstalledDependencies = await parseDependencies(
+                `${{ steps.get-package-manager.outputs.package-manager }} list --depth=1 --json --no-color`
+              );
+              (allInstalledDependencies || []).reduce((accumulator, currentValue) => {
+                return { ...accumulator, ...(currentValue?.dependencies || {}) };
+              }, []);
+              parser = parseNpmDependencies;
+              break;
+
+            case 'yarn':
+              allInstalledDependencies = await parseDependencies(
+                `${{ steps.get-package-manager.outputs.package-manager }} list --depth=1 --json --no-progress --pattern="${dependencies.join('|')}" --non-interactive`
+              );
+              parser = parseYarnDependencies;
+              break;
+
+            default:
+              throw new Error(`Unsupported package manager: ${{ steps.get-package-manager.outputs.package-manager }}`);
+          }
+
+          if (allInstalledDependencies) {
+            await parser(allInstalledDependencies);
+          }
 
           core.setOutput('installed-dependencies', hasDependencies);

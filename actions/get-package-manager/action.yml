@@ -5,6 +5,12 @@ branding:
   icon: package
   color: gray-dark
 
+inputs:
+  working-directory:
+    description: "Working directory where the dependencies are installed."
+    required: false
+    default: "."
+
 outputs:
   package-manager:
     description: "The package manager used."
@@ -24,24 +30,61 @@ runs:
   steps:
     - id: get-package-manager
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: |
-        # Yarn
-        if [ -f "yarn.lock" ]; then
-          echo "package-manager=yarn" >> "$GITHUB_OUTPUT";
-          echo "cache-dependency-path=**/yarn.lock" >> "$GITHUB_OUTPUT";
-          echo "install-command=yarn install --frozen-lockfile" >> "$GITHUB_OUTPUT";
-          echo "run-script-command=yarn" >> "$GITHUB_OUTPUT";
-          exit 0;
+        echo "::debug::::Running in working directory: $(pwd)";
+
+        # Check if the package manager is set in package.json
+        PACKAGE_MANAGER_NAME=""
+        if [ -f "package.json" ]; then
+          PACKAGE_MANAGER=$(jq -r '.packageManager//empty' package.json)
+          if [ -n "$PACKAGE_MANAGER" ]; then
+            # Extract the package manager and version from the packageManager field
+            PACKAGE_MANAGER_NAME=$(echo "$PACKAGE_MANAGER" | cut -d'@' -f1)
+          fi
         fi
 
-        # NPM
-        if [ -f "package-lock.json" ]; then
-          echo "package-manager=npm" >> "$GITHUB_OUTPUT";
-          echo "cache-dependency-path=**/package-lock.json" >> "$GITHUB_OUTPUT";
-          echo "install-command=npm ci" >> "$GITHUB_OUTPUT";
-          echo "run-script-command=npm run" >> "$GITHUB_OUTPUT";
-          exit 0;
+        echo "::debug::Package manager from package.json: $PACKAGE_MANAGER_NAME";
+
+        if [ -z "$PACKAGE_MANAGER_NAME" ]; then
+          if [ -f "yarn.lock" ]; then
+            PACKAGE_MANAGER_NAME="yarn"
+          elif [ -f "pnpm-lock.yaml" ]; then
+            PACKAGE_MANAGER_NAME="pnpm"
+          elif [ -f "package-lock.json" ]; then
+            PACKAGE_MANAGER_NAME="npm"
+          fi
+
+          if [ -z "$PACKAGE_MANAGER_NAME" ]; then
+            echo "::error ::Unable to detect package manager";
+            exit 1;
+          fi
+          echo "::debug::Package manager from lock files: $PACKAGE_MANAGER_NAME";
         fi
 
-        echo "::error ::Unable to detect package manager";
-        exit 1;
+        echo "package-manager=$PACKAGE_MANAGER_NAME" >> "$GITHUB_OUTPUT";
+
+        case "$PACKAGE_MANAGER_NAME" in
+          yarn)
+            echo "cache-dependency-path=**/yarn.lock" >> "$GITHUB_OUTPUT";
+            echo "install-command=yarn install --frozen-lockfile" >> "$GITHUB_OUTPUT";
+            echo "run-script-command=yarn" >> "$GITHUB_OUTPUT";
+            exit 0;
+            ;;
+          pnpm)
+            echo "cache-dependency-path=**/pnpm-lock.yaml" >> "$GITHUB_OUTPUT";
+            echo "install-command=pnpm install --frozen-lockfile" >> "$GITHUB_OUTPUT";
+            echo "run-script-command=pnpm" >> "$GITHUB_OUTPUT";
+            exit 0;
+            ;;
+          npm)
+            echo "cache-dependency-path=**/package-lock.json" >> "$GITHUB_OUTPUT";
+            echo "install-command=npm ci" >> "$GITHUB_OUTPUT";
+            echo "run-script-command=npm run" >> "$GITHUB_OUTPUT";
+            exit 0;
+            ;;
+          *)
+            echo "::error ::Package manager $PACKAGE_MANAGER_NAME is not supported";
+            exit 1;
+            ;;
+        esac
