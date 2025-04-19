@@ -18,14 +18,20 @@ Action to setup dependencies cache managment.
     # Description: List of dependencies for which the cache should be managed.
     #
     dependencies: ""
+
+    # Description: Working directory where the dependencies are installed.
+    #
+    # Default: .
+    working-directory: ""
 ```
 
 <!-- end usage -->
 <!-- start inputs -->
 
-| **Input**                 | **Description**                                             | **Default** | **Required** |
-| ------------------------- | ----------------------------------------------------------- | ----------- | ------------ |
-| <code>dependencies</code> | List of dependencies for which the cache should be managed. |             | **true**     |
+| **Input**                      | **Description**                                             | **Default**    | **Required** |
+| ------------------------------ | ----------------------------------------------------------- | -------------- | ------------ |
+| <code>dependencies</code>      | List of dependencies for which the cache should be managed. |                | **true**     |
+| <code>working-directory</code> | Working directory where the dependencies are installed.     | <code>.</code> | **false**    |
 
 <!-- end inputs -->
 <!-- start outputs -->

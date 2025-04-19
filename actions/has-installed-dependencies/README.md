@@ -18,14 +18,20 @@ Action to check if dependencies have been installed according to the package man
     # Description: The dependencies to check.
     #
     dependencies: ""
+
+    # Description: Working directory where the dependencies are installed.
+    #
+    # Default: .
+    working-directory: ""
 ```
 
 <!-- end usage -->
 <!-- start inputs -->
 
-| **Input**                 | **Description**            | **Default** | **Required** |
-| ------------------------- | -------------------------- | ----------- | ------------ |
-| <code>dependencies</code> | The dependencies to check. |             | **true**     |
+| **Input**                      | **Description**                                         | **Default**    | **Required** |
+| ------------------------------ | ------------------------------------------------------- | -------------- | ------------ |
+| <code>dependencies</code>      | The dependencies to check.                              |                | **true**     |
+| <code>working-directory</code> | Working directory where the dependencies are installed. | <code>.</code> | **false**    |
 
 <!-- end inputs -->
 <!-- start outputs -->

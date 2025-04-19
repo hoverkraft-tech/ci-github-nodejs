@@ -19,14 +19,20 @@ Action to setup Node.js and install dependencies according to the package manage
     #
     # Default:
     dependencies-cache: ""
+
+    # Description: Working directory where the dependencies are installed.
+    #
+    # Default: .
+    working-directory: ""
 ```
 
 <!-- end usage -->
 <!-- start inputs -->
 
-| **Input**                       | **Description**                                            | **Default** | **Required** |
-| ------------------------------- | ---------------------------------------------------------- | ----------- | ------------ |
-| <code>dependencies-cache</code> | List of dependencies for which the cache should be managed |             | **false**    |
+| **Input**                       | **Description**                                            | **Default**    | **Required** |
+| ------------------------------- | ---------------------------------------------------------- | -------------- | ------------ |
+| <code>dependencies-cache</code> | List of dependencies for which the cache should be managed |                | **false**    |
+| <code>working-directory</code>  | Working directory where the dependencies are installed.    | <code>.</code> | **false**    |
 
 <!-- end inputs -->
 <!-- start outputs -->
