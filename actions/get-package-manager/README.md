@@ -15,10 +15,19 @@ Action to detect the package manager used. Supports Yarn and npm
 ```yaml
 - uses: hoverkraft-tech/ci-github-nodejs@0.10.0
   with:
+    # Description: Working directory where the dependencies are installed.
+    #
+    # Default: .
+    working-directory: ""
 ```
 
 <!-- end usage -->
 <!-- start inputs -->
+
+| **Input**                      | **Description**                                         | **Default**    | **Required** |
+| ------------------------------ | ------------------------------------------------------- | -------------- | ------------ |
+| <code>working-directory</code> | Working directory where the dependencies are installed. | <code>.</code> | **false**    |
+
 <!-- end inputs -->
 <!-- start outputs -->
 
