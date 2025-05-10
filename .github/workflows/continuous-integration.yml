@@ -190,8 +190,6 @@ jobs:
 
       - run: ${{ steps.setup-node.outputs.run-script-command }} lint
         working-directory: ${{ inputs.working-directory }}
-        env:
-          NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
   build:
     name: 🏗️ Build
@@ -246,8 +244,6 @@ jobs:
               echo -e "\n - Running $COMMAND"
               ${{ steps.setup-node.outputs.run-script-command }} "$COMMAND"
           done
-        env:
-          NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
       - if: needs.setup.outputs.build-commands && needs.setup.outputs.build-artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -295,7 +291,6 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         env:
           CI: "true"
-          NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
       - name: 📊 Code coverage
         if: inputs.coverage == 'codecov'
