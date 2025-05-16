@@ -80,7 +80,7 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@95664be4ec235bfc221c4356c7153cbab3fb8f93 # 0.22.3
-      - uses: actions/dependency-review-action@38ecb5b593bf0eb19e335c03f97670f792489a8b # v4.7.0
+      - uses: actions/dependency-review-action@da24556b548a50705dd671f47852072ea4c105d9 # v4.7.1
 
   setup:
     name: ⚙️ Setup
@@ -294,7 +294,7 @@ jobs:
 
       - name: 📊 Code coverage
         if: inputs.coverage == 'codecov'
-        uses: codecov/codecov-action@ad3126e916f78f00edff4ed0317cf185271ccc2d # v5.4.2
+        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
           use_oidc: true
           disable_telem: true
