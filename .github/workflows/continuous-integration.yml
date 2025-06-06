@@ -67,10 +67,10 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@95664be4ec235bfc221c4356c7153cbab3fb8f93 # 0.22.3
-      - uses: github/codeql-action/init@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+      - uses: github/codeql-action/init@fca7ace96b7d713c7035871441bd52efbe39e27e # v3.28.19
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+      - uses: github/codeql-action/analyze@fca7ace96b7d713c7035871441bd52efbe39e27e # v3.28.19
 
   dependency-review:
     name: 🛡️ Dependency Review
