@@ -10418,10 +10418,10 @@ statuses@2.0.1:
   resolved "https://registry.yarnpkg.com/statuses/-/statuses-2.0.1.tgz#55cb000ccf1d48728bd23c685a063998cf1a1b63"
   integrity sha512-RwNA9Z/7PrK06rYLIzFMlaF+l73iwpzsqRIFgbMLbTcLD6cOao82TaWefPXQvB2fOC4AjuYSEndS7N/mTCbkdQ==
 
-storybook@^9.0.1:
-  version "9.0.1"
-  resolved "https://registry.yarnpkg.com/storybook/-/storybook-9.0.1.tgz#a815a8da705152d54d6411794b25f915f53b3467"
-  integrity sha512-WE6tTNUl0Xwa/vT4dv2PcNUeujE9pKY4ruGVLsNV7r7lvQla5Jsqi/eWePjU3kuTmi2BcQqLXfapMy0kM3dabw==
+storybook@^9.0.5:
+  version "9.0.5"
+  resolved "https://registry.yarnpkg.com/storybook/-/storybook-9.0.5.tgz#32419c94888918c4dc5851ddfddd38daa6429258"
+  integrity sha512-4RIyN7P6R6umcgAB6jv3GSIDA0qw9iRcm3KnIR6VhLKLKlbbmDsUs/JmjLobxL5W+LB4zbCbrBcFsW7AL2MSyA==
   dependencies:
     "@storybook/global" "^5.0.0"
     "@testing-library/jest-dom" "^6.6.3"
