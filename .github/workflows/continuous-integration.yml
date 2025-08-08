@@ -67,10 +67,10 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@6857ef6d10f704e0998aa4955282f27d1b9be778 # 0.23.1
-      - uses: github/codeql-action/init@181d5eefc20863364f96762470ba6f862bdef56b # v3.29.2
+      - uses: github/codeql-action/init@51f77329afa6477de8c49fc9c7046c15b9a4e79d # v3.29.7
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@181d5eefc20863364f96762470ba6f862bdef56b # v3.29.2
+      - uses: github/codeql-action/analyze@51f77329afa6477de8c49fc9c7046c15b9a4e79d # v3.29.7
 
   dependency-review:
     name: 🛡️ Dependency Review
@@ -266,7 +266,7 @@ jobs:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@6857ef6d10f704e0998aa4955282f27d1b9be778 # 0.23.1
 
       - if: needs.setup.outputs.build-artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: build
           path: "/"
