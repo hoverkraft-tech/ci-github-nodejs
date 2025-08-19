@@ -47,7 +47,7 @@ jobs:
 
 | **Input**                 | **Description**                                                           | **Type**             | **Default**               | **Required** |
 | ------------------------- | ------------------------------------------------------------------------- | -------------------- | ------------------------- | ------------ |
-| **<code>build</code>**    | Build parameters. Must be a string or a json array of strings or object.  | <code>string</code>  | <code>build</code>        | **false**    |
+| **<code>build</code>**    | Build parameters. Must be a string or a JSON array of strings or object.  | <code>string</code>  | <code>build</code>        | **false**    |
 | **<code>checks</code>**   | Optional flag to enable check steps.                                      | <code>boolean</code> | <code>true</code>         | **false**    |
 | **<code>code-ql</code>**  | Code QL analysis language. See <https://github.com/github/codeql-action>. | <code>string</code>  | <code>`typescript`</code> | **false**    |
 | **<code>lint</code>**     | Optional flag to enable linting.                                          | <code>boolean</code> | <code>true</code>         | **false**    |
@@ -56,7 +56,7 @@ jobs:
 
 ### `build` input parameters
 
-When `build` is a json object, the following parameters are supported:
+When `build` is a JSON object, the following parameters are supported:
 
 | **Input**  | **Description**                                                                                          | **Type**           | **Default** | **Required** |
 | ---------- | -------------------------------------------------------------------------------------------------------- | ------------------ | ----------- | ------------ |

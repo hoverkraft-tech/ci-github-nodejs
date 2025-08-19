@@ -65,7 +65,7 @@ jobs:
             const installedDependenciesOutput = `${{ steps.has-installed-dependencies.outputs.installed-dependencies }}`;
             assert(installedDependenciesOutput.length, `"installed-dependencies" output is empty`);
 
-            // Check if is valid Json
+            // Check if is valid JSON
             let installedDependencies = null;
             try {
               installedDependencies = JSON.parse(installedDependenciesOutput);
