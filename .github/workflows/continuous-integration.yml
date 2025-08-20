@@ -104,8 +104,12 @@ jobs:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
           ref: ${{ steps.oidc.outputs.job_workflow_repo_ref }}
+          sparse-checkout: |
+            actions
+      - run: |
+          if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
+          if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
       # jscpd:ignore-end
-
       - id: setup-node
         uses: ./self-workflow/actions/setup-node
         with:
@@ -178,8 +182,12 @@ jobs:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
           ref: ${{ steps.oidc.outputs.job_workflow_repo_ref }}
+          sparse-checkout: |
+            actions
+      - run: |
+          if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
+          if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
       # jscpd:ignore-end
-
       - id: setup-node
         uses: ./self-workflow/actions/setup-node
         with:
@@ -215,8 +223,12 @@ jobs:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
           ref: ${{ steps.oidc.outputs.job_workflow_repo_ref }}
+          sparse-checkout: |
+            actions
+      - run: |
+          if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
+          if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
       # jscpd:ignore-end
-
       - id: setup-node
         if: needs.setup.outputs.build-commands
         uses: ./self-workflow/actions/setup-node
@@ -278,6 +290,11 @@ jobs:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
           ref: ${{ steps.oidc.outputs.job_workflow_repo_ref }}
+          sparse-checkout: |
+            actions
+      - run: |
+          if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
+          if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
 
       - id: setup-node
         uses: ./self-workflow/actions/setup-node
