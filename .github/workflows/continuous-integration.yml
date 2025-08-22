@@ -67,10 +67,10 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@b4883995e100e291a1fed68678d47a560328ed08 # 0.24.0
-      - uses: github/codeql-action/init@96f518a34f7a870018057716cc4d7a5c014bd61c # v3.29.10
+      - uses: github/codeql-action/init@3c3833e0f8c1c83d449a7478aa59c036a9165498 # v3.29.11
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@96f518a34f7a870018057716cc4d7a5c014bd61c # v3.29.10
+      - uses: github/codeql-action/analyze@3c3833e0f8c1c83d449a7478aa59c036a9165498 # v3.29.11
 
   dependency-review:
     name: 🛡️ Dependency Review
@@ -311,7 +311,7 @@ jobs:
 
       - name: 📊 Code coverage
         if: inputs.coverage == 'codecov'
-        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
+        uses: codecov/codecov-action@fdcc8476540edceab3de004e990f80d881c6cc00 # v5.5.0
         with:
           use_oidc: true
           disable_telem: true
