@@ -80,7 +80,7 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@b4883995e100e291a1fed68678d47a560328ed08 # 0.24.0
-      - uses: actions/dependency-review-action@bc41886e18ea39df68b1b1245f4184881938e050 # v4.7.2
+      - uses: actions/dependency-review-action@595b5aeba73380359d98a5e087f648dbb0edce1b # v4.7.3
 
   setup:
     name: ⚙️ Setup
