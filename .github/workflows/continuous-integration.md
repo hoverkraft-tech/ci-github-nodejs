@@ -1,9 +1,27 @@
-<!-- start title -->
+<!-- header:start -->
 
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
-<!-- end title -->
-<!-- start description -->
+<div align="center">
+  <img src="https://opengraph.githubassets.com/e970d0dbe9ef0b2c9d7908a082cdee394d80b51dbba83dab5821ba6e49341f8d/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="NodeJS Continuous Integration" />
+</div>
+
+---
+
+<!-- header:end -->
+
+<!-- badges:start -->
+
+[![Release](https://img.shields.io/github/v/release/hoverkraft-tech/ci-github-nodejs)](https://github.com/hoverkraft-tech/ci-github-nodejs/releases)
+[![License](https://img.shields.io/github/license/hoverkraft-tech/ci-github-nodejs)](http://choosealicense.com/licenses/mit/)
+[![Stars](https://img.shields.io/github/stars/hoverkraft-tech/ci-github-nodejs?style=social)](https://img.shields.io/github/stars/hoverkraft-tech/ci-github-nodejs?style=social)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/hoverkraft-tech/ci-github-nodejs/blob/main/CONTRIBUTING.md)
+
+<!-- badges:end -->
+
+<!-- overview:start -->
+
+## Overview
 
 Workflow to performs continuous integration steps agains a Node.js project:
 
@@ -12,68 +30,99 @@ Workflow to performs continuous integration steps agains a Node.js project:
 - Build
 - Test
 
-<!-- end description -->
-<!-- start contents -->
-<!-- end contents -->
-<!-- start usage -->
+### Permissions
+
+- **`contents`**: `read`
+- **`security-events`**: `write`
+- **`id-token`**: `write`
+
+<!-- overview:end -->
+
+<!-- usage:start -->
+
+## Usage
 
 ```yaml
-name: Nodejs Continuous Integration
-
+name: NodeJS Continuous Integration
 on:
-  merge_group:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
+    branches:
+      - main
 permissions:
   contents: read
   security-events: write
-  # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
   id-token: write
-
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@0.14.1
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@1d00c9eb280acbee5df4b4a2087f786e66b13d87 # 0.14.1
+    with:
+      # Build parameters. Must be a string or a json object.
+      # Default: `build`
+      build: build
+
+      # Optional flag to enable check steps.
+      # Default: `true`
+      checks: true
+
+      # Optional flag to enable linting.
+      # Default: `true`
+      lint: true
+
+      # Code QL analysis language. See <https://github.com/github/codeql-action>.
+      # Default: `typescript`
+      code-ql: typescript
+
+      # Enable dependency review scan. See <https://github.com/actions/dependency-review-action>.
+      # Default: `true`
+      dependency-review: true
+
+      # Optional flag to enable test.
+      # Default: `true`
+      test: true
+
+      # Specifify code coverage reporter. Supported values: 'codecov'.
+      # Default: `codecov`
+      coverage: codecov
+
+      # Working directory where the dependencies are installed.
+      # Default: `.`
+      working-directory: .
 ```
 
-<!-- end usage -->
-<!-- start secrets -->
-<!-- end secrets -->
-<!-- start inputs -->
+<!-- usage:end -->
+
+<!-- inputs:start -->
 
 ## Inputs
 
-| **Input**                 | **Description**                                                           | **Type**             | **Default**               | **Required** |
-| ------------------------- | ------------------------------------------------------------------------- | -------------------- | ------------------------- | ------------ |
-| **<code>build</code>**    | Build parameters. Must be a string or a JSON array of strings or object.  | <code>string</code>  | <code>build</code>        | **false**    |
-| **<code>checks</code>**   | Optional flag to enable check steps.                                      | <code>boolean</code> | <code>true</code>         | **false**    |
-| **<code>code-ql</code>**  | Code QL analysis language. See <https://github.com/github/codeql-action>. | <code>string</code>  | <code>`typescript`</code> | **false**    |
-| **<code>lint</code>**     | Optional flag to enable linting.                                          | <code>boolean</code> | <code>true</code>         | **false**    |
-| **<code>test</code>**     | Optional flag to enable test.                                             | <code>boolean</code> | <code>true</code>         | **false**    |
-| **<code>coverage</code>** | Specifify code coverage reporter. Supported values: `codecov`.            | <code>string</code>  | <code>`codecov`</code>    | **false**    |
+### Workflow Call Inputs
 
-### `build` input parameters
+| **Input**               | **Description**                                                                           | **Required** | **Type**    | **Default**  |
+| ----------------------- | ----------------------------------------------------------------------------------------- | ------------ | ----------- | ------------ |
+| **`build`**             | Build parameters. Must be a string or a JSON object.                                      | **false**    | **string**  | `build`      |
+| **`checks`**            | Optional flag to enable check steps.                                                      | **false**    | **boolean** | `true`       |
+| **`lint`**              | Optional flag to enable linting.                                                          | **false**    | **boolean** | `true`       |
+| **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                 | **false**    | **string**  | `typescript` |
+| **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>. | **false**    | **boolean** | `true`       |
+| **`test`**              | Optional flag to enable test.                                                             | **false**    | **boolean** | `true`       |
+| **`coverage`**          | Specifify code coverage reporter. Supported values: 'Codecov'.                            | **false**    | **string**  | `codecov`    |
+| **`working-directory`** | Working directory where the dependencies are installed.                                   | **false**    | **string**  | `.`          |
 
-When `build` is a JSON object, the following parameters are supported:
+<!-- inputs:end -->
 
-| **Input**  | **Description**                                                                                          | **Type**           | **Default** | **Required** |
-| ---------- | -------------------------------------------------------------------------------------------------------- | ------------------ | ----------- | ------------ |
-| `commands` | Build command(s).                                                                                        | string[]           | `["build"]` | **false**    |
-| `artifact` | Build artifact (name will be `build`) to be uploaded. (See <https://github.com/actions/upload-artifact>) | string or string[] | ``          | **false**    |
+<!-- secrets:start -->
+<!-- secrets:end -->
 
-<!-- end inputs -->
-<!-- start outputs -->
-<!-- end outputs -->
-<!-- start [.github/ghadocs/examples/] -->
+<!-- outputs:start -->
+<!-- outputs:end -->
+
+<!-- examples:start -->
 
 ## Examples
 
 ### Continuous Integration, build and publish
 
 ```yaml
-
 name: Continuous Integration - Build and Publish
 
 name: Nodejs Continuous Integration
@@ -84,7 +133,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@0.14.1
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@1d00c9eb280acbee5df4b4a2087f786e66b13d87 # 0.14.1
     permissions:
       id-token: write
       security-events: write
@@ -119,4 +168,37 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
-<!-- end [.github/ghadocs/examples/] -->
+<!-- examples:end -->
+
+<!-- contributing:start -->
+
+## Contributing
+
+Contributions are welcome! Please see the [contributing guidelines](https://github.com/hoverkraft-tech/ci-github-nodejs/blob/main/CONTRIBUTING.md) for more details.
+
+<!-- contributing:end -->
+
+<!-- security:start -->
+<!-- security:end -->
+
+<!-- license:start -->
+
+## License
+
+This project is licensed under the MIT License.
+
+SPDX-License-Identifier: MIT
+
+Copyright © 2025 hoverkraft-tech
+
+For more details, see the [license](http://choosealicense.com/licenses/mit/).
+
+<!-- license:end -->
+
+<!-- generated:start -->
+
+---
+
+This documentation was automatically generated by [CI Dokumentor](https://github.com/hoverkraft-tech/ci-dokumentor).
+
+<!-- generated:end -->
