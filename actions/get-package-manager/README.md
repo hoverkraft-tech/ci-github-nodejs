@@ -1,43 +1,113 @@
-<!-- start title -->
+<!-- header:start -->
 
-# <img src=".github/ghadocs/branding.svg" width="60px" align="center" alt="branding<icon:package color:gray-dark>" /> GitHub Action: Get package manager
+# ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItcGFja2FnZSIgY29sb3I9ImdyYXktZGFyayI+PGxpbmUgeDE9IjE2LjUiIHkxPSI5LjQiIHgyPSI3LjUiIHkyPSI0LjIxIj48L2xpbmU+PHBhdGggZD0iTTIxIDE2VjhhMiAyIDAgMCAwLTEtMS43M2wtNy00YTIgMiAwIDAgMC0yIDBsLTcgNEEyIDIgMCAwIDAgMyA4djhhMiAyIDAgMCAwIDEgMS43M2w3IDRhMiAyIDAgMCAwIDIgMGw3LTRBMiAyIDAgMCAwIDIxIDE2eiI+PC9wYXRoPjxwb2x5bGluZSBwb2ludHM9IjMuMjcgNi45NiAxMiAxMi4wMSAyMC43MyA2Ljk2Ij48L3BvbHlsaW5lPjxsaW5lIHgxPSIxMiIgeTE9IjIyLjA4IiB4Mj0iMTIiIHkyPSIxMiI+PC9saW5lPjwvc3ZnPg==) GitHub Action: Get package manager
 
-<!-- end title -->
-<!-- start description -->
+<div align="center">
+  <img src="https://opengraph.githubassets.com/e970d0dbe9ef0b2c9d7908a082cdee394d80b51dbba83dab5821ba6e49341f8d/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Get package manager" />
+</div>
+
+---
+
+<!-- header:end -->
+
+<!-- badges:start -->
+
+[![Marketplace](https://img.shields.io/badge/Marketplace-get--package--manager-blue?logo=github-actions)](https://github.com/marketplace/actions/get-package-manager)
+[![Release](https://img.shields.io/github/v/release/hoverkraft-tech/ci-github-nodejs)](https://github.com/hoverkraft-tech/ci-github-nodejs/releases)
+[![License](https://img.shields.io/github/license/hoverkraft-tech/ci-github-nodejs)](http://choosealicense.com/licenses/mit/)
+[![Stars](https://img.shields.io/github/stars/hoverkraft-tech/ci-github-nodejs?style=social)](https://img.shields.io/github/stars/hoverkraft-tech/ci-github-nodejs?style=social)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/hoverkraft-tech/ci-github-nodejs/blob/main/CONTRIBUTING.md)
+
+<!-- badges:end -->
+
+<!-- overview:start -->
+
+## Overview
 
 Action to detect the package manager used. Supports Yarn and npm
 
-<!-- end description -->
-<!-- start contents -->
-<!-- end contents -->
-<!-- start usage -->
+<!-- overview:end -->
+
+<!-- usage:start -->
+
+## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs@0.14.1
+- uses: hoverkraft-tech/ci-github-nodejs/actions/get-package-manager@1d00c9eb280acbee5df4b4a2087f786e66b13d87 # 0.14.1
   with:
-    # Description: Working directory where the dependencies are installed.
-    #
-    # Default: .
-    working-directory: ""
+    # Working directory where the dependencies are installed.
+    # Default: `.`
+    working-directory: .
 ```
 
-<!-- end usage -->
-<!-- start inputs -->
+<!-- usage:end -->
 
-| **Input**                      | **Description**                                         | **Default**    | **Required** |
-| ------------------------------ | ------------------------------------------------------- | -------------- | ------------ |
-| <code>working-directory</code> | Working directory where the dependencies are installed. | <code>.</code> | **false**    |
+<!-- inputs:start -->
 
-<!-- end inputs -->
-<!-- start outputs -->
+## Inputs
 
-| **Output**                         | **Description**                                       |
-| ---------------------------------- | ----------------------------------------------------- |
-| <code>package-manager</code>       | The package manager used.                             |
-| <code>cache-dependency-path</code> | The path to the dependency file for cache management. |
-| <code>install-command</code>       | The command to install dependencies.                  |
-| <code>run-script-command</code>    | The command to run a script in the package.json file. |
+| **Input**               | **Description**                                         | **Required** | **Default** |
+| ----------------------- | ------------------------------------------------------- | ------------ | ----------- |
+| **`working-directory`** | Working directory where the dependencies are installed. | **false**    | `.`         |
 
-<!-- end outputs -->
-<!-- start [.github/ghadocs/examples/] -->
-<!-- end [.github/ghadocs/examples/] -->
+<!-- inputs:end -->
+
+<!-- secrets:start -->
+<!-- secrets:end -->
+
+<!-- outputs:start -->
+
+## Outputs
+
+| **Output**                  | **Description**                                       |
+| --------------------------- | ----------------------------------------------------- |
+| **`package-manager`**       | The package manager used.                             |
+| **`cache-dependency-path`** | The path to the dependency file for cache management. |
+| **`install-command`**       | The command to install dependencies.                  |
+| **`run-script-command`**    | The command to run a script in the package.json file. |
+
+<!-- outputs:end -->
+
+<!-- examples:start -->
+<!-- examples:end -->
+
+<!--
+// jscpd:ignore-start
+-->
+
+<!-- contributing:start -->
+
+## Contributing
+
+Contributions are welcome! Please see the [contributing guidelines](https://github.com/hoverkraft-tech/ci-github-nodejs/blob/main/CONTRIBUTING.md) for more details.
+
+<!-- contributing:end -->
+
+<!-- security:start -->
+<!-- security:end -->
+
+<!-- license:start -->
+
+## License
+
+This project is licensed under the MIT License.
+
+SPDX-License-Identifier: MIT
+
+Copyright © 2025 Hoverkraft
+
+For more details, see the [license](http://choosealicense.com/licenses/mit/).
+
+<!-- license:end -->
+
+<!-- generated:start -->
+
+---
+
+This documentation was automatically generated by [CI Dokumentor](https://github.com/hoverkraft-tech/ci-dokumentor).
+
+<!-- generated:end -->
+
+<!--
+// jscpd:ignore-end
+-->

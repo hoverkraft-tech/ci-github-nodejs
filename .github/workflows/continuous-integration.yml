@@ -1,6 +1,5 @@
-# NodeJS Continuous Integration
-# ==========================
 # Workflow to performs continuous integration steps agains a NodeJs project:
+#
 # - CodeQL analysis
 # - Linting
 # - Build
@@ -67,10 +66,10 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@1c379f7f6e0fc850fe5a7111f74d54e159b4dcd2 # 0.26.0
-      - uses: github/codeql-action/init@64d10c13136e1c5bce3e5fbde8d4906eeaafc885 # v3.30.6
+      - uses: github/codeql-action/init@e296a935590eb16afc0c0108289f68c87e2a89a5 # v4.30.7
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@64d10c13136e1c5bce3e5fbde8d4906eeaafc885 # v3.30.6
+      - uses: github/codeql-action/analyze@e296a935590eb16afc0c0108289f68c87e2a89a5 # v4.30.7
 
   dependency-review:
     name: 🛡️ Dependency Review
