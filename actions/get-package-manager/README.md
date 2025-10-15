@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItcGFja2FnZSIgY29sb3I9ImdyYXktZGFyayI+PGxpbmUgeDE9IjE2LjUiIHkxPSI5LjQiIHgyPSI3LjUiIHkyPSI0LjIxIj48L2xpbmU+PHBhdGggZD0iTTIxIDE2VjhhMiAyIDAgMCAwLTEtMS43M2wtNy00YTIgMiAwIDAgMC0yIDBsLTcgNEEyIDIgMCAwIDAgMyA4djhhMiAyIDAgMCAwIDEgMS43M2w3IDRhMiAyIDAgMCAwIDIgMGw3LTRBMiAyIDAgMCAwIDIxIDE2eiI+PC9wYXRoPjxwb2x5bGluZSBwb2ludHM9IjMuMjcgNi45NiAxMiAxMi4wMSAyMC43MyA2Ljk2Ij48L3BvbHlsaW5lPjxsaW5lIHgxPSIxMiIgeTE9IjIyLjA4IiB4Mj0iMTIiIHkyPSIxMiI+PC9saW5lPjwvc3ZnPg==) GitHub Action: Get package manager
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/e970d0dbe9ef0b2c9d7908a082cdee394d80b51dbba83dab5821ba6e49341f8d/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Get package manager" />
+  <img src="https://opengraph.githubassets.com/289a3c6fdb0dea3dec9358a0e4b263a847ddd65f34d8b7d3a3cdb0910294881f/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Get package manager" />
 </div>
 
 ---
@@ -24,7 +24,7 @@
 
 ## Overview
 
-Action to detect the package manager used. Supports Yarn and npm
+Action to detect the package manager used. Supports Yarn, pnpm, and npm
 
 <!-- overview:end -->
 
@@ -33,9 +33,11 @@ Action to detect the package manager used. Supports Yarn and npm
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/get-package-manager@1d00c9eb280acbee5df4b4a2087f786e66b13d87 # 0.14.1
+- uses: hoverkraft-tech/ci-github-nodejs/actions/get-package-manager@4b87508052fc8b08a44a5d2d7d5f0636deb6ea3e # 0.15.0
   with:
     # Working directory where the dependencies are installed.
+    # Can be absolute or relative to the repository root.
+    #
     # Default: `.`
     working-directory: .
 ```
@@ -49,6 +51,7 @@ Action to detect the package manager used. Supports Yarn and npm
 | **Input**               | **Description**                                         | **Required** | **Default** |
 | ----------------------- | ------------------------------------------------------- | ------------ | ----------- |
 | **`working-directory`** | Working directory where the dependencies are installed. | **false**    | `.`         |
+|                         | Can be absolute or relative to the repository root.     |              |             |
 
 <!-- inputs:end -->
 

@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItYXJjaGl2ZSIgY29sb3I9ImdyYXktZGFyayI+PHBvbHlsaW5lIHBvaW50cz0iMjEgOCAyMSAyMSAzIDIxIDMgOCI+PC9wb2x5bGluZT48cmVjdCB4PSIxIiB5PSIzIiB3aWR0aD0iMjIiIGhlaWdodD0iNSI+PC9yZWN0PjxsaW5lIHgxPSIxMCIgeTE9IjEyIiB4Mj0iMTQiIHkyPSIxMiI+PC9saW5lPjwvc3ZnPg==) GitHub Action: Dependencies cache
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/e970d0dbe9ef0b2c9d7908a082cdee394d80b51dbba83dab5821ba6e49341f8d/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Dependencies cache" />
+  <img src="https://opengraph.githubassets.com/289a3c6fdb0dea3dec9358a0e4b263a847ddd65f34d8b7d3a3cdb0910294881f/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Dependencies cache" />
 </div>
 
 ---
@@ -33,13 +33,15 @@ Action to setup dependencies cache managment.
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/dependencies-cache@1d00c9eb280acbee5df4b4a2087f786e66b13d87 # 0.14.1
+- uses: hoverkraft-tech/ci-github-nodejs/actions/dependencies-cache@4b87508052fc8b08a44a5d2d7d5f0636deb6ea3e # 0.15.0
   with:
     # List of dependencies for which the cache should be managed.
     # This input is required.
     dependencies: ""
 
     # Working directory where the dependencies are installed.
+    # Can be absolute or relative to the repository root.
+    #
     # Default: `.`
     working-directory: .
 ```
@@ -54,6 +56,7 @@ Action to setup dependencies cache managment.
 | ----------------------- | ----------------------------------------------------------- | ------------ | ----------- |
 | **`dependencies`**      | List of dependencies for which the cache should be managed. | **true**     | -           |
 | **`working-directory`** | Working directory where the dependencies are installed.     | **false**    | `.`         |
+|                         | Can be absolute or relative to the repository root.         |              |             |
 
 <!-- inputs:end -->
 
