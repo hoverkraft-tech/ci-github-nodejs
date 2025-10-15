@@ -99,7 +99,7 @@ jobs:
 
 | **Input**               | **Description**                                                                           | **Required** | **Type**    | **Default**  |
 | ----------------------- | ----------------------------------------------------------------------------------------- | ------------ | ----------- | ------------ |
-| **`build`**             | Build parameters. Must be a string or a json object.                                      | **false**    | **string**  | `build`      |
+| **`build`**             | Build parameters. Must be a string or a JSON object.                                      | **false**    | **string**  | `build`      |
 | **`checks`**            | Optional flag to enable check steps.                                                      | **false**    | **boolean** | `true`       |
 | **`lint`**              | Optional flag to enable linting.                                                          | **false**    | **boolean** | `true`       |
 | **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                 | **false**    | **string**  | `typescript` |

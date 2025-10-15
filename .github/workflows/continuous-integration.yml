@@ -11,7 +11,7 @@ on:
   workflow_call:
     inputs:
       build:
-        description: Build parameters. Must be a string or a json object.
+        description: Build parameters. Must be a string or a JSON object.
         type: string
         required: false
         default: "build"
