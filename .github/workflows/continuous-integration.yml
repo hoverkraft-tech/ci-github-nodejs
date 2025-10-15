@@ -1,11 +1,11 @@
-# Workflow to performs continuous integration steps agains a NodeJs project:
+# Workflow to performs continuous integration steps agains a Node.js project:
 #
 # - CodeQL analysis
 # - Linting
 # - Build
 # - Test
 
-name: NodeJS Continuous Integration
+name: Node.js Continuous Integration
 
 on:
   workflow_call:
@@ -41,7 +41,7 @@ on:
         required: false
         default: true
       coverage:
-        description: "Specifify code coverage reporter. Supported values: 'codecov'."
+        description: "Specifify code coverage reporter. Supported values: `codecov`."
         type: string
         required: false
         default: "codecov"

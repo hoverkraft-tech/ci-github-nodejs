@@ -1,6 +1,6 @@
 <!-- header:start -->
 
-# GitHub Reusable Workflow: NodeJS Continuous Integration
+# GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
   <img src="https://opengraph.githubassets.com/d404625773c747748dc7d301c22e3486f68a45a9b6ecf6dcbbc8827f4cf9ccf8/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="NodeJS Continuous Integration" />
@@ -23,7 +23,7 @@
 
 ## Overview
 
-Workflow to performs continuous integration steps agains a NodeJs project:
+Workflow to performs continuous integration steps agains a Node.js project:
 
 - CodeQL analysis
 - Linting
@@ -99,13 +99,13 @@ jobs:
 
 | **Input**               | **Description**                                                                           | **Required** | **Type**    | **Default**  |
 | ----------------------- | ----------------------------------------------------------------------------------------- | ------------ | ----------- | ------------ |
-| **`build`**             | Build parameters. Must be a string or a json object.                                      | **false**    | **string**  | `build`      |
+| **`build`**             | Build parameters. Must be a string or a JSON object.                                      | **false**    | **string**  | `build`      |
 | **`checks`**            | Optional flag to enable check steps.                                                      | **false**    | **boolean** | `true`       |
 | **`lint`**              | Optional flag to enable linting.                                                          | **false**    | **boolean** | `true`       |
 | **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                 | **false**    | **string**  | `typescript` |
 | **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>. | **false**    | **boolean** | `true`       |
 | **`test`**              | Optional flag to enable test.                                                             | **false**    | **boolean** | `true`       |
-| **`coverage`**          | Specifify code coverage reporter. Supported values: 'codecov'.                            | **false**    | **string**  | `codecov`    |
+| **`coverage`**          | Specifify code coverage reporter. Supported values: 'Codecov'.                            | **false**    | **string**  | `codecov`    |
 | **`working-directory`** | Working directory where the dependencies are installed.                                   | **false**    | **string**  | `.`          |
 
 <!-- inputs:end -->

@@ -10,7 +10,9 @@ inputs:
     description: "List of dependencies for which the cache should be managed."
     required: true
   working-directory:
-    description: "Working directory where the dependencies are installed."
+    description: |
+      Working directory where the dependencies are installed.
+      Can be absolute or relative to the repository root.
     required: false
     default: "."
 
@@ -75,35 +77,80 @@ runs:
     - name: ♻️ Get Jest cache dir
       id: jest-cache-dir-path
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).jest == true
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: |
-        case "${{ steps.get-package-manager.outputs.package-manager }}" in
-          npm)
-            JEST_CONFIG=$(${{ steps.get-package-manager.outputs.package-manager }} exec jest -- --showConfig)
-            ;;
-          *)
-            JEST_CONFIG=$(${{ steps.get-package-manager.outputs.package-manager }} jest --showConfig)
-            ;;
-        esac
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      env:
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        PACKAGE_MANAGER: ${{ steps.get-package-manager.outputs.package-manager }}
+      with:
+        # jscpd:ignore-start
+        script: |
+          const fs = require('node:fs');
+          const path = require('node:path');
 
-        if [ -z "$JEST_CONFIG" ]; then
-          echo "::error::Unable to get Jest config"
-          exit 1
-        fi
+          let workingDirectory = process.env.WORKING_DIRECTORY || '.';
+          if (!path.isAbsolute(workingDirectory)) {
+            workingDirectory = path.join(process.env.GITHUB_WORKSPACE, workingDirectory);
+          }
 
-        echo "::debug::Jest config: $JEST_CONFIG"
+          if (!fs.existsSync(workingDirectory)) {
+            core.setFailed(`The specified working directory does not exist: ${workingDirectory}`);
+            return;
+          }
 
-        JEST_CACHE_DIR=$(echo "$JEST_CONFIG" | grep -oP '(?<="cacheDirectory": ")[^"]+(?=")')
+          workingDirectory = path.resolve(workingDirectory);
+          core.debug(`Running in working directory: ${workingDirectory}`);
+          process.chdir(workingDirectory);
 
-        if [ -z "$JEST_CACHE_DIR" ]; then
-          echo "::error ::Unable to get Jest cache directory from config: $JEST_CONFIG"
-          exit 1
-        fi
+          const packageManager = process.env.PACKAGE_MANAGER;
+          if (!packageManager) {
+            core.setFailed('Unable to determine package manager');
+            return;
+          }
+          core.debug(`Using package manager: ${packageManager}`);
 
-        echo "::debug::Jest cache directory: $JEST_CACHE_DIR"
+          const commandArgs = packageManager === 'npm'
+            ? ['exec', 'jest', '--', '--showConfig']
+            : ['jest', '--showConfig'];
 
-        echo "dir=$JEST_CACHE_DIR" >> "$GITHUB_OUTPUT"
+          let execResult;
+          try {
+            execResult = await exec.getExecOutput(packageManager, commandArgs, { cwd: workingDirectory });
+          } catch (error) {
+            core.setFailed(`Unable to get Jest config: ${error.message}`);
+            return;
+          }
+
+          if (execResult.exitCode !== 0) {
+            const errorMessage = execResult.stderr?.trim() || execResult.stdout?.trim();
+            core.setFailed(`Unable to get Jest config (exit code ${execResult.exitCode}): ${errorMessage}`);
+            return;
+          }
+
+          const jestConfigRaw = execResult.stdout.trim();
+
+          if (!jestConfigRaw) {
+            core.setFailed('Unable to get Jest config');
+            return;
+          }
+
+          core.debug(`Jest config: ${jestConfigRaw}`);
+
+          // Find cacheDirectory in the config with regex
+          const cacheDirMatch = jestConfigRaw.match(/"cacheDirectory"\s*:\s*"([^"]+)"/);
+          if (!cacheDirMatch || cacheDirMatch.length < 2) {
+            core.setFailed('Unable to find cacheDirectory in Jest config');
+            return;
+          }
+
+          let jestCacheDir = cacheDirMatch[1];
+          if (!path.isAbsolute(jestCacheDir)) {
+            jestCacheDir = path.join(workingDirectory, jestCacheDir);
+          }
+          jestCacheDir = path.resolve(jestCacheDir);
+
+          core.debug(`Jest cache directory: ${jestCacheDir}`);
+          core.setOutput('dir', jestCacheDir);
+        # jscpd:ignore-end
 
     - name: ♻️ Test cache
       if: steps.jest-cache-dir-path.outputs.dir

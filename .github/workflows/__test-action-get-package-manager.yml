@@ -16,28 +16,28 @@ jobs:
           - working-directory: tests/npm
             package-manager: npm
             lock-file: package-lock.json
-            cache-dependency-path: "**/package-lock.json"
+            cache-dependency-path: "tests/npm/**/package-lock.json"
             install-command: npm ci
             run-script-command: npm run
 
           - working-directory: tests/pnpm
             package-manager: pnpm
             lock-file: pnpm-lock.yaml
-            cache-dependency-path: "**/pnpm-lock.yaml"
+            cache-dependency-path: "tests/pnpm/**/pnpm-lock.yaml"
             install-command: pnpm install --frozen-lockfile
             run-script-command: pnpm
 
           - working-directory: tests/pnpm-package-manager
             package-manager: pnpm
             lock-file: pnpm-lock.yaml
-            cache-dependency-path: "**/pnpm-lock.yaml"
+            cache-dependency-path: "tests/pnpm-package-manager/**/pnpm-lock.yaml"
             install-command: pnpm install --frozen-lockfile
             run-script-command: pnpm
 
           - working-directory: tests/yarn
             package-manager: yarn
             lock-file: yarn.lock
-            cache-dependency-path: "**/yarn.lock"
+            cache-dependency-path: "tests/yarn/**/yarn.lock"
             install-command: yarn install --frozen-lockfile
             run-script-command: yarn
     steps:
