@@ -65,11 +65,11 @@ jobs:
       security-events: write
     runs-on: "ubuntu-latest"
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@1c379f7f6e0fc850fe5a7111f74d54e159b4dcd2 # 0.26.0
-      - uses: github/codeql-action/init@e296a935590eb16afc0c0108289f68c87e2a89a5 # v4.30.7
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+      - uses: github/codeql-action/init@f443b600d91635bebf5b0d9ebc620189c0d6fba5 # v4.30.8
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@e296a935590eb16afc0c0108289f68c87e2a89a5 # v4.30.7
+      - uses: github/codeql-action/analyze@f443b600d91635bebf5b0d9ebc620189c0d6fba5 # v4.30.8
 
   dependency-review:
     name: 🛡️ Dependency Review
@@ -78,8 +78,8 @@ jobs:
       contents: read
     runs-on: "ubuntu-latest"
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@1c379f7f6e0fc850fe5a7111f74d54e159b4dcd2 # 0.26.0
-      - uses: actions/dependency-review-action@56339e523c0409420f6c2c9a2f4292bbb3c07dd3 # v4.8.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+      - uses: actions/dependency-review-action@40c09b7dc99638e5ddb0bfd91c1673effc064d8a # v4.8.1
 
   setup:
     name: ⚙️ Setup
@@ -92,7 +92,7 @@ jobs:
       build-commands: ${{ steps.build-variables.outputs.commands }}
       build-artifact: ${{ steps.build-variables.outputs.artifact }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@1c379f7f6e0fc850fe5a7111f74d54e159b4dcd2 # 0.26.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
 
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       # jscpd:ignore-start
@@ -171,7 +171,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@1c379f7f6e0fc850fe5a7111f74d54e159b4dcd2 # 0.26.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
 
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       - id: oidc
@@ -209,7 +209,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@1c379f7f6e0fc850fe5a7111f74d54e159b4dcd2 # 0.26.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
         if: needs.setup.outputs.build-commands
 
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
@@ -274,7 +274,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@1c379f7f6e0fc850fe5a7111f74d54e159b4dcd2 # 0.26.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
 
       - if: needs.setup.outputs.build-artifact
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
