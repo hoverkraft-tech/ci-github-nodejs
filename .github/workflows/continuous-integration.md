@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/d404625773c747748dc7d301c22e3486f68a45a9b6ecf6dcbbc8827f4cf9ccf8/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="NodeJS Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/289a3c6fdb0dea3dec9358a0e4b263a847ddd65f34d8b7d3a3cdb0910294881f/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -43,7 +43,7 @@ Workflow to performs continuous integration steps agains a Node.js project:
 ## Usage
 
 ```yaml
-name: NodeJS Continuous Integration
+name: Node.js Continuous Integration
 on:
   push:
     branches:
@@ -54,7 +54,7 @@ permissions:
   id-token: write
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@1d00c9eb280acbee5df4b4a2087f786e66b13d87 # 0.14.1
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@4b87508052fc8b08a44a5d2d7d5f0636deb6ea3e # 0.15.0
     with:
       # Build parameters. Must be a string or a json object.
       # Default: `build`
@@ -80,7 +80,7 @@ jobs:
       # Default: `true`
       test: true
 
-      # Specifify code coverage reporter. Supported values: 'codecov'.
+      # Specifify code coverage reporter. Supported values: `codecov`.
       # Default: `codecov`
       coverage: codecov
 
@@ -99,13 +99,13 @@ jobs:
 
 | **Input**               | **Description**                                                                           | **Required** | **Type**    | **Default**  |
 | ----------------------- | ----------------------------------------------------------------------------------------- | ------------ | ----------- | ------------ |
-| **`build`**             | Build parameters. Must be a string or a JSON object.                                      | **false**    | **string**  | `build`      |
+| **`build`**             | Build parameters. Must be a string or a json object.                                      | **false**    | **string**  | `build`      |
 | **`checks`**            | Optional flag to enable check steps.                                                      | **false**    | **boolean** | `true`       |
 | **`lint`**              | Optional flag to enable linting.                                                          | **false**    | **boolean** | `true`       |
 | **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                 | **false**    | **string**  | `typescript` |
 | **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>. | **false**    | **boolean** | `true`       |
 | **`test`**              | Optional flag to enable test.                                                             | **false**    | **boolean** | `true`       |
-| **`coverage`**          | Specifify code coverage reporter. Supported values: 'Codecov'.                            | **false**    | **string**  | `codecov`    |
+| **`coverage`**          | Specifify code coverage reporter. Supported values: `codecov`.                            | **false**    | **string**  | `codecov`    |
 | **`working-directory`** | Working directory where the dependencies are installed.                                   | **false**    | **string**  | `.`          |
 
 <!-- inputs:end -->
@@ -133,7 +133,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@1d00c9eb280acbee5df4b4a2087f786e66b13d87 # 0.14.1
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@4b87508052fc8b08a44a5d2d7d5f0636deb6ea3e # 0.15.0
     permissions:
       id-token: write
       security-events: write
