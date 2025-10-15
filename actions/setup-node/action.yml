@@ -11,7 +11,9 @@ inputs:
     required: false
     default: ""
   working-directory:
-    description: "Working directory where the dependencies are installed."
+    description: |
+      Working directory where the dependencies are installed.
+      Can be absolute or relative to the repository root.
     required: false
     default: "."
 
@@ -33,33 +35,98 @@ runs:
         working-directory: ${{ inputs.working-directory }}
 
     - id: get-node-version-file
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: |
-        SUPPORTED_FILES=(".nvmrc" ".node-version")
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      env:
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      with:
+        # jscpd:ignore-start
+        script: |
+          const path = require('node:path');
+          const fs = require('node:fs');
 
-        # Check if any of the supported files exist
-        for file in "${SUPPORTED_FILES[@]}"; do
-          if [ -f "$file" ]; then
-            NODE_VERSION_FILE=$(realpath -s --relative-to="$GITHUB_WORKSPACE" "$(pwd)/$file")
-            echo "node-version-file=$NODE_VERSION_FILE" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-        done
+          let workingDirectory = process.env.WORKING_DIRECTORY || '.';
+          if (!path.isAbsolute(workingDirectory)) {
+            workingDirectory = path.join(process.env.GITHUB_WORKSPACE, workingDirectory);
+          }
+
+          if (!fs.existsSync(workingDirectory)) {
+            core.setFailed(`The specified working directory does not exist: ${workingDirectory}`);
+            return;
+          }
+
+          workingDirectory = path.resolve(workingDirectory);
+          core.debug(`Running in working directory: ${workingDirectory}`);
+          process.chdir(workingDirectory);
+
+          const candidates = ['.nvmrc', '.node-version'];
+
+          for (const fileName of candidates) {
+            const candidatePath = path.resolve(workingDirectory, fileName);
+
+            if (!fs.existsSync(candidatePath)) {
+              continue;
+            }
+
+            const relativePath = path.relative(process.env.GITHUB_WORKSPACE, candidatePath);
+            core.debug(`Found Node version file: ${relativePath}`);
+            core.setOutput('node-version-file', relativePath);
+            return;
+          }
+
+          core.debug('No Node version file found in supported list');
+        # jscpd:ignore-end
 
     # FIXME: workaround until will be merged: https://github.com/actions/setup-node/pull/901
     - id: get-pnpm-version
       if: steps.get-package-manager.outputs.package-manager == 'pnpm'
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: |
-        if [ -f "package.json" ]; then
-          if [ -n "$(jq -r '.packageManager//empty' package.json)" ]; then
-            # pnpm/action-setup supports "packageManager" field in package.json
-            exit 0
-          fi
-        fi
-        echo "pnpm-version=latest" >> "$GITHUB_OUTPUT"
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      env:
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      with:
+        script: |
+          const path = require('node:path');
+          const fs = require('node:fs');
+
+          let workingDirectory = process.env.WORKING_DIRECTORY || '.';
+          if (!path.isAbsolute(workingDirectory)) {
+            workingDirectory = path.join(process.env.GITHUB_WORKSPACE, workingDirectory);
+          }
+
+          if (!fs.existsSync(workingDirectory)) {
+            core.setFailed(`The specified working directory does not exist: ${workingDirectory}`);
+            return;
+          }
+
+          workingDirectory = path.resolve(workingDirectory);
+          core.debug(`Running in working directory: ${workingDirectory}`);
+          process.chdir(workingDirectory);
+
+          let packageJsonPath = path.join(workingDirectory, 'package.json');
+          if (!fs.existsSync(packageJsonPath)) {
+            core.debug(`package.json not found in working directory "${workingDirectory}"; defaulting pnpm version to latest`);
+            core.setOutput('pnpm-version', 'latest');
+            return;
+          }
+          packageJsonPath = path.resolve(packageJsonPath);
+
+          let packageJson;
+          try {
+            const fileContent = fs.readFileSync(packageJsonPath, 'utf8');
+            packageJson = JSON.parse(fileContent);
+          } catch (error) {
+            core.setFailed(`Unable to read ${packageJsonPath} to determine pnpm version: ${error.message}`);
+            return;
+          }
+
+          const packageManagerField = (packageJson?.packageManager ?? '').trim();
+
+          if (packageManagerField) {
+            core.debug('package.json defines packageManager; pnpm/action-setup will use it');
+            return;
+          }
+
+          core.debug('packageManager field missing; defaulting pnpm version to latest');
+          core.setOutput('pnpm-version', 'latest');
 
     - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
       if: steps.get-package-manager.outputs.package-manager == 'pnpm'
