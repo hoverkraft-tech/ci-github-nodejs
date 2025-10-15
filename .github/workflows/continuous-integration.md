@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/289a3c6fdb0dea3dec9358a0e4b263a847ddd65f34d8b7d3a3cdb0910294881f/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/f9b01491f8a418b57dd0dd2c7c1ba33822a6a24a9768de5a1de8b014121a2348/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -54,9 +54,9 @@ permissions:
   id-token: write
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@4b87508052fc8b08a44a5d2d7d5f0636deb6ea3e # 0.15.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@6809332ced7647b3d52300a47d65657283f3395e # 0.16.0
     with:
-      # Build parameters. Must be a string or a json object.
+      # Build parameters. Must be a string or a JSON object.
       # Default: `build`
       build: build
 
@@ -133,7 +133,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@4b87508052fc8b08a44a5d2d7d5f0636deb6ea3e # 0.15.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@6809332ced7647b3d52300a47d65657283f3395e # 0.16.0
     permissions:
       id-token: write
       security-events: write
