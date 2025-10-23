@@ -87,6 +87,11 @@ jobs:
       # Working directory where the dependencies are installed.
       # Default: `.`
       working-directory: .
+
+      # Docker container image to run CI steps in. When specified, steps will execute inside this container instead of checking out code.
+      # The container should have the project code and dependencies pre-installed.
+      # Default: `` (empty, uses local checkout)
+      container: ""
 ```
 
 <!-- usage:end -->
@@ -97,16 +102,17 @@ jobs:
 
 ### Workflow Call Inputs
 
-| **Input**               | **Description**                                                                           | **Required** | **Type**    | **Default**  |
-| ----------------------- | ----------------------------------------------------------------------------------------- | ------------ | ----------- | ------------ |
-| **`build`**             | Build parameters. Must be a string or a JSON object.                                      | **false**    | **string**  | `build`      |
-| **`checks`**            | Optional flag to enable check steps.                                                      | **false**    | **boolean** | `true`       |
-| **`lint`**              | Optional flag to enable linting.                                                          | **false**    | **boolean** | `true`       |
-| **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                 | **false**    | **string**  | `typescript` |
-| **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>. | **false**    | **boolean** | `true`       |
-| **`test`**              | Optional flag to enable test.                                                             | **false**    | **boolean** | `true`       |
-| **`coverage`**          | Specifify code coverage reporter. Supported values: `codecov`.                            | **false**    | **string**  | `codecov`    |
-| **`working-directory`** | Working directory where the dependencies are installed.                                   | **false**    | **string**  | `.`          |
+| **Input**               | **Description**                                                                                                                                                                                              | **Required** | **Type**    | **Default**  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ----------- | ------------ |
+| **`build`**             | Build parameters. Must be a string or a JSON object.                                                                                                                                                         | **false**    | **string**  | `build`      |
+| **`checks`**            | Optional flag to enable check steps.                                                                                                                                                                         | **false**    | **boolean** | `true`       |
+| **`lint`**              | Optional flag to enable linting.                                                                                                                                                                             | **false**    | **boolean** | `true`       |
+| **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                                                                                                                                    | **false**    | **string**  | `typescript` |
+| **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>.                                                                                                                    | **false**    | **boolean** | `true`       |
+| **`test`**              | Optional flag to enable test.                                                                                                                                                                                | **false**    | **boolean** | `true`       |
+| **`coverage`**          | Specifify code coverage reporter. Supported values: `codecov`.                                                                                                                                               | **false**    | **string**  | `codecov`    |
+| **`working-directory`** | Working directory where the dependencies are installed.                                                                                                                                                      | **false**    | **string**  | `.`          |
+| **`container`**         | Docker container image to run CI steps in. When specified, steps will execute inside this container instead of checking out code. The container should have the project code and dependencies pre-installed. | **false**    | **string**  | ``           |
 
 <!-- inputs:end -->
 
@@ -166,6 +172,54 @@ jobs:
           npm publish dist
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+
+### Continuous Integration in a Docker container
+
+This example runs CI checks inside a pre-built Docker container that contains the project code and dependencies. This ensures the same environment that will be deployed to production is tested.
+
+```yaml
+name: Continuous Integration - Container Mode
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # Build the Docker image with project code and dependencies
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Build Docker image
+        run: |
+          docker build -t my-app:${{ github.sha }} .
+
+      - name: Push to registry
+        run: |
+          docker tag my-app:${{ github.sha }} ghcr.io/${{ github.repository }}:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+  # Run CI checks inside the Docker container
+  continuous-integration:
+    needs: build-image
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@6809332ced7647b3d52300a47d65657283f3395e # 0.16.0
+    permissions:
+      id-token: write
+      security-events: write
+      contents: read
+    with:
+      container: ghcr.io/${{ github.repository }}:${{ github.sha }}
+      # When using container mode, code-ql and dependency-review are typically disabled
+      # as they require repository checkout
+      code-ql: ""
+      dependency-review: false
+      # Specify which build/test commands to run (they should exist in package.json)
+      build: "" # Skip build as it was done in the Docker image
+      lint: true
+      test: true
 ```
 
 <!-- examples:end -->
