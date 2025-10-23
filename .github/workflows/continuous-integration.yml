@@ -10,6 +10,13 @@ name: Node.js Continuous Integration
 on:
   workflow_call:
     inputs:
+      runs-on:
+        description: |
+          JSON array of runner(s) to use.
+          See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job.
+        type: string
+        default: '["ubuntu-latest"]'
+        required: false
       build:
         description: |
           Build parameters. Must be a string or a JSON object.
@@ -65,7 +72,7 @@ on:
         required: false
         default: true
       coverage:
-        description: "Specifify code coverage reporter. Supported values: `codecov`."
+        description: "Specify code coverage reporter. Supported values: `codecov`."
         type: string
         required: false
         default: "codecov"
@@ -74,6 +81,11 @@ on:
         type: string
         required: false
         default: "."
+      container:
+        description: "Docker container image to run CI steps in. When specified, steps will execute inside this container instead of checking out code. The container should have the project code and dependencies pre-installed."
+        type: string
+        required: false
+        default: ""
     secrets:
       build-secrets:
         description: |
@@ -97,7 +109,7 @@ jobs:
     if: inputs.checks == true && inputs.code-ql != ''
     permissions:
       security-events: write
-    runs-on: "ubuntu-latest"
+    runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
       - uses: github/codeql-action/init@16140ae1a102900babc80a33c44059580f687047 # v4.30.9
@@ -110,14 +122,18 @@ jobs:
     if: github.event_name == 'pull_request' && inputs.checks == true && inputs.dependency-review
     permissions:
       contents: read
-    runs-on: "ubuntu-latest"
+    runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
       - uses: actions/dependency-review-action@40c09b7dc99638e5ddb0bfd91c1673effc064d8a # v4.8.1
 
   setup:
     name: ⚙️ Setup
-    runs-on: "ubuntu-latest"
+    runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
+    container:
+      image: ${{ inputs.container != '' && inputs.container || null }}
+      # Root user is required to use GitHub Actions features inside the container
+      options: --user root:root
     # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
     permissions:
       contents: read
@@ -127,71 +143,105 @@ jobs:
       build-commands: ${{ steps.build-variables.outputs.commands }}
       build-artifact: ${{ steps.build-variables.outputs.artifact }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
-
-      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      # jscpd:ignore-start
-      - id: oidc
-        uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          path: ./self-workflow
-          repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
-          ref: ${{ steps.oidc.outputs.job_workflow_repo_ref }}
-          sparse-checkout: |
-            actions
-      - run: |
-          if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
-          if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
-      # jscpd:ignore-end
-      - id: setup-node
-        uses: ./self-workflow/actions/setup-node
-        with:
-          working-directory: ${{ inputs.working-directory }}
+      - if: inputs.container == ''
+        uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
 
       - id: build-variables
         if: inputs.build != ''
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          BUILD_INPUT: ${{ inputs.build }}
         with:
           script: |
-            const buildInput = `${{ inputs.build }}`.trim();
+            const fs = require('node:fs');
+            const path = require('node:path');
+
+            let workingDirectory = process.env.WORKING_DIRECTORY || '.';
+            if (!path.isAbsolute(workingDirectory)) {
+              workingDirectory = path.join(process.env.GITHUB_WORKSPACE, workingDirectory);
+            }
+
+            if (!fs.existsSync(workingDirectory)) {
+              core.setFailed(`The specified working directory does not exist: ${workingDirectory}`);
+              return;
+            }
+
+            const buildInput = process.env.BUILD_INPUT.trim();
 
             let commands = [];
             let env = {};
 
-            // Build input can be json or string
-            try {
-              const build = JSON.parse(buildInput);
+            // Build commands is a list of command(s), one per line.
+            const buildCommandsIsList = !buildInput.trim().startsWith('{') && !buildInput.trim().startsWith('[');
+            if (buildCommandsIsList) {
+              commands = buildInput.split('\n').map(command => command.trim()).filter(Boolean);
+            } else {
+              let build;
+              try {
+                build = JSON.parse(buildInput);
+              } catch (error) {
+                core.setFailed(`Failed to parse build input as JSON: ${error.message}`);
+                return;
+              }
+
+              // Build commands is a JSON array of commands
               if (Array.isArray(build)) {
                 commands = build;
-              } else {
+              }
+              // Build commands is a JSON object
+              else {
                 commands = build.commands ?? ["build"];
                 env = build.env ?? {};
 
                 if (build.artifact) {
-                  if(typeof build.artifact === 'string') {
-                    build.artifact = build.artifact.trim().split('\n');
+                  buildArtifact = build.artifact;
+
+                  if (typeof buildArtifact === 'string' || Array.isArray(buildArtifact)) {
+                    buildArtifact = {
+                      paths: buildArtifact
+                    };
                   }
-                  const sanitizedArtifacts = build.artifact
+
+                  if (typeof buildArtifact.paths === 'string') {
+                    buildArtifact.paths = buildArtifact.paths.split('\n');
+                  } else if (!Array.isArray(buildArtifact.paths)) {
+                    return core.setFailed('Build artifact paths must be a string or an array of strings');
+                  }
+
+                  buildArtifact.paths = buildArtifact.paths
                     .map(artifact => artifact.trim())
                     .filter(Boolean)
                     .map(artifact => {
                       // FIXME: Workaround to preserve full path to artifact
-                      const fullpath = artifact.startsWith('/') ? artifact : `${{ github.workspace }}/${artifact}`;
+                      const fullpath = artifact.startsWith('/') ? artifact : `${workingDirectory}/${artifact}`;
 
                       // Add a wildcard to the first folder of the path
                       return fullpath.replace(/\/([^/]+)/, '/*$1');
-                    });
+                    }).join('\n');
 
-                  core.setOutput('artifact', sanitizedArtifacts.join('\n'));
+                  if (!buildArtifact.paths) {
+                    return core.setFailed('No valid build artifact paths found');
+                  }
+
+                  if (!buildArtifact.name) {
+                    buildArtifact.name = 'build';
+                  } else if (typeof buildArtifact.name !== 'string') {
+                    return core.setFailed('Build artifact name must be a string');
+                  }
+
+                  core.setOutput('artifact', JSON.stringify(buildArtifact));
                 }
               }
-            } catch (e) {
-              commands = buildInput.split('\n');
+            }
+
+            if (commands.some(command => typeof command !== 'string')) {
+              core.setFailed('Build commands array must only contain strings');
+              return;
             }
 
             const sanitizedCommands = commands.map(command => command.trim()).filter(Boolean);
-            if(!sanitizedCommands.length) {
+            if (!sanitizedCommands.length) {
               core.setFailed('No build commands found');
             }
 
@@ -201,7 +251,11 @@ jobs:
   lint:
     name: 👕 Lint
     if: inputs.checks == true && inputs.lint != false
-    runs-on: "ubuntu-latest"
+    runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
+    container:
+      image: ${{ inputs.container != '' && inputs.container || null }}
+      # Root user is required to use GitHub Actions features inside the container
+      options: --user root:root
     needs: setup
     # jscpd:ignore-start
     # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
@@ -210,6 +264,7 @@ jobs:
       id-token: write
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+        if: inputs.container == ''
 
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       - id: oidc
@@ -224,8 +279,9 @@ jobs:
       - run: |
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
-      # jscpd:ignore-end
+
       - id: setup-node
+        if: inputs.container == ''
         uses: ./self-workflow/actions/setup-node
         with:
           working-directory: ${{ inputs.working-directory }}
@@ -233,22 +289,33 @@ jobs:
             nx
             prettier
 
-      - run: ${{ steps.setup-node.outputs.run-script-command }} lint
+      - id: get-package-manager
+        if: inputs.container
+        uses: ./self-workflow/actions/get-package-manager
+        with:
+          working-directory: ${{ inputs.working-directory }}
+      # jscpd:ignore-end
+
+      - run: ${{ inputs.container && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }} lint
         working-directory: ${{ inputs.working-directory }}
 
   build:
     name: 🏗️ Build
     if: inputs.checks == true
-    runs-on: "ubuntu-latest"
-    needs: setup
+    runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
     # jscpd:ignore-start
+    container:
+      image: ${{ inputs.container != '' && inputs.container || null }}
+      # Root user is required to use GitHub Actions features inside the container
+      options: --user root:root
+    needs: setup
     permissions:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       contents: read
       id-token: write
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
-        if: needs.setup.outputs.build-commands
+        if: needs.setup.outputs.build-commands && inputs.container == ''
 
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       - id: oidc
@@ -266,16 +333,6 @@ jobs:
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
       # jscpd:ignore-end
-      - id: setup-node
-        if: needs.setup.outputs.build-commands
-        uses: ./self-workflow/actions/setup-node
-        with:
-          working-directory: ${{ inputs.working-directory }}
-          dependencies-cache: |
-            nx
-            gatsby
-            storybook
-
       - if: needs.setup.outputs.build-commands
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
@@ -307,11 +364,28 @@ jobs:
               core.exportVariable(key.trim(), value.trim());
             }
 
+      - id: setup-node
+        if: needs.setup.outputs.build-commands && inputs.container == ''
+        uses: ./self-workflow/actions/setup-node
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          dependencies-cache: |
+            nx
+            gatsby
+            storybook
+
+      - id: get-package-manager
+        if: needs.setup.outputs.build-commands && inputs.container
+        uses: ./self-workflow/actions/get-package-manager
+        with:
+          working-directory: ${{ inputs.working-directory }}
+
       - if: needs.setup.outputs.build-commands
         working-directory: ${{ inputs.working-directory }}
+        env:
+          BUILD_COMMANDS: ${{ needs.setup.outputs.build-commands }}
+          RUN_SCRIPT_COMMAND: ${{ inputs.container && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
         run: |
-          BUILD_COMMANDS="${{ needs.setup.outputs.build-commands }}"
-
           echo "$BUILD_COMMANDS" | while IFS= read -r COMMAND ; do
               # Trim whitespace
               COMMAND=$(echo "$COMMAND" | xargs)
@@ -322,19 +396,23 @@ jobs:
               fi
 
               echo -e "\n - Running $COMMAND"
-              ${{ steps.setup-node.outputs.run-script-command }} "$COMMAND"
+              $RUN_SCRIPT_COMMAND "$COMMAND"
           done
 
       - if: needs.setup.outputs.build-commands && needs.setup.outputs.build-artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: build
-          path: ${{ needs.setup.outputs.build-artifact }}
+          name: ${{ fromJSON(needs.setup.outputs.build-artifact).name }}
+          path: ${{ fromJSON(needs.setup.outputs.build-artifact).paths }}
 
   test:
     name: 🧪 Test
     if: inputs.checks == true && inputs.test == true
-    runs-on: "ubuntu-latest"
+    runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
+    container:
+      image: ${{ inputs.container != '' && inputs.container || null }}
+      # Root user is required to use GitHub Actions features inside the container
+      options: --user root:root
     needs:
       - setup
       - build
@@ -344,8 +422,9 @@ jobs:
       id-token: write
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+        if: inputs.container == ''
 
-      - if: needs.setup.outputs.build-artifact
+      - if: needs.setup.outputs.build-artifact && inputs.container == ''
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: build
@@ -365,6 +444,7 @@ jobs:
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
 
       - id: setup-node
+        if: inputs.container == ''
         uses: ./self-workflow/actions/setup-node
         with:
           working-directory: ${{ inputs.working-directory }}
@@ -372,10 +452,30 @@ jobs:
             nx
             jest
 
-      - run: ${{ steps.setup-node.outputs.run-script-command }} test:ci
+      - id: get-package-manager
+        if: needs.setup.outputs.build-commands && inputs.container
+        uses: ./self-workflow/actions/get-package-manager
+        with:
+          working-directory: ${{ inputs.working-directory }}
+
+      - run: ${{ inputs.container && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }} test:ci
         working-directory: ${{ inputs.working-directory }}
         env:
           CI: "true"
+
+      - if: inputs.coverage == 'codecov' && inputs.container
+        env:
+          REQUIRED_DEPS: |
+            git
+            curl
+            gpg
+        run: |
+          apt-get update
+          for dep in $REQUIRED_DEPS; do
+            if ! dpkg -s "$dep" >/dev/null 2>&1; then
+              apt-get install -y "$dep"
+            fi
+          done
 
       - name: 📊 Code coverage
         if: inputs.coverage == 'codecov'

@@ -82,7 +82,7 @@ runs:
             const detectedLockFile = lockFiles.find(({ file }) => fs.existsSync(path.join(workingDirectory, file)));
 
             if (!detectedLockFile) {
-              core.setFailed('Unable to detect package manager');
+              core.setFailed(`Unable to detect package manager lock file. Supported lock files are: ${lockFiles.map(f => f.file).join(", ")}`);
               return;
             }
 

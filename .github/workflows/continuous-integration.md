@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/0117dcf638f02d4da90af545ea1cae44cc8215860dbd273d47e78d65b56a6cfa/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/18a765fa9c9c81cb07807356ca5cd6b7f081abeef5ae263581ba407bebfb6ac0/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -54,7 +54,7 @@ permissions:
   id-token: write
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@4d7c1ed87c18493fc4c2dbae4dbde46cf251c9a7 # 0.16.1
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@acb0215bd991fe9aa6e8309fe0612620f40186f8 # copilot/update-workflow-for-docker-image
     secrets:
       # Secrets to be used during the build step.
       # Must be a multi-line env formatted string.
@@ -112,13 +112,16 @@ jobs:
       # Default: `true`
       test: true
 
-      # Specifify code coverage reporter. Supported values: `codecov`.
+      # Specify code coverage reporter. Supported values: `codecov`.
       # Default: `codecov`
       coverage: codecov
 
       # Working directory where the dependencies are installed.
       # Default: `.`
       working-directory: .
+
+      # Docker container image to run CI steps in. When specified, steps will execute inside this container instead of checking out code. The container should have the project code and dependencies pre-installed.
+      container: ""
 ````
 
 <!-- usage:end -->
@@ -146,8 +149,9 @@ jobs:
 | **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                                                                                                                                                                                                        | **false**    | **string**  | `typescript` |
 | **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                        | **false**    | **boolean** | `true`       |
 | **`test`**              | Optional flag to enable test.                                                                                                                                                                                                                                                    | **false**    | **boolean** | `true`       |
-| **`coverage`**          | Specifify code coverage reporter. Supported values: `codecov`.                                                                                                                                                                                                                   | **false**    | **string**  | `codecov`    |
+| **`coverage`**          | Specify code coverage reporter. Supported values: `codecov`.                                                                                                                                                                                                                     | **false**    | **string**  | `codecov`    |
 | **`working-directory`** | Working directory where the dependencies are installed.                                                                                                                                                                                                                          | **false**    | **string**  | `.`          |
+| **`container`**         | Docker container image to run CI steps in. When specified, steps will execute inside this container instead of checking out code. The container should have the project code and dependencies pre-installed.                                                                     | **false**    | **string**  | -            |
 
 <!-- inputs:end -->
 
@@ -184,7 +188,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@4d7c1ed87c18493fc4c2dbae4dbde46cf251c9a7 # 0.16.1
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@acb0215bd991fe9aa6e8309fe0612620f40186f8 # copilot/update-workflow-for-docker-image
     permissions:
       id-token: write
       security-events: write
@@ -217,6 +221,54 @@ jobs:
           npm publish dist
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+
+### Continuous Integration in a Docker container
+
+This example runs CI checks inside a pre-built Docker container that contains the project code and dependencies. This ensures the same environment that will be deployed to production is tested.
+
+```yaml
+name: Continuous Integration - Container Mode
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # Build the Docker image with project code and dependencies
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Build Docker image
+        run: |
+          docker build -t my-app:${{ github.sha }} .
+
+      - name: Push to registry
+        run: |
+          docker tag my-app:${{ github.sha }} ghcr.io/${{ github.repository }}:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+  # Run CI checks inside the Docker container
+  continuous-integration:
+    needs: build-image
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@acb0215bd991fe9aa6e8309fe0612620f40186f8 # copilot/update-workflow-for-docker-image
+    permissions:
+      id-token: write
+      security-events: write
+      contents: read
+    with:
+      container: ghcr.io/${{ github.repository }}:${{ github.sha }}
+      # When using container mode, code-ql and dependency-review are typically disabled
+      # as they require repository checkout
+      code-ql: ""
+      dependency-review: false
+      # Specify which build/test commands to run (they should exist in package.json)
+      build: "" # Skip build as it was done in the Docker image
+      lint: true
+      test: true
 ```
 
 <!-- examples:end -->
