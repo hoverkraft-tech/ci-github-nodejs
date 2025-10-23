@@ -212,7 +212,7 @@ jobs:
             nx
             prettier
 
-      - run: ${{ inputs.container != '' && 'npm run lint' || steps.setup-node.outputs.run-script-command }} lint
+      - run: ${{ inputs.container != '' && 'npm run' || steps.setup-node.outputs.run-script-command }} lint
         working-directory: ${{ inputs.working-directory }}
 
   build:
@@ -332,7 +332,7 @@ jobs:
             nx
             jest
 
-      - run: ${{ inputs.container != '' && 'npm run test:ci' || steps.setup-node.outputs.run-script-command }} test:ci
+      - run: ${{ inputs.container != '' && 'npm run' || steps.setup-node.outputs.run-script-command }} test:ci
         working-directory: ${{ inputs.working-directory }}
         env:
           CI: "true"

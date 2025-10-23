@@ -80,7 +80,7 @@ jobs:
       # Default: `true`
       test: true
 
-      # Specifify code coverage reporter. Supported values: `codecov`.
+      # Specify code coverage reporter. Supported values: `codecov`.
       # Default: `codecov`
       coverage: codecov
 
@@ -110,7 +110,7 @@ jobs:
 | **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                                                                                                                                    | **false**    | **string**  | `typescript` |
 | **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>.                                                                                                                    | **false**    | **boolean** | `true`       |
 | **`test`**              | Optional flag to enable test.                                                                                                                                                                                | **false**    | **boolean** | `true`       |
-| **`coverage`**          | Specifify code coverage reporter. Supported values: `codecov`.                                                                                                                                               | **false**    | **string**  | `codecov`    |
+| **`coverage`**          | Specify code coverage reporter. Supported values: `codecov`.                                                                                                                                                 | **false**    | **string**  | `codecov`    |
 | **`working-directory`** | Working directory where the dependencies are installed.                                                                                                                                                      | **false**    | **string**  | `.`          |
 | **`container`**         | Docker container image to run CI steps in. When specified, steps will execute inside this container instead of checking out code. The container should have the project code and dependencies pre-installed. | **false**    | **string**  | ``           |
 
