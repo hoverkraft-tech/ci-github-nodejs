@@ -41,7 +41,7 @@ on:
         required: false
         default: true
       coverage:
-        description: "Specifify code coverage reporter. Supported values: `codecov`."
+        description: "Specify code coverage reporter. Supported values: `codecov`."
         type: string
         required: false
         default: "codecov"
