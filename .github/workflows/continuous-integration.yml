@@ -41,7 +41,7 @@ on:
         required: false
         default: true
       coverage:
-        description: "Specifify code coverage reporter. Supported values: `codecov`."
+        description: "Specify code coverage reporter. Supported values: `codecov`."
         type: string
         required: false
         default: "codecov"
@@ -50,6 +50,11 @@ on:
         type: string
         required: false
         default: "."
+      container:
+        description: "Docker container image to run CI steps in. When specified, steps will execute inside this container instead of checking out code. The container should have the project code and dependencies pre-installed."
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -84,6 +89,7 @@ jobs:
   setup:
     name: ⚙️ Setup
     runs-on: "ubuntu-latest"
+    container: ${{ inputs.container != '' && inputs.container || null }}
     # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
     permissions:
       contents: read
@@ -93,12 +99,15 @@ jobs:
       build-artifact: ${{ steps.build-variables.outputs.artifact }}
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+        if: inputs.container == ''
 
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       # jscpd:ignore-start
       - id: oidc
+        if: inputs.container == ''
         uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        if: inputs.container == ''
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
@@ -108,8 +117,10 @@ jobs:
       - run: |
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
+        if: inputs.container == ''
       # jscpd:ignore-end
       - id: setup-node
+        if: inputs.container == ''
         uses: ./self-workflow/actions/setup-node
         with:
           working-directory: ${{ inputs.working-directory }}
@@ -164,6 +175,7 @@ jobs:
     name: 👕 Lint
     if: inputs.checks == true && inputs.lint != false
     runs-on: "ubuntu-latest"
+    container: ${{ inputs.container != '' && inputs.container || null }}
     needs: setup
     # jscpd:ignore-start
     # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
@@ -172,11 +184,14 @@ jobs:
       id-token: write
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+        if: inputs.container == ''
 
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       - id: oidc
+        if: inputs.container == ''
         uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        if: inputs.container == ''
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
@@ -186,8 +201,10 @@ jobs:
       - run: |
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
+        if: inputs.container == ''
       # jscpd:ignore-end
       - id: setup-node
+        if: inputs.container == ''
         uses: ./self-workflow/actions/setup-node
         with:
           working-directory: ${{ inputs.working-directory }}
@@ -195,13 +212,14 @@ jobs:
             nx
             prettier
 
-      - run: ${{ steps.setup-node.outputs.run-script-command }} lint
+      - run: ${{ inputs.container != '' && 'npm run' || steps.setup-node.outputs.run-script-command }} lint
         working-directory: ${{ inputs.working-directory }}
 
   build:
     name: 🏗️ Build
     if: inputs.checks == true
     runs-on: "ubuntu-latest"
+    container: ${{ inputs.container != '' && inputs.container || null }}
     needs: setup
     # jscpd:ignore-start
     permissions:
@@ -210,14 +228,14 @@ jobs:
       id-token: write
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
-        if: needs.setup.outputs.build-commands
+        if: needs.setup.outputs.build-commands && inputs.container == ''
 
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       - id: oidc
-        if: needs.setup.outputs.build-commands
+        if: needs.setup.outputs.build-commands && inputs.container == ''
         uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        if: needs.setup.outputs.build-commands
+        if: needs.setup.outputs.build-commands && inputs.container == ''
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
@@ -227,9 +245,10 @@ jobs:
       - run: |
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
+        if: inputs.container == ''
       # jscpd:ignore-end
       - id: setup-node
-        if: needs.setup.outputs.build-commands
+        if: needs.setup.outputs.build-commands && inputs.container == ''
         uses: ./self-workflow/actions/setup-node
         with:
           working-directory: ${{ inputs.working-directory }}
@@ -253,7 +272,11 @@ jobs:
               fi
 
               echo -e "\n - Running $COMMAND"
-              ${{ steps.setup-node.outputs.run-script-command }} "$COMMAND"
+              if [ "${{ inputs.container }}" != "" ]; then
+                npm run "$COMMAND"
+              else
+                ${{ steps.setup-node.outputs.run-script-command }} "$COMMAND"
+              fi
           done
 
       - if: needs.setup.outputs.build-commands && needs.setup.outputs.build-artifact
@@ -266,6 +289,7 @@ jobs:
     name: 🧪 Test
     if: inputs.checks == true && inputs.test == true
     runs-on: "ubuntu-latest"
+    container: ${{ inputs.container != '' && inputs.container || null }}
     needs:
       - setup
       - build
@@ -275,16 +299,19 @@ jobs:
       id-token: write
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+        if: inputs.container == ''
 
-      - if: needs.setup.outputs.build-artifact
+      - if: needs.setup.outputs.build-artifact && inputs.container == ''
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: build
           path: "/"
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       - id: oidc
+        if: inputs.container == ''
         uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        if: inputs.container == ''
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
@@ -294,8 +321,10 @@ jobs:
       - run: |
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
+        if: inputs.container == ''
 
       - id: setup-node
+        if: inputs.container == ''
         uses: ./self-workflow/actions/setup-node
         with:
           working-directory: ${{ inputs.working-directory }}
@@ -303,7 +332,7 @@ jobs:
             nx
             jest
 
-      - run: ${{ steps.setup-node.outputs.run-script-command }} test:ci
+      - run: ${{ inputs.container != '' && 'npm run' || steps.setup-node.outputs.run-script-command }} test:ci
         working-directory: ${{ inputs.working-directory }}
         env:
           CI: "true"

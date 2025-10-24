@@ -13,6 +13,8 @@ on:
 permissions:
   actions: write
   contents: write
+  issues: read
+  packages: write
   pages: write
   pull-requests: write
   security-events: write
