@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/fd6ff0f289f07764817fe8ee5dc4b9f62ff6d96f3bfca597ac738f864276bfdf/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/322cb05882a5b40500ed6e0fd35d7e6f11817c59a782e8afbd5050852bd1c742/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -54,7 +54,7 @@ permissions:
   id-token: write
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@36c861e31804957f2a85503b8aebe213f35b1235 # feat/continuous-intergration-build-secrets
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@4d7c1ed87c18493fc4c2dbae4dbde46cf251c9a7 # 0.16.1
     secrets:
       # Secrets to be used during the build step.
       # Must be a multi-line env formatted string.
@@ -184,7 +184,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@36c861e31804957f2a85503b8aebe213f35b1235 # feat/continuous-intergration-build-secrets
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@4d7c1ed87c18493fc4c2dbae4dbde46cf251c9a7 # 0.16.1
     permissions:
       id-token: write
       security-events: write
