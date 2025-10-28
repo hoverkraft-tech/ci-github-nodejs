@@ -11,7 +11,31 @@ on:
   workflow_call:
     inputs:
       build:
-        description: Build parameters. Must be a string or a JSON object.
+        description: |
+          Build parameters. Must be a string or a JSON object.
+          For string, provide a list of commands to run during the build step, one per line.
+          For JSON object, provide the following properties:
+
+          - `commands`: Array of commands to run during the build step.
+          - `env`: Object of environment variables to set during the build step.
+          - `artifact`: String or array of strings specifying paths to artifacts to upload after the build
+
+          Example:
+          ```json
+          {
+            "commands": [
+              "build",
+              "generate-artifacts"
+            ],
+            "env": {
+              "CUSTOM_ENV_VAR": "value"
+            },
+            "artifact": [
+              "dist/",
+              "packages/package-a/build/"
+            ]
+          }
+          ```
         type: string
         required: false
         default: "build"
@@ -50,6 +74,16 @@ on:
         type: string
         required: false
         default: "."
+    secrets:
+      build-secrets:
+        description: |
+          Secrets to be used during the build step.
+          Must be a multi-line env formatted string.
+          Example:
+          ```txt
+          SECRET_EXAMPLE=$\{{ secrets.SECRET_EXAMPLE }}
+          ```
+        required: false
 
 permissions:
   contents: read
@@ -89,6 +123,7 @@ jobs:
       contents: read
       id-token: write
     outputs:
+      build-env: ${{ steps.build-variables.outputs.env }}
       build-commands: ${{ steps.build-variables.outputs.commands }}
       build-artifact: ${{ steps.build-variables.outputs.artifact }}
     steps:
@@ -122,6 +157,7 @@ jobs:
             const buildInput = `${{ inputs.build }}`.trim();
 
             let commands = [];
+            let env = {};
 
             // Build input can be json or string
             try {
@@ -130,6 +166,7 @@ jobs:
                 commands = build;
               } else {
                 commands = build.commands ?? ["build"];
+                env = build.env ?? {};
 
                 if (build.artifact) {
                   if(typeof build.artifact === 'string') {
@@ -159,6 +196,7 @@ jobs:
             }
 
             core.setOutput('commands', sanitizedCommands.join('\n'));
+            core.setOutput('env', JSON.stringify(env));
 
   lint:
     name: 👕 Lint
@@ -237,6 +275,37 @@ jobs:
             nx
             gatsby
             storybook
+
+      - if: needs.setup.outputs.build-commands
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          BUILD_ENV: ${{ needs.setup.outputs.build-env }}
+          BUILD_SECRETS: ${{ secrets.build-secrets }}
+        with:
+          script: |
+            const envInput = process.env.BUILD_ENV || '{}';
+
+            let buildEnv = {};
+
+            try {
+              buildEnv = JSON.parse(envInput);
+            } catch (e) {
+              core.setFailed(`Invalid build env JSON: ${e.message}`);
+            }
+
+            for (const [key, value] of Object.entries(buildEnv)) {
+              core.exportVariable(key, value);
+            }
+
+            const secretsInput = process.env.BUILD_SECRETS || '';
+            for (const line of secretsInput.split('\n').map(line => line.trim()).filter(Boolean)) {
+              const [key, ...rest] = line.split('=');
+              if (!key || !rest.length) {
+                return core.setFailed(`Invalid build secrets format: ${line}`);
+              }
+              const value = rest.join('=');
+              core.exportVariable(key.trim(), value.trim());
+            }
 
       - if: needs.setup.outputs.build-commands
         working-directory: ${{ inputs.working-directory }}

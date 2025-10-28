@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/5fd994d3cdc848d200848f3b6e7693134d2fdbb92fc8c26a36ed3d12601d2dee/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/fd6ff0f289f07764817fe8ee5dc4b9f62ff6d96f3bfca597ac738f864276bfdf/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -42,7 +42,7 @@ Workflow to performs continuous integration steps agains a Node.js project:
 
 ## Usage
 
-```yaml
+````yaml
 name: Node.js Continuous Integration
 on:
   push:
@@ -54,9 +54,41 @@ permissions:
   id-token: write
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@6809332ced7647b3d52300a47d65657283f3395e # 0.16.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@36c861e31804957f2a85503b8aebe213f35b1235 # feat/continuous-intergration-build-secrets
+    secrets:
+      # Secrets to be used during the build step.
+      # Must be a multi-line env formatted string.
+      # Example:
+      # ```txt
+      # SECRET_EXAMPLE=$\{{ secrets.SECRET_EXAMPLE }}
+      # ```
+      build-secrets: ""
     with:
       # Build parameters. Must be a string or a JSON object.
+      # For string, provide a list of commands to run during the build step, one per line.
+      # For JSON object, provide the following properties:
+      #
+      # - `commands`: Array of commands to run during the build step.
+      # - `env`: Object of environment variables to set during the build step.
+      # - `artifact`: String or array of strings specifying paths to artifacts to upload after the build
+      #
+      # Example:
+      # ```json
+      # {
+      # "commands": [
+      # "build",
+      # "generate-artifacts"
+      # ],
+      # "env": {
+      # "CUSTOM_ENV_VAR": "value"
+      # },
+      # "artifact": [
+      # "dist/",
+      # "packages/package-a/build/"
+      # ]
+      # }
+      # ```
+      #
       # Default: `build`
       build: build
 
@@ -87,7 +119,7 @@ jobs:
       # Working directory where the dependencies are installed.
       # Default: `.`
       working-directory: .
-```
+````
 
 <!-- usage:end -->
 
@@ -97,20 +129,39 @@ jobs:
 
 ### Workflow Call Inputs
 
-| **Input**               | **Description**                                                                           | **Required** | **Type**    | **Default**  |
-| ----------------------- | ----------------------------------------------------------------------------------------- | ------------ | ----------- | ------------ |
-| **`build`**             | Build parameters. Must be a string or a JSON object.                                      | **false**    | **string**  | `build`      |
-| **`checks`**            | Optional flag to enable check steps.                                                      | **false**    | **boolean** | `true`       |
-| **`lint`**              | Optional flag to enable linting.                                                          | **false**    | **boolean** | `true`       |
-| **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                 | **false**    | **string**  | `typescript` |
-| **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>. | **false**    | **boolean** | `true`       |
-| **`test`**              | Optional flag to enable test.                                                             | **false**    | **boolean** | `true`       |
-| **`coverage`**          | Specifify code coverage reporter. Supported values: `codecov`.                            | **false**    | **string**  | `codecov`    |
-| **`working-directory`** | Working directory where the dependencies are installed.                                   | **false**    | **string**  | `.`          |
+| **Input**               | **Description**                                                                                                                                                                                                                                                                  | **Required** | **Type**    | **Default**  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- | ------------ |
+| **`build`**             | Build parameters. Must be a string or a JSON object.                                                                                                                                                                                                                             | **false**    | **string**  | `build`      |
+|                         | For string, provide a list of commands to run during the build step, one per line.                                                                                                                                                                                               |              |             |              |
+|                         | For JSON object, provide the following properties:                                                                                                                                                                                                                               |              |             |              |
+|                         |                                                                                                                                                                                                                                                                                  |              |             |              |
+|                         | - `commands`: Array of commands to run during the build step.                                                                                                                                                                                                                    |              |             |              |
+|                         | - `env`: Object of environment variables to set during the build step.                                                                                                                                                                                                           |              |             |              |
+|                         | - `artifact`: String or array of strings specifying paths to artifacts to upload after the build                                                                                                                                                                                 |              |             |              |
+|                         |                                                                                                                                                                                                                                                                                  |              |             |              |
+|                         | Example:                                                                                                                                                                                                                                                                         |              |             |              |
+|                         | <!-- textlint-disable --><pre lang="json">{&#13; "commands": [&#13; "build",&#13; "generate-artifacts"&#13; ],&#13; "env": {&#13; "CUSTOM_ENV_VAR": "value"&#13; },&#13; "artifact": [&#13; "dist/",&#13; "packages/package-a/build/"&#13; ]&#13;}</pre><!-- textlint-enable --> |              |             |              |
+| **`checks`**            | Optional flag to enable check steps.                                                                                                                                                                                                                                             | **false**    | **boolean** | `true`       |
+| **`lint`**              | Optional flag to enable linting.                                                                                                                                                                                                                                                 | **false**    | **boolean** | `true`       |
+| **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                                                                                                                                                                                                        | **false**    | **string**  | `typescript` |
+| **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                        | **false**    | **boolean** | `true`       |
+| **`test`**              | Optional flag to enable test.                                                                                                                                                                                                                                                    | **false**    | **boolean** | `true`       |
+| **`coverage`**          | Specifify code coverage reporter. Supported values: `codecov`.                                                                                                                                                                                                                   | **false**    | **string**  | `codecov`    |
+| **`working-directory`** | Working directory where the dependencies are installed.                                                                                                                                                                                                                          | **false**    | **string**  | `.`          |
 
 <!-- inputs:end -->
 
 <!-- secrets:start -->
+
+## Secrets
+
+| **Secret**          | **Description**                                                                                                      | **Required** |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------ |
+| **`build-secrets`** | Secrets to be used during the build step.                                                                            | **false**    |
+|                     | Must be a multi-line env formatted string.                                                                           |              |
+|                     | Example:                                                                                                             |              |
+|                     | <!-- textlint-disable --><pre lang="txt">SECRET_EXAMPLE=$\{{ secrets.SECRET_EXAMPLE }}</pre><!-- textlint-enable --> |              |
+
 <!-- secrets:end -->
 
 <!-- outputs:start -->
@@ -133,7 +184,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@6809332ced7647b3d52300a47d65657283f3395e # 0.16.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@36c861e31804957f2a85503b8aebe213f35b1235 # feat/continuous-intergration-build-secrets
     permissions:
       id-token: write
       security-events: write
