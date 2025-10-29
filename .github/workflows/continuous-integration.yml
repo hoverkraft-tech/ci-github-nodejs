@@ -112,10 +112,10 @@ jobs:
     runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
-      - uses: github/codeql-action/init@16140ae1a102900babc80a33c44059580f687047 # v4.30.9
+      - uses: github/codeql-action/init@4e94bd11f71e507f7f87df81788dff88d1dacbfb # v4.31.0
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@16140ae1a102900babc80a33c44059580f687047 # v4.30.9
+      - uses: github/codeql-action/analyze@4e94bd11f71e507f7f87df81788dff88d1dacbfb # v4.31.0
 
   dependency-review:
     name: 🛡️ Dependency Review
@@ -400,7 +400,7 @@ jobs:
           done
 
       - if: needs.setup.outputs.build-commands && needs.setup.outputs.build-artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: ${{ fromJSON(needs.setup.outputs.build-artifact).name }}
           path: ${{ fromJSON(needs.setup.outputs.build-artifact).paths }}
@@ -425,7 +425,7 @@ jobs:
         if: inputs.container == ''
 
       - if: needs.setup.outputs.build-artifact && inputs.container == ''
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: build
           path: "/"

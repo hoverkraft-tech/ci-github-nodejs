@@ -26,7 +26,7 @@ jobs:
     needs: act-without-container
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: build
           path: "/"
@@ -41,7 +41,7 @@ jobs:
       packages: write
       issues: read
       pull-requests: read
-    uses: hoverkraft-tech/ci-github-container/.github/workflows/docker-build-images.yml@f9e149b6cdfa8443994994f10085691a57b8cf0e # 0.27.1
+    uses: hoverkraft-tech/ci-github-container/.github/workflows/docker-build-images.yml@4f29319e02dd65152386c436e8c3136f380a0e71 # 0.28.0
     with:
       sign: false
       images: |
@@ -74,7 +74,7 @@ jobs:
     needs: act-with-container
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: build-in-container
           path: ${{ runner.temp }}
