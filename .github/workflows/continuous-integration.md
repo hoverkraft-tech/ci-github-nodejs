@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/18a765fa9c9c81cb07807356ca5cd6b7f081abeef5ae263581ba407bebfb6ac0/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/e309cae9c17a1139fbcaed62e9536b80cf64fd9d2c43359c5c5c666666bea49c/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -54,7 +54,7 @@ permissions:
   id-token: write
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@acb0215bd991fe9aa6e8309fe0612620f40186f8 # copilot/update-workflow-for-docker-image
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@4d7c1ed87c18493fc4c2dbae4dbde46cf251c9a7 # 0.16.1
     secrets:
       # Secrets to be used during the build step.
       # Must be a multi-line env formatted string.
@@ -64,6 +64,12 @@ jobs:
       # ```
       build-secrets: ""
     with:
+      # JSON array of runner(s) to use.
+      # See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job.
+      #
+      # Default: `["ubuntu-latest"]`
+      runs-on: '["ubuntu-latest"]'
+
       # Build parameters. Must be a string or a JSON object.
       # For string, provide a list of commands to run during the build step, one per line.
       # For JSON object, provide the following properties:
@@ -132,26 +138,28 @@ jobs:
 
 ### Workflow Call Inputs
 
-| **Input**               | **Description**                                                                                                                                                                                                                                                                  | **Required** | **Type**    | **Default**  |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- | ------------ |
-| **`build`**             | Build parameters. Must be a string or a JSON object.                                                                                                                                                                                                                             | **false**    | **string**  | `build`      |
-|                         | For string, provide a list of commands to run during the build step, one per line.                                                                                                                                                                                               |              |             |              |
-|                         | For JSON object, provide the following properties:                                                                                                                                                                                                                               |              |             |              |
-|                         |                                                                                                                                                                                                                                                                                  |              |             |              |
-|                         | - `commands`: Array of commands to run during the build step.                                                                                                                                                                                                                    |              |             |              |
-|                         | - `env`: Object of environment variables to set during the build step.                                                                                                                                                                                                           |              |             |              |
-|                         | - `artifact`: String or array of strings specifying paths to artifacts to upload after the build                                                                                                                                                                                 |              |             |              |
-|                         |                                                                                                                                                                                                                                                                                  |              |             |              |
-|                         | Example:                                                                                                                                                                                                                                                                         |              |             |              |
-|                         | <!-- textlint-disable --><pre lang="json">{&#13; "commands": [&#13; "build",&#13; "generate-artifacts"&#13; ],&#13; "env": {&#13; "CUSTOM_ENV_VAR": "value"&#13; },&#13; "artifact": [&#13; "dist/",&#13; "packages/package-a/build/"&#13; ]&#13;}</pre><!-- textlint-enable --> |              |             |              |
-| **`checks`**            | Optional flag to enable check steps.                                                                                                                                                                                                                                             | **false**    | **boolean** | `true`       |
-| **`lint`**              | Optional flag to enable linting.                                                                                                                                                                                                                                                 | **false**    | **boolean** | `true`       |
-| **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                                                                                                                                                                                                        | **false**    | **string**  | `typescript` |
-| **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                        | **false**    | **boolean** | `true`       |
-| **`test`**              | Optional flag to enable test.                                                                                                                                                                                                                                                    | **false**    | **boolean** | `true`       |
-| **`coverage`**          | Specify code coverage reporter. Supported values: `codecov`.                                                                                                                                                                                                                     | **false**    | **string**  | `codecov`    |
-| **`working-directory`** | Working directory where the dependencies are installed.                                                                                                                                                                                                                          | **false**    | **string**  | `.`          |
-| **`container`**         | Docker container image to run CI steps in. When specified, steps will execute inside this container instead of checking out code. The container should have the project code and dependencies pre-installed.                                                                     | **false**    | **string**  | -            |
+| **Input**               | **Description**                                                                                                                                                                                                                                                                  | **Required** | **Type**    | **Default**         |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- | ------------------- |
+| **`runs-on`**           | JSON array of runner(s) to use.                                                                                                                                                                                                                                                  | **false**    | **string**  | `["ubuntu-latest"]` |
+|                         | See <https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job>.                                                                                                                                                                                               |              |             |                     |
+| **`build`**             | Build parameters. Must be a string or a JSON object.                                                                                                                                                                                                                             | **false**    | **string**  | `build`             |
+|                         | For string, provide a list of commands to run during the build step, one per line.                                                                                                                                                                                               |              |             |                     |
+|                         | For JSON object, provide the following properties:                                                                                                                                                                                                                               |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                  |              |             |                     |
+|                         | - `commands`: Array of commands to run during the build step.                                                                                                                                                                                                                    |              |             |                     |
+|                         | - `env`: Object of environment variables to set during the build step.                                                                                                                                                                                                           |              |             |                     |
+|                         | - `artifact`: String or array of strings specifying paths to artifacts to upload after the build                                                                                                                                                                                 |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                  |              |             |                     |
+|                         | Example:                                                                                                                                                                                                                                                                         |              |             |                     |
+|                         | <!-- textlint-disable --><pre lang="json">{&#13; "commands": [&#13; "build",&#13; "generate-artifacts"&#13; ],&#13; "env": {&#13; "CUSTOM_ENV_VAR": "value"&#13; },&#13; "artifact": [&#13; "dist/",&#13; "packages/package-a/build/"&#13; ]&#13;}</pre><!-- textlint-enable --> |              |             |                     |
+| **`checks`**            | Optional flag to enable check steps.                                                                                                                                                                                                                                             | **false**    | **boolean** | `true`              |
+| **`lint`**              | Optional flag to enable linting.                                                                                                                                                                                                                                                 | **false**    | **boolean** | `true`              |
+| **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                                                                                                                                                                                                        | **false**    | **string**  | `typescript`        |
+| **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                        | **false**    | **boolean** | `true`              |
+| **`test`**              | Optional flag to enable test.                                                                                                                                                                                                                                                    | **false**    | **boolean** | `true`              |
+| **`coverage`**          | Specify code coverage reporter. Supported values: `codecov`.                                                                                                                                                                                                                     | **false**    | **string**  | `codecov`           |
+| **`working-directory`** | Working directory where the dependencies are installed.                                                                                                                                                                                                                          | **false**    | **string**  | `.`                 |
+| **`container`**         | Docker container image to run CI steps in. When specified, steps will execute inside this container instead of checking out code. The container should have the project code and dependencies pre-installed.                                                                     | **false**    | **string**  | -                   |
 
 <!-- inputs:end -->
 
@@ -188,7 +196,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@acb0215bd991fe9aa6e8309fe0612620f40186f8 # copilot/update-workflow-for-docker-image
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@4d7c1ed87c18493fc4c2dbae4dbde46cf251c9a7 # 0.16.1
     permissions:
       id-token: write
       security-events: write
@@ -254,7 +262,7 @@ jobs:
   # Run CI checks inside the Docker container
   continuous-integration:
     needs: build-image
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@acb0215bd991fe9aa6e8309fe0612620f40186f8 # copilot/update-workflow-for-docker-image
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@4d7c1ed87c18493fc4c2dbae4dbde46cf251c9a7 # 0.16.1
     permissions:
       id-token: write
       security-events: write
