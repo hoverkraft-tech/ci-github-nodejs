@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/e309cae9c17a1139fbcaed62e9536b80cf64fd9d2c43359c5c5c666666bea49c/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/46420c2593c88106c36220e68f7a2c423118d123817e6c4c66dde2c0ee645599/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -33,8 +33,8 @@ Workflow to performs continuous integration steps agains a Node.js project:
 ### Permissions
 
 - **`contents`**: `read`
-- **`security-events`**: `write`
 - **`id-token`**: `write`
+- **`security-events`**: `write`
 
 <!-- overview:end -->
 
@@ -48,10 +48,7 @@ on:
   push:
     branches:
       - main
-permissions:
-  contents: read
-  security-events: write
-  id-token: write
+permissions: {}
 jobs:
   continuous-integration:
     uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@4d7c1ed87c18493fc4c2dbae4dbde46cf251c9a7 # 0.16.1
