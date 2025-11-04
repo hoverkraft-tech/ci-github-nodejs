@@ -3,13 +3,14 @@ name: Internal - Tests for "has-installed-dependencies" action
 on:
   workflow_call:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   test:
     name: Test "has-installed-dependencies" (${{ matrix.working-directory }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:

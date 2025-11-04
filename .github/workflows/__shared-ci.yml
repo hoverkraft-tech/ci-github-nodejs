@@ -3,43 +3,54 @@ name: Internal - Common Continuous Integration tasks
 on:
   workflow_call:
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  packages: write
-  pull-requests: read
-  security-events: write
-  statuses: write
-  # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-  id-token: write
+permissions: {}
 
 jobs:
   linter:
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@5f11437c716059f30c635f90055060e4ef8b31a0 # 0.28.0
+    permissions:
+      contents: read
+      statuses: write
+      actions: read
+      security-events: write
 
   test-action-dependencies-cache:
     name: Test action "dependencies-cache"
     needs: linter
     uses: ./.github/workflows/__test-action-dependencies-cache.yml
+    permissions:
+      contents: read
 
   test-action-get-package-manager:
     name: Test action "get-package-manager"
     needs: linter
     uses: ./.github/workflows/__test-action-get-package-manager.yml
+    permissions:
+      contents: read
 
   test-action-has-installed-dependencies:
     name: Test action "has-installed-dependencies"
     needs: linter
     uses: ./.github/workflows/__test-action-has-installed-dependencies.yml
+    permissions:
+      contents: read
 
   test-action-setup-node:
     name: Test action "setup-node"
     needs: linter
     uses: ./.github/workflows/__test-action-setup-node.yml
+    permissions:
+      contents: read
 
   test-workflow-continuous-integration:
     name: Test workflow "continuous-integration"
     needs: linter
     uses: ./.github/workflows/__test-workflow-continuous-integration.yml
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: read
+      id-token: write
+      issues: read
+      security-events: write
     secrets: inherit

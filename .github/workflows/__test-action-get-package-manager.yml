@@ -3,13 +3,14 @@ name: Internal - Tests for "get-package-manager" action
 on:
   workflow_call:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   test:
     name: Test "get-package-manager" (${{ matrix.working-directory }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:

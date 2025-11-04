@@ -3,16 +3,17 @@ name: Internal - Test Continuous integration workflow
 on:
   workflow_call:
 
-permissions:
-  contents: read
-  security-events: write
-  # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-  id-token: write
+permissions: {}
 
 jobs:
   act-without-container:
     name: Act - Run the continuous integration workflow (without container)
     uses: ./.github/workflows/continuous-integration.yml
+    permissions:
+      contents: read
+      security-events: write
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+      id-token: write
     with:
       working-directory: tests/npm
       build: |
@@ -60,6 +61,11 @@ jobs:
     name: Act - Run the continuous integration workflow (with container)
     uses: ./.github/workflows/continuous-integration.yml
     needs: arrange-with-container
+    permissions:
+      contents: read
+      security-events: write
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+      id-token: write
     with:
       container: ${{ fromJSON(needs.arrange-with-container.outputs.built-images).ci-npm.images[0] }}
       working-directory: /usr/src/app/
