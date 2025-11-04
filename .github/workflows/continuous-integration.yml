@@ -97,11 +97,7 @@ on:
           ```
         required: false
 
-permissions:
-  contents: read
-  security-events: write
-  # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-  id-token: write
+permissions: {}
 
 jobs:
   code-ql:
@@ -111,7 +107,7 @@ jobs:
       security-events: write
     runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@5f11437c716059f30c635f90055060e4ef8b31a0 # 0.28.0
       - uses: github/codeql-action/init@0499de31b99561a6d14a36a5f662c2a54f91beee # v4.31.2
         with:
           languages: ${{ inputs.code-ql }}
@@ -124,7 +120,7 @@ jobs:
       contents: read
     runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@5f11437c716059f30c635f90055060e4ef8b31a0 # 0.28.0
       - uses: actions/dependency-review-action@40c09b7dc99638e5ddb0bfd91c1673effc064d8a # v4.8.1
 
   setup:
@@ -134,9 +130,9 @@ jobs:
       image: ${{ inputs.container != '' && inputs.container || null }}
       # Root user is required to use GitHub Actions features inside the container
       options: --user root:root
-    # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
     permissions:
       contents: read
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
     outputs:
       build-env: ${{ steps.build-variables.outputs.env }}
@@ -144,7 +140,7 @@ jobs:
       build-artifact: ${{ steps.build-variables.outputs.artifact }}
     steps:
       - if: inputs.container == ''
-        uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+        uses: hoverkraft-tech/ci-github-common/actions/checkout@5f11437c716059f30c635f90055060e4ef8b31a0 # 0.28.0
 
       - id: build-variables
         if: inputs.build != ''
@@ -258,12 +254,12 @@ jobs:
       options: --user root:root
     needs: setup
     # jscpd:ignore-start
-    # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
     permissions:
       contents: read
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@5f11437c716059f30c635f90055060e4ef8b31a0 # 0.28.0
         if: inputs.container == ''
 
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
@@ -310,11 +306,11 @@ jobs:
       options: --user root:root
     needs: setup
     permissions:
-      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       contents: read
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@5f11437c716059f30c635f90055060e4ef8b31a0 # 0.28.0
         if: needs.setup.outputs.build-commands && inputs.container == ''
 
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
@@ -416,12 +412,12 @@ jobs:
     needs:
       - setup
       - build
-    # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
     permissions:
       contents: read
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@b7dd413209df265bef8d7eb0efb117eaabc684c4 # 0.27.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@5f11437c716059f30c635f90055060e4ef8b31a0 # 0.28.0
         if: inputs.container == ''
 
       - if: needs.setup.outputs.build-artifact && inputs.container == ''
