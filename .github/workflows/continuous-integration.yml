@@ -96,6 +96,10 @@ on:
           SECRET_EXAMPLE=$\{{ secrets.SECRET_EXAMPLE }}
           ```
         required: false
+    outputs:
+      build-artifact-id:
+        description: "ID of the build artifact) uploaded during the build step."
+        value: ${{ jobs.build.outputs.artifact-id }}
 
 permissions: {}
 
@@ -210,7 +214,7 @@ jobs:
                     .filter(Boolean)
                     .map(artifact => {
                       // FIXME: Workaround to preserve full path to artifact
-                      const fullpath = artifact.startsWith('/') ? artifact : `${workingDirectory}/${artifact}`;
+                      const fullpath = artifact.startsWith('/') ? artifact : path.join(workingDirectory, artifact);
 
                       // Add a wildcard to the first folder of the path
                       return fullpath.replace(/\/([^/]+)/, '/*$1');
@@ -220,11 +224,8 @@ jobs:
                     return core.setFailed('No valid build artifact paths found');
                   }
 
-                  if (!buildArtifact.name) {
-                    buildArtifact.name = 'build';
-                  } else if (typeof buildArtifact.name !== 'string') {
-                    return core.setFailed('Build artifact name must be a string');
-                  }
+                  // Generate a unique name for the artifact
+                  buildArtifact.name = `${process.env.GITHUB_JOB}-build-${process.env.GITHUB_RUN_ID}-${Math.random().toString(36).substring(2, 8)}`;
 
                   core.setOutput('artifact', JSON.stringify(buildArtifact));
                 }
@@ -309,6 +310,8 @@ jobs:
       contents: read
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
+    outputs:
+      artifact-id: ${{ steps.build-artifact-id.outputs.artifact-id }}
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@5f11437c716059f30c635f90055060e4ef8b31a0 # 0.28.0
         if: needs.setup.outputs.build-commands && inputs.container == ''
@@ -325,7 +328,8 @@ jobs:
           ref: ${{ steps.oidc.outputs.job_workflow_repo_ref }}
           sparse-checkout: |
             actions
-      - run: |
+      - if: needs.setup.outputs.build-commands
+        run: |
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
       # jscpd:ignore-end
@@ -395,11 +399,13 @@ jobs:
               $RUN_SCRIPT_COMMAND "$COMMAND"
           done
 
-      - if: needs.setup.outputs.build-commands && needs.setup.outputs.build-artifact
+      - id: build-artifact-id
+        if: needs.setup.outputs.build-commands && needs.setup.outputs.build-artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: ${{ fromJSON(needs.setup.outputs.build-artifact).name }}
           path: ${{ fromJSON(needs.setup.outputs.build-artifact).paths }}
+          if-no-files-found: error
 
   test:
     name: 🧪 Test
@@ -420,11 +426,12 @@ jobs:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@5f11437c716059f30c635f90055060e4ef8b31a0 # 0.28.0
         if: inputs.container == ''
 
-      - if: needs.setup.outputs.build-artifact && inputs.container == ''
+      - if: needs.build.outputs.artifact-id && inputs.container == ''
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
-          name: build
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
           path: "/"
+
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       - id: oidc
         uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
