@@ -218,7 +218,7 @@ jobs:
       - name: Download build artifact
         uses: actions/download-artifact@v2
         with:
-          name: build
+          artifact-ids: ${{ needs.continuous-integration.outputs.build-artifact-id }}
           path: /
 
       - name: Publish
