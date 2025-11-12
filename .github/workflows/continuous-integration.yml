@@ -277,7 +277,6 @@ jobs:
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
       # jscpd:ignore-end
-
       - uses: ./self-workflow/actions/lint
         with:
           working-directory: ${{ inputs.working-directory }}
@@ -320,7 +319,6 @@ jobs:
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
       # jscpd:ignore-end
-
       - id: build
         if: needs.setup.outputs.build-commands
         uses: ./self-workflow/actions/build

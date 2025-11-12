@@ -58,17 +58,17 @@ runs:
         FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
       run: |
         set +e  # Don't exit on error, we want to process the report
-        
+
         echo "👕 Running lint..."
         $RUN_SCRIPT_COMMAND lint
         LINT_EXIT_CODE=$?
-        
+
         echo "lint-exit-code=$LINT_EXIT_CODE" >> $GITHUB_OUTPUT
-        
+
         if [ "$FAIL_ON_ERROR" = "true" ] && [ $LINT_EXIT_CODE -ne 0 ]; then
           echo "::error::Linting failed with exit code $LINT_EXIT_CODE"
         fi
-        
+
         # Always exit successfully here; we'll handle the failure later if needed
         exit 0
 
@@ -79,14 +79,14 @@ runs:
         REPORT_FILE: ${{ inputs.report-file }}
       run: |
         set -e
-        
+
         if [ ! -f "$REPORT_FILE" ]; then
           echo "::warning::Lint report file not found: $REPORT_FILE"
           exit 0
         fi
-        
+
         echo "📊 Processing lint report: $REPORT_FILE"
-        
+
         # Detect report format and process accordingly
         if echo "$REPORT_FILE" | grep -q "\.json$"; then
           echo "Detected JSON format"

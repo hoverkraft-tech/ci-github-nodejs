@@ -42,20 +42,20 @@ Composite action to test Node.js projects with support for coverage reporting, p
 
 ## Inputs
 
-| Name                  | Description                                                                      | Required | Default              |
-| --------------------- | -------------------------------------------------------------------------------- | -------- | -------------------- |
-| `working-directory`   | Working directory where test commands are executed                               | No       | `.`                  |
-| `container`           | Whether running in container mode (skips checkout and node setup)                | No       | `false`              |
-| `coverage`            | Code coverage reporter: "codecov", "lcov", or ""                                 | No       | `""`                 |
-| `lcov-file`           | Path to LCOV file for coverage reporting (used with "lcov" coverage)             | No       | `coverage/lcov.info` |
-| `codecov-token`       | Codecov token for private repositories                                           | No       | `""`                 |
-| `fail-on-error`       | Whether to fail the action if tests fail                                         | No       | `true`               |
+| Name                | Description                                                          | Required | Default              |
+| ------------------- | -------------------------------------------------------------------- | -------- | -------------------- |
+| `working-directory` | Working directory where test commands are executed                   | No       | `.`                  |
+| `container`         | Whether running in container mode (skips checkout and node setup)    | No       | `false`              |
+| `coverage`          | Code coverage reporter: "Codecov", "lcov", or ""                     | No       | `""`                 |
+| `lcov-file`         | Path to LCOV file for coverage reporting (used with "lcov" coverage) | No       | `coverage/lcov.info` |
+| `codecov-token`     | Codecov token for private repositories                               | No       | `""`                 |
+| `fail-on-error`     | Whether to fail the action if tests fail                             | No       | `true`               |
 
 ## Outputs
 
-| Name              | Description                  |
-| ----------------- | ---------------------------- |
-| `test-exit-code`  | Exit code from the test run  |
+| Name             | Description                 |
+| ---------------- | --------------------------- |
+| `test-exit-code` | Exit code from the test run |
 
 ## Coverage Reporters
 
@@ -158,10 +158,10 @@ For LCOV coverage, ensure your test framework generates an LCOV file:
 export default defineConfig({
   test: {
     coverage: {
-      reporter: ['lcov', 'text']
-    }
-  }
-})
+      reporter: ["lcov", "text"],
+    },
+  },
+});
 ```
 
 ## Notes

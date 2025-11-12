@@ -77,17 +77,17 @@ runs:
         FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
       run: |
         set +e  # Don't exit on error, we want to process coverage
-        
+
         echo "🧪 Running tests..."
         $RUN_SCRIPT_COMMAND test:ci
         TEST_EXIT_CODE=$?
-        
+
         echo "test-exit-code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
-        
+
         if [ "$FAIL_ON_ERROR" = "true" ] && [ $TEST_EXIT_CODE -ne 0 ]; then
           echo "::error::Tests failed with exit code $TEST_EXIT_CODE"
         fi
-        
+
         # Always exit successfully here; we'll handle the failure later if needed
         exit 0
 

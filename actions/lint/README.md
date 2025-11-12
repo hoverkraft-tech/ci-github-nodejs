@@ -34,12 +34,12 @@ Composite action to lint Node.js projects with support for pull request reportin
 
 ## Inputs
 
-| Name                  | Description                                                                      | Required | Default |
-| --------------------- | -------------------------------------------------------------------------------- | -------- | ------- |
-| `working-directory`   | Working directory where lint commands are executed                               | No       | `.`     |
-| `container`           | Whether running in container mode (skips checkout and node setup)                | No       | `false` |
-| `report-file`         | Path to lint report file to process as GitHub annotations                        | No       | `""`    |
-| `fail-on-error`       | Whether to fail the action if linting errors are found                           | No       | `true`  |
+| Name                | Description                                                       | Required | Default |
+| ------------------- | ----------------------------------------------------------------- | -------- | ------- |
+| `working-directory` | Working directory where lint commands are executed                | No       | `.`     |
+| `container`         | Whether running in container mode (skips checkout and node setup) | No       | `false` |
+| `report-file`       | Path to lint report file to process as GitHub annotations         | No       | `""`    |
+| `fail-on-error`     | Whether to fail the action if linting errors are found            | No       | `true`  |
 
 ## Supported Report Formats
 

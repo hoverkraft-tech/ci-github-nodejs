@@ -46,19 +46,19 @@ Composite action to build Node.js projects with support for custom commands, env
 
 ## Inputs
 
-| Name                  | Description                                                                      | Required | Default |
-| --------------------- | -------------------------------------------------------------------------------- | -------- | ------- |
-| `working-directory`   | Working directory where build commands are executed                              | No       | `.`     |
-| `build-commands`      | List of build commands to execute (npm/pnpm/yarn script names), one per line    | Yes      | -       |
-| `build-env`           | JSON object of environment variables to set during the build                     | No       | `{}`    |
-| `build-secrets`       | Multi-line string of secrets in env format (KEY=VALUE)                           | No       | `""`    |
-| `build-artifact`      | JSON object specifying artifact upload configuration                             | No       | `""`    |
-| `container`           | Whether running in container mode (skips checkout and node setup)                | No       | `false` |
+| Name                | Description                                                                  | Required | Default |
+| ------------------- | ---------------------------------------------------------------------------- | -------- | ------- |
+| `working-directory` | Working directory where build commands are executed                          | No       | `.`     |
+| `build-commands`    | List of build commands to execute (npm/pnpm/Yarn script names), one per line | Yes      | -       |
+| `build-env`         | JSON object of environment variables to set during the build                 | No       | `{}`    |
+| `build-secrets`     | Multi-line string of secrets in env format (KEY=VALUE)                       | No       | `""`    |
+| `build-artifact`    | JSON object specifying artifact upload configuration                         | No       | `""`    |
+| `container`         | Whether running in container mode (skips checkout and node setup)            | No       | `false` |
 
 ## Outputs
 
-| Name          | Description                                            |
-| ------------- | ------------------------------------------------------ |
+| Name          | Description                                             |
+| ------------- | ------------------------------------------------------- |
 | `artifact-id` | ID of the uploaded artifact (if artifact was specified) |
 
 ## Examples

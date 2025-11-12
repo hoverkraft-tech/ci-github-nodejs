@@ -78,10 +78,10 @@ runs:
         BUILD_SECRETS: ${{ inputs.build-secrets }}
       run: |
         set -e
-        
+
         # Export build environment variables
         BUILD_ENV_JSON="${BUILD_ENV:-"{}"}"
-        
+
         # Parse and export build env variables
         if [ "$BUILD_ENV_JSON" != "{}" ]; then
           echo "$BUILD_ENV_JSON" | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while IFS= read -r line; do
@@ -90,7 +90,7 @@ runs:
             fi
           done
         fi
-        
+
         # Export build secrets
         if [ -n "$BUILD_SECRETS" ]; then
           echo "$BUILD_SECRETS" | while IFS= read -r line; do
@@ -108,7 +108,7 @@ runs:
         RUN_SCRIPT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
       run: |
         set -e
-        
+
         echo "$BUILD_COMMANDS" | while IFS= read -r COMMAND ; do
           # Trim whitespace
           COMMAND=$(echo "$COMMAND" | xargs)
