@@ -49,7 +49,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-      pull-requests: read
+      pull-requests: write
       id-token: write
       issues: read
       security-events: write

@@ -1,0 +1,151 @@
+name: "Build"
+description: "Action to build Node.js projects with support for custom commands, environment variables, and artifact handling"
+author: hoverkraft
+branding:
+  icon: package
+  color: blue
+
+inputs:
+  working-directory:
+    description: |
+      Working directory where the build commands are executed.
+      Can be absolute or relative to the repository root.
+    required: false
+    default: "."
+  build-commands:
+    description: |
+      List of build commands to execute, one per line.
+      These are npm/pnpm/yarn script names (e.g., "build", "compile").
+    required: true
+  build-env:
+    description: |
+      JSON object of environment variables to set during the build.
+      Example: {"NODE_ENV": "production", "API_URL": "https://api.example.com"}
+    required: false
+    default: "{}"
+  build-secrets:
+    description: |
+      Multi-line string of secrets in env format (KEY=VALUE).
+      Example:
+      ```
+      SECRET_KEY=$\{{ secrets.SECRET_KEY }}
+      API_TOKEN=$\{{ secrets.API_TOKEN }}
+      ```
+    required: false
+    default: ""
+  build-artifact:
+    description: |
+      JSON object specifying artifact upload configuration.
+      Format: {"name": "artifact-name", "paths": "path1\npath2"}
+    required: false
+    default: ""
+  container:
+    description: "Whether running in container mode (skips checkout and node setup)"
+    required: false
+    default: "false"
+
+outputs:
+  artifact-id:
+    description: "ID of the uploaded artifact (if artifact was specified)"
+    value: ${{ steps.build-artifact-id.outputs.artifact-id }}
+
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+      run: mkdir -p ./self-build-action/ && cp -r $GITHUB_ACTION_PATH/../* ./self-build-action/
+
+    - id: setup-node
+      if: inputs.container != 'true'
+      uses: ./self-build-action/setup-node
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        dependencies-cache: |
+          nx
+          gatsby
+          storybook
+
+    - id: get-package-manager
+      if: inputs.container == 'true'
+      uses: ./self-build-action/get-package-manager
+      with:
+        working-directory: ${{ inputs.working-directory }}
+
+    - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      env:
+        BUILD_ENV: ${{ inputs.build-env }}
+        BUILD_SECRETS: ${{ inputs.build-secrets }}
+      with:
+        script: |
+          const envInput = process.env.BUILD_ENV || '{}';
+
+          let buildEnv = {};
+
+          try {
+            buildEnv = JSON.parse(envInput);
+          } catch (e) {
+            core.setFailed(`Invalid build env JSON: ${e.message}`);
+          }
+
+          for (const [key, value] of Object.entries(buildEnv)) {
+            core.exportVariable(key, value);
+          }
+
+          const secretsInput = process.env.BUILD_SECRETS || '';
+          for (const line of secretsInput.split('\n').map(line => line.trim()).filter(Boolean)) {
+            const [key, ...rest] = line.split('=');
+            if (!key || !rest.length) {
+              return core.setFailed(`Invalid build secrets format: ${line}`);
+            }
+            const value = rest.join('=');
+            core.exportVariable(key.trim(), value.trim());
+          }
+
+    - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      env:
+        BUILD_COMMANDS: ${{ inputs.build-commands }}
+        RUN_SCRIPT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      with:
+        script: |
+          const buildCommands = process.env.BUILD_COMMANDS || '';
+          const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
+          const workingDirectory = process.env.WORKING_DIRECTORY || '.';
+
+          const commands = buildCommands.split('\n')
+            .map(cmd => cmd.trim())
+            .filter(Boolean);
+
+          for (const command of commands) {
+            core.info(`Running build command: ${command}`);
+            
+            try {
+              const result = await exec.getExecOutput(runScriptCommand, [command], {
+                cwd: require('path').resolve(process.env.GITHUB_WORKSPACE, workingDirectory)
+              });
+              
+              if (result.stdout) {
+                core.info(result.stdout);
+              }
+              if (result.stderr) {
+                core.warning(result.stderr);
+              }
+            } catch (error) {
+              core.setFailed(`Build command "${command}" failed: ${error.message}`);
+              throw error;
+            }
+          }
+
+    - id: build-artifact-id
+      if: inputs.build-artifact != ''
+      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      with:
+        name: ${{ fromJSON(inputs.build-artifact).name }}
+        path: ${{ fromJSON(inputs.build-artifact).paths }}
+        if-no-files-found: error
+
+    # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+    - shell: bash
+      if: always()
+      run: rm -fr ./self-build-action

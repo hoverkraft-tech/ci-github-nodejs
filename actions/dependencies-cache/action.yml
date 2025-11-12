@@ -1,9 +1,9 @@
 name: "Dependencies cache"
 description: "Action to setup dependencies cache managment."
-author: Hoverkraft
+author: hoverkraft
 branding:
   icon: archive
-  color: gray-dark
+  color: blue
 
 inputs:
   dependencies:

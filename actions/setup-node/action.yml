@@ -1,9 +1,9 @@
 name: "Setup Node.js"
 description: "Action to setup Node.js and install dependencies according to the package manager used."
-author: Hoverkraft
+author: hoverkraft
 branding:
   icon: settings
-  color: gray-dark
+  color: blue
 
 inputs:
   dependencies-cache:

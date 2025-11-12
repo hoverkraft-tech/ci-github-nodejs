@@ -1,0 +1,195 @@
+name: "Test"
+description: "Action to test Node.js projects with support for coverage reporting and pull request annotations"
+author: hoverkraft
+branding:
+  icon: check-square
+  color: blue
+
+inputs:
+  working-directory:
+    description: |
+      Working directory where test commands are executed.
+      Can be absolute or relative to the repository root.
+    required: false
+    default: "."
+  container:
+    description: "Whether running in container mode (skips checkout and node setup)"
+    required: false
+    default: "false"
+  coverage:
+    description: |
+      Code coverage reporter to use. Supported values:
+      - "github": Use ReportGenerator for PR comments with coverage reports
+      - "codecov": Upload coverage to Codecov
+      - "": No coverage reporting
+    required: false
+    default: "github"
+  coverage-files:
+    description: |
+      Path to coverage files for reporting.
+      Supports multiple formats (Cobertura, OpenCover, lcov, etc.).
+      Can be a single file or multiple files separated by semicolons.
+      If not specified, auto-detection will be attempted for common paths:
+      - coverage/cobertura-coverage.xml, coverage/coverage.xml
+      - coverage/lcov.info
+      - coverage/clover.xml
+    required: false
+    default: ""
+  github-token:
+    description: |
+      GitHub token for coverage PR comments.
+      Required when coverage is set to "github".
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+      run: mkdir -p ./self-test-action/ && cp -r $GITHUB_ACTION_PATH/../* ./self-test-action/
+
+    - id: setup-node
+      if: inputs.container != 'true'
+      uses: ./self-test-action/setup-node
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        dependencies-cache: |
+          nx
+          jest
+
+    - id: get-package-manager
+      if: inputs.container == 'true'
+      uses: ./self-test-action/get-package-manager
+      with:
+        working-directory: ${{ inputs.working-directory }}
+
+    - id: run-test
+      name: 🧪 Run tests
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      env:
+        RUN_TEST_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      with:
+        script: |
+          const workingDirectory = process.env.WORKING_DIRECTORY || '.';
+          const runScriptCommand = process.env.RUN_TEST_COMMAND;
+          try {
+            const result = await exec.getExecOutput(runScriptCommand, ['test:ci'], {
+              cwd: require('path').resolve(process.env.GITHUB_WORKSPACE, workingDirectory),
+              env: { ...process.env, CI: 'true' },
+              ignoreReturnCode: true
+            });
+            
+            if (result.stdout) core.info(result.stdout);
+            if (result.stderr) core.warning(result.stderr);
+            
+            core.setOutput('test-exit-code', result.exitCode);
+            
+            if (result.exitCode !== 0) {
+              core.setFailed(`Tests failed with exit code ${result.exitCode}`);
+            }
+          } catch (error) {
+            core.setOutput('test-exit-code', 1);
+            core.setFailed(`Test execution error: ${error.message}`);
+          }
+
+    # Auto-detect coverage files if not specified
+    - id: detect-coverage-files
+      if: always() && inputs.coverage == 'github'
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      env:
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        COVERAGE_FILES: ${{ inputs.coverage-files }}
+      with:
+        script: |
+          const path = require('node:path');
+          const fs = require('node:fs');
+
+          const workingDirectory = process.env.WORKING_DIRECTORY || '.';
+          const workDir = path.resolve(process.env.GITHUB_WORKSPACE, workingDirectory);
+
+          if (process.env.COVERAGE_FILES && process.env.COVERAGE_FILES.trim() !== '') {
+            core.info(`Using specified coverage files: ${process.env.COVERAGE_FILES}`);            
+            core.setOutput('coverage-files', process.env.COVERAGE_FILES);
+            return;
+          }
+
+          // Common coverage file paths
+          const commonPaths = [
+            'coverage/cobertura-coverage.xml',
+            'coverage/coverage.xml',
+            'coverage/lcov.info',
+            'coverage/clover.xml',
+            'coverage/coverage-final.json',
+            'test-results/coverage.xml',
+            'test-results/cobertura-coverage.xml'
+          ];
+
+          for (const filePath of commonPaths) {
+            const fullPath = path.join(workDir, filePath);
+            if (fs.existsSync(fullPath)) {
+              core.info(`Auto-detected coverage file: ${fullPath}`);
+              core.setOutput('coverage-files', fullPath);
+              return;
+            }
+          }
+
+          core.warning('No coverage file auto-detected');
+
+    # ReportGenerator for PR comments with coverage reports
+    - name: 📊 Generate coverage report
+      if: always() && inputs.coverage == 'github' && steps.detect-coverage-files.outputs.coverage-files
+      uses: danielpalme/ReportGenerator-GitHub-Action@dcdfb6e704e87df6b2ed0cf123a6c9f69e364869 # v5.5.0
+      with:
+        reports: ${{ steps.detect-coverage-files.outputs.coverage-files }}
+        targetdir: ${{ runner.temp }}/coveragereport-${{ github.run_id }}
+        reporttypes: MarkdownSummaryGithub
+        sourcedirs: ${{ inputs.working-directory }}
+
+    - if: always() && inputs.coverage == 'github'
+      id: get-coverage-report-summary
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      env:
+        SUMMARY_FILE: ${{ runner.temp }}/coveragereport-${{ github.run_id }}/SummaryGithub.md
+      with:
+        script: |
+          const fs = require('fs');
+          const summaryFilePath = process.env.SUMMARY_FILE;
+
+          if (!fs.existsSync(summaryFilePath)) {
+            return core.setFailed(`Coverage summary file not found: ${summaryFilePath}`);
+          }
+
+          const summaryContent = fs.readFileSync(summaryFilePath, 'utf8');
+          core.summary.addRaw(summaryContent).write();
+
+          core.setOutput('summary-content', summaryContent);
+
+    - name: 📊 Add coverage PR comment
+      if: always() && steps.get-coverage-report-summary.outputs.summary-content && github.event_name == 'pull_request'
+      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@5f11437c716059f30c635f90055060e4ef8b31a0 # 0.28.0
+      with:
+        title: "Code Coverage Report"
+        body: ${{ steps.get-coverage-report-summary.outputs.summary-content }}
+
+    # Install dependencies for codecov in container mode
+    - name: Install Codecov dependencies
+      if: inputs.coverage == 'codecov' && inputs.container == 'true'
+      uses: pkgxdev/setup@f211ee4db3110b42e5a156282372527e7c1ed723 # v4.0.0
+      with:
+        +: git curl gnupg.org
+
+    - name: 📊 Upload coverage to Codecov
+      if: always() && inputs.coverage == 'codecov'
+      uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        use_oidc: true
+        disable_telem: true
+        fail_ci_if_error: false
+
+    # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+    - shell: bash
+      if: always()
+      run: rm -fr ./self-test-action
