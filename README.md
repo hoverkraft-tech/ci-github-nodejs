@@ -18,6 +18,16 @@ This repository centralizes the Hoverkraft toolkit for building, testing, and sh
 
 ## Actions
 
+### CI Actions
+
+_Actions for continuous integration steps: build, lint, and test._
+
+#### - [Build](actions/build/README.md)
+
+#### - [Lint](actions/lint/README.md)
+
+#### - [Test](actions/test/README.md)
+
 ### Dependencies
 
 _Actions dedicated to caching and validating Node.js dependencies._

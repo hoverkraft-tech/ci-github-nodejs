@@ -1,9 +1,9 @@
 name: "Get package manager"
 description: "Action to detect the package manager used. Supports Yarn, pnpm, and npm"
-author: Hoverkraft
+author: hoverkraft
 branding:
   icon: package
-  color: gray-dark
+  color: blue
 
 inputs:
   working-directory:

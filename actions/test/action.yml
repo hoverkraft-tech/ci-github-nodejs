@@ -1,9 +1,9 @@
 name: "Test"
 description: "Action to test Node.js projects with support for coverage reporting and pull request annotations"
-author: Hoverkraft
+author: hoverkraft
 branding:
   icon: check-square
-  color: gray-dark
+  color: blue
 
 inputs:
   working-directory:

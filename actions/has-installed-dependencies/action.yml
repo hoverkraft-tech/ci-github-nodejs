@@ -1,9 +1,9 @@
 name: "Has installed dependencies"
 description: "Action to check if dependencies have been installed according to the package manager used."
-author: Hoverkraft
+author: hoverkraft
 branding:
   icon: settings
-  color: gray-dark
+  color: blue
 
 inputs:
   dependencies:

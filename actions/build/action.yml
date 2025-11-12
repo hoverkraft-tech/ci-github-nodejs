@@ -1,9 +1,9 @@
 name: "Build"
 description: "Action to build Node.js projects with support for custom commands, environment variables, and artifact handling"
-author: Hoverkraft
+author: hoverkraft
 branding:
   icon: package
-  color: gray-dark
+  color: blue
 
 inputs:
   working-directory:

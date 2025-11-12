@@ -1,9 +1,9 @@
 name: "Lint"
 description: "Action to lint Node.js projects with support for pull request reporting and annotations"
-author: Hoverkraft
+author: hoverkraft
 branding:
   icon: check-circle
-  color: gray-dark
+  color: blue
 
 inputs:
   working-directory:

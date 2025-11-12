@@ -1,124 +1,105 @@
-# Lint Action
+<!-- header:start -->
 
-Composite action to lint Node.js projects with support for pull request reporting and GitHub annotations.
+# ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stY2lyY2xlIiBjb2xvcj0iZ3JheS1kYXJrIj48cGF0aCBkPSJNMjIgMTEuMDhWMTJhMTAgMTAgMCAxIDEtNS45My05LjE0Ij48L3BhdGg+PHBvbHlsaW5lIHBvaW50cz0iMjIgNCAxMiAxNC4wMSA5IDExLjAxIj48L3BvbHlsaW5lPjwvc3ZnPg==) GitHub Action: Lint
 
-## Features
+<div align="center">
+  <img src="https://opengraph.githubassets.com/b83a39d0a270998cbae0974683a11eba4481aa44bbb4abbc39522474251c5b0a/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Lint" />
+</div>
 
-- Runs project lint scripts
-- Processes lint report files and converts them to GitHub annotations
-- Supports multiple report formats (JSON, XML/Checkstyle)
-- Provides PR feedback with inline comments on violations
-- Can be configured to fail or warn on errors
+---
+
+<!-- header:end -->
+<!-- badges:start -->
+
+[![Marketplace](https://img.shields.io/badge/Marketplace-lint-blue?logo=github-actions)](https://github.com/marketplace/actions/lint)
+[![Release](https://img.shields.io/github/v/release/hoverkraft-tech/ci-github-nodejs)](https://github.com/hoverkraft-tech/ci-github-nodejs/releases)
+[![License](https://img.shields.io/github/license/hoverkraft-tech/ci-github-nodejs)](http://choosealicense.com/licenses/mit/)
+[![Stars](https://img.shields.io/github/stars/hoverkraft-tech/ci-github-nodejs?style=social)](https://img.shields.io/github/stars/hoverkraft-tech/ci-github-nodejs?style=social)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/hoverkraft-tech/ci-github-nodejs/blob/main/CONTRIBUTING.md)
+
+<!-- badges:end -->
+<!-- overview:start -->
+
+## Overview
+
+Action to lint Node.js projects with support for pull request reporting and annotations
+
+<!-- overview:end -->
+<!-- usage:start -->
 
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@main
+- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@db1c1d36ff3e87c4513eded15d85acb78dcbd9b9 # copilot/refactor-ci-actions-lint-test
   with:
-    # Working directory where lint commands are executed
-    # Default: "."
-    working-directory: "."
+    # Working directory where lint commands are executed.
+    # Can be absolute or relative to the repository root.
+    #
+    # Default: `.`
+    working-directory: .
 
     # Whether running in container mode (skips checkout and node setup)
-    # Default: "false"
+    # Default: `false`
     container: "false"
 
-    # Path to lint report file for annotation processing
-    # Default: ""
-    report-file: "lint-report.json"
+    # Path to lint report file to process as GitHub annotations.
+    # Supports common formats like checkstyle XML, eslint JSON, etc.
+    # If not specified, no report processing is done.
+    report-file: ""
 
     # Whether to fail the action if linting errors are found
-    # Default: "true"
+    # Default: `true`
     fail-on-error: "true"
 ```
 
+<!-- usage:end -->
+<!-- inputs:start -->
+
 ## Inputs
 
-| Name                | Description                                                       | Required | Default |
-| ------------------- | ----------------------------------------------------------------- | -------- | ------- |
-| `working-directory` | Working directory where lint commands are executed                | No       | `.`     |
-| `container`         | Whether running in container mode (skips checkout and node setup) | No       | `false` |
-| `report-file`       | Path to lint report file to process as GitHub annotations         | No       | `""`    |
-| `fail-on-error`     | Whether to fail the action if linting errors are found            | No       | `true`  |
+| **Input**               | **Description**                                                   | **Required** | **Default** |
+| ----------------------- | ----------------------------------------------------------------- | ------------ | ----------- |
+| **`working-directory`** | Working directory where lint commands are executed.               | **false**    | `.`         |
+|                         | Can be absolute or relative to the repository root.               |              |             |
+| **`container`**         | Whether running in container mode (skips checkout and node setup) | **false**    | `false`     |
+| **`report-file`**       | Path to lint report file to process as GitHub annotations.        | **false**    | -           |
+|                         | Supports common formats like checkstyle XML, ESLint JSON, etc.    |              |             |
+|                         | If not specified, no report processing is done.                   |              |             |
+| **`fail-on-error`**     | Whether to fail the action if linting errors are found            | **false**    | `true`      |
 
-## Supported Report Formats
+<!-- inputs:end -->
+<!-- secrets:start -->
+<!-- secrets:end -->
+<!-- outputs:start -->
+<!-- outputs:end -->
+<!-- examples:start -->
+<!-- examples:end -->
+<!-- contributing:start -->
 
-### ESLint JSON
+## Contributing
 
-Configure your ESLint to output JSON:
+Contributions are welcome! Please see the [contributing guidelines](https://github.com/hoverkraft-tech/ci-github-nodejs/blob/main/CONTRIBUTING.md) for more details.
 
-```json
-{
-  "scripts": {
-    "lint": "eslint . --format json --output-file lint-report.json || true"
-  }
-}
-```
+<!-- contributing:end -->
+<!-- security:start -->
+<!-- security:end -->
+<!-- license:start -->
 
-Then use the action:
+## License
 
-```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@main
-  with:
-    report-file: "lint-report.json"
-```
+This project is licensed under the MIT License.
 
-### Checkstyle XML
+SPDX-License-Identifier: MIT
 
-Configure your linter to output Checkstyle XML format:
+Copyright © 2025 Hoverkraft
 
-```json
-{
-  "scripts": {
-    "lint": "eslint . --format checkstyle --output-file lint-report.xml || true"
-  }
-}
-```
+For more details, see the [license](http://choosealicense.com/licenses/mit/).
 
-Then use the action:
+<!-- license:end -->
+<!-- generated:start -->
 
-```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@main
-  with:
-    report-file: "lint-report.xml"
-```
+---
 
-## Examples
+This documentation was automatically generated by [CI Dokumentor](https://github.com/hoverkraft-tech/ci-dokumentor).
 
-### Basic lint
-
-```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@main
-```
-
-### Lint with report processing
-
-```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@main
-  with:
-    report-file: "eslint-report.json"
-```
-
-### Lint without failing on errors (warnings only)
-
-```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@main
-  with:
-    fail-on-error: "false"
-```
-
-### Lint in a specific directory
-
-```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@main
-  with:
-    working-directory: "packages/frontend"
-    report-file: "packages/frontend/lint-report.json"
-```
-
-## Notes
-
-- The action expects a `lint` script to be defined in your `package.json`
-- Report files are processed after linting completes, regardless of success/failure
-- For pull requests, annotations will appear as inline comments on the Files Changed tab
-- Supports both ESLint JSON and Checkstyle XML formats out of the box
+<!-- generated:end -->
