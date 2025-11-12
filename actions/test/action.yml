@@ -36,6 +36,12 @@ inputs:
       Not required for public repositories when using OIDC.
     required: false
     default: ""
+  github-token:
+    description: |
+      GitHub token for LCOV reporter PR comments.
+      Required when coverage is set to "lcov".
+    required: false
+    default: ""
   fail-on-error:
     description: "Whether to fail the action if tests fail"
     required: false
@@ -126,7 +132,7 @@ runs:
         coverage-files: ${{ inputs.working-directory }}/${{ inputs.lcov-file }}
         minimum-coverage: 0
         artifact-name: coverage-report
-        github-token: ${{ github.token }}
+        github-token: ${{ inputs.github-token }}
         update-comment: true
         working-directory: ${{ inputs.working-directory }}
 

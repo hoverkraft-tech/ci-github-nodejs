@@ -73,7 +73,7 @@ runs:
         exit 0
 
     - shell: bash
-      if: inputs.report-file != '' && hashFiles(inputs.report-file) != ''
+      if: inputs.report-file != ''
       working-directory: ${{ inputs.working-directory }}
       env:
         REPORT_FILE: ${{ inputs.report-file }}

@@ -35,6 +35,10 @@ Composite action to test Node.js projects with support for coverage reporting, p
     # Default: ""
     codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
+    # GitHub token (required for "lcov" coverage PR comments)
+    # Default: ""
+    github-token: ${{ github.token }}
+
     # Whether to fail the action if tests fail
     # Default: "true"
     fail-on-error: "true"
@@ -49,6 +53,7 @@ Composite action to test Node.js projects with support for coverage reporting, p
 | `coverage`          | Code coverage reporter: "Codecov", "lcov", or ""                     | No       | `""`                 |
 | `lcov-file`         | Path to LCOV file for coverage reporting (used with "lcov" coverage) | No       | `coverage/lcov.info` |
 | `codecov-token`     | Codecov token for private repositories                               | No       | `""`                 |
+| `github-token`      | GitHub token for LCOV reporter PR comments                           | No       | `""`                 |
 | `fail-on-error`     | Whether to fail the action if tests fail                             | No       | `true`               |
 
 ## Outputs
@@ -107,6 +112,7 @@ This will post coverage reports as PR comments.
   with:
     coverage: "lcov"
     lcov-file: "coverage/lcov.info"
+    github-token: ${{ github.token }}
 ```
 
 ### Test in a specific directory

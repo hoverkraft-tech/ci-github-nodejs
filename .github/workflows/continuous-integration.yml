@@ -375,3 +375,4 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
           container: ${{ inputs.container != '' }}
           coverage: ${{ inputs.coverage }}
+          github-token: ${{ github.token }}
