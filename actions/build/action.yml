@@ -110,10 +110,8 @@ runs:
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
       with:
         script: |
-          const { exec } = require('child_process');
-          const { promisify } = require('util');
-          const execAsync = promisify(exec);
-          const path = require('path');
+          const path = require('node:path');
+          const exec = require('@actions/exec');
 
           const buildCommands = process.env.BUILD_COMMANDS || '';
           const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
@@ -127,16 +125,14 @@ runs:
             core.info(`\n🏗️ Running build command: ${command}`);
             
             try {
-              const { stdout, stderr } = await execAsync(`${runScriptCommand} ${command}`, {
+              const result = await exec.getExecOutput(runScriptCommand, [command], {
                 cwd: path.resolve(process.env.GITHUB_WORKSPACE, workingDirectory)
               });
               
-              if (stdout) core.info(stdout);
-              if (stderr) core.warning(stderr);
+              if (result.stdout) core.info(result.stdout);
+              if (result.stderr) core.warning(result.stderr);
             } catch (error) {
-              if (error.stdout) core.info(error.stdout);
-              if (error.stderr) core.error(error.stderr);
-              core.setFailed(`Build command "${command}" failed with exit code ${error.code || 1}`);
+              core.setFailed(`Build command "${command}" failed: ${error.message}`);
               throw error;
             }
           }
