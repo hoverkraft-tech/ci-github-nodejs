@@ -112,12 +112,12 @@ runs:
         echo "$BUILD_COMMANDS" | while IFS= read -r COMMAND ; do
           # Trim whitespace
           COMMAND=$(echo "$COMMAND" | xargs)
-          
+
           # Skip empty lines
           if [ -z "$COMMAND" ]; then
             continue
           fi
-          
+
           echo -e "\n🏗️ Running build command: $COMMAND"
           $RUN_SCRIPT_COMMAND "$COMMAND"
         done
