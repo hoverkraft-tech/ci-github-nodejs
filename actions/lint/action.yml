@@ -19,8 +19,16 @@ inputs:
   report-file:
     description: |
       Path to lint report file to process as GitHub annotations.
-      Supports common formats like checkstyle XML, eslint JSON, etc.
+      Supports ESLint JSON and Checkstyle XML formats.
       If not specified, no report processing is done.
+    required: false
+    default: ""
+  report-format:
+    description: |
+      Format of the lint report file. Supported values:
+      - "eslint": ESLint JSON format
+      - "checkstyle": Checkstyle XML format
+      - "": Auto-detect from file extension
     required: false
     default: ""
   fail-on-error:
@@ -50,68 +58,66 @@ runs:
       with:
         working-directory: ${{ inputs.working-directory }}
 
-    - shell: bash
-      id: run-lint
-      working-directory: ${{ inputs.working-directory }}
+    # jscpd:ignore-start
+    - id: run-lint
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       env:
         RUN_SCRIPT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
         FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
-      run: |
-        set +e  # Don't exit on error, we want to process the report
+      with:
+        script: |
+          const { exec } = require('child_process');
+          const { promisify } = require('util');
+          const execAsync = promisify(exec);
+          const path = require('path');
 
-        echo "👕 Running lint..."
-        $RUN_SCRIPT_COMMAND lint
-        LINT_EXIT_CODE=$?
+          const workingDirectory = process.env.WORKING_DIRECTORY || '.';
+          const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
+          const failOnError = process.env.FAIL_ON_ERROR === 'true';
 
-        echo "lint-exit-code=$LINT_EXIT_CODE" >> $GITHUB_OUTPUT
+          core.info('👕 Running lint...');
 
-        if [ "$FAIL_ON_ERROR" = "true" ] && [ $LINT_EXIT_CODE -ne 0 ]; then
-          echo "::error::Linting failed with exit code $LINT_EXIT_CODE"
-        fi
+          try {
+            const { stdout, stderr } = await execAsync(`${runScriptCommand} lint`, {
+              cwd: path.resolve(process.env.GITHUB_WORKSPACE, workingDirectory)
+            });
+            
+            if (stdout) core.info(stdout);
+            if (stderr) core.warning(stderr);
+            
+            core.setOutput('lint-exit-code', 0);
+          } catch (error) {
+            core.setOutput('lint-exit-code', error.code || 1);
+            
+            if (error.stdout) core.info(error.stdout);
+            if (error.stderr) core.error(error.stderr);
+            
+            if (failOnError) {
+              core.setFailed(`Linting failed with exit code ${error.code || 1}`);
+            } else {
+              core.warning(`Linting failed with exit code ${error.code || 1}`);
+            }
+          }
+    # jscpd:ignore-end
+    # Process ESLint report
+    - name: 📊 Annotate ESLint results
+      if: always() && inputs.report-file != '' && (inputs.report-format == 'eslint' || inputs.report-format == '')
+      uses: ataylorme/eslint-annotate-action@d57a1193d4c59cbfbf2f1529e82e2f8e0da1498d # v3.0.0
+      with:
+        report-json: ${{ inputs.working-directory }}/${{ inputs.report-file }}
+        fail-on-error: false
+        fail-on-warning: false
 
-        # Always exit successfully here; we'll handle the failure later if needed
-        exit 0
-
-    - shell: bash
-      if: inputs.report-file != ''
-      working-directory: ${{ inputs.working-directory }}
-      env:
-        REPORT_FILE: ${{ inputs.report-file }}
-      run: |
-        set -e
-
-        if [ ! -f "$REPORT_FILE" ]; then
-          echo "::warning::Lint report file not found: $REPORT_FILE"
-          exit 0
-        fi
-
-        echo "📊 Processing lint report: $REPORT_FILE"
-
-        # Detect report format and process accordingly
-        if echo "$REPORT_FILE" | grep -q "\.json$"; then
-          echo "Detected JSON format"
-          # Process ESLint JSON format
-          if jq -e 'type == "array"' "$REPORT_FILE" > /dev/null 2>&1; then
-            jq -r '.[] | select(.errorCount > 0 or .warningCount > 0) | .messages[] | 
-              "::warning file=\(.filePath // "unknown"),line=\(.line // 1),col=\(.column // 1)::\(.message)"' \
-              "$REPORT_FILE" || true
-          fi
-        elif echo "$REPORT_FILE" | grep -q "\.xml$"; then
-          echo "Detected XML format (checkstyle)"
-          # Process checkstyle XML format
-          # This is a simplified processor; for production, consider using a dedicated tool
-          if command -v xmllint > /dev/null 2>&1; then
-            xmllint --xpath '//error' "$REPORT_FILE" 2>/dev/null | \
-              sed -E 's/<error line="([0-9]+)" column="([0-9]+)" severity="([^"]+)" message="([^"]+)" source="([^"]+)"[^>]*>/::warning line=\1,col=\2::\4/g' || true
-          else
-            echo "::warning::xmllint not available, skipping XML report processing"
-          fi
-        else
-          echo "::warning::Unknown report format for $REPORT_FILE"
-        fi
+    # Process Checkstyle report
+    - name: 📊 Annotate Checkstyle results
+      if: always() && inputs.report-file != '' && inputs.report-format == 'checkstyle'
+      uses: lcollins/checkstyle-github-action@8e0abb97e71a72c2cf9d6f0619e38002cb6e36c9 # v2.0.0
+      with:
+        path: ${{ inputs.working-directory }}/${{ inputs.report-file }}
 
     - shell: bash
-      if: steps.run-lint.outputs.lint-exit-code != '0' && inputs.fail-on-error == 'true'
+      if: always() && steps.run-lint.outputs.lint-exit-code != '0' && inputs.fail-on-error == 'true'
       run: |
         echo "::error::Linting failed. Please fix the errors above."
         exit 1

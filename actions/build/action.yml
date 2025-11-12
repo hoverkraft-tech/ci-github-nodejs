@@ -72,56 +72,75 @@ runs:
       with:
         working-directory: ${{ inputs.working-directory }}
 
-    - shell: bash
+    - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       env:
         BUILD_ENV: ${{ inputs.build-env }}
         BUILD_SECRETS: ${{ inputs.build-secrets }}
-      run: |
-        set -e
+      with:
+        script: |
+          const envInput = process.env.BUILD_ENV || '{}';
 
-        # Export build environment variables
-        BUILD_ENV_JSON="${BUILD_ENV:-"{}"}"
+          let buildEnv = {};
 
-        # Parse and export build env variables
-        if [ "$BUILD_ENV_JSON" != "{}" ]; then
-          echo "$BUILD_ENV_JSON" | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while IFS= read -r line; do
-            if [ -n "$line" ]; then
-              echo "$line" >> $GITHUB_ENV
-            fi
-          done
-        fi
+          try {
+            buildEnv = JSON.parse(envInput);
+          } catch (e) {
+            core.setFailed(`Invalid build env JSON: ${e.message}`);
+          }
 
-        # Export build secrets
-        if [ -n "$BUILD_SECRETS" ]; then
-          echo "$BUILD_SECRETS" | while IFS= read -r line; do
-            line=$(echo "$line" | xargs)
-            if [ -n "$line" ]; then
-              echo "$line" >> $GITHUB_ENV
-            fi
-          done
-        fi
+          for (const [key, value] of Object.entries(buildEnv)) {
+            core.exportVariable(key, value);
+          }
 
-    - shell: bash
-      working-directory: ${{ inputs.working-directory }}
+          const secretsInput = process.env.BUILD_SECRETS || '';
+          for (const line of secretsInput.split('\n').map(line => line.trim()).filter(Boolean)) {
+            const [key, ...rest] = line.split('=');
+            if (!key || !rest.length) {
+              return core.setFailed(`Invalid build secrets format: ${line}`);
+            }
+            const value = rest.join('=');
+            core.exportVariable(key.trim(), value.trim());
+          }
+
+    # jscpd:ignore-start
+    - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       env:
         BUILD_COMMANDS: ${{ inputs.build-commands }}
         RUN_SCRIPT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
-      run: |
-        set -e
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      with:
+        script: |
+          const { exec } = require('child_process');
+          const { promisify } = require('util');
+          const execAsync = promisify(exec);
+          const path = require('path');
 
-        echo "$BUILD_COMMANDS" | while IFS= read -r COMMAND ; do
-          # Trim whitespace
-          COMMAND=$(echo "$COMMAND" | xargs)
+          const buildCommands = process.env.BUILD_COMMANDS || '';
+          const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
+          const workingDirectory = process.env.WORKING_DIRECTORY || '.';
 
-          # Skip empty lines
-          if [ -z "$COMMAND" ]; then
-            continue
-          fi
+          const commands = buildCommands.split('\n')
+            .map(cmd => cmd.trim())
+            .filter(Boolean);
 
-          echo -e "\n🏗️ Running build command: $COMMAND"
-          $RUN_SCRIPT_COMMAND "$COMMAND"
-        done
-
+          for (const command of commands) {
+            core.info(`\n🏗️ Running build command: ${command}`);
+            
+            try {
+              const { stdout, stderr } = await execAsync(`${runScriptCommand} ${command}`, {
+                cwd: path.resolve(process.env.GITHUB_WORKSPACE, workingDirectory)
+              });
+              
+              if (stdout) core.info(stdout);
+              if (stderr) core.warning(stderr);
+            } catch (error) {
+              if (error.stdout) core.info(error.stdout);
+              if (error.stderr) core.error(error.stderr);
+              core.setFailed(`Build command "${command}" failed with exit code ${error.code || 1}`);
+              throw error;
+            }
+          }
+    # jscpd:ignore-end
     - id: build-artifact-id
       if: inputs.build-artifact != ''
       uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0

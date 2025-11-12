@@ -72,23 +72,25 @@ Action to test Node.js projects with support for coverage reporting and pull req
 
 ## Inputs
 
-| **Input**               | **Description**                                                   | **Required** | **Default**          |
-| ----------------------- | ----------------------------------------------------------------- | ------------ | -------------------- |
-| **`working-directory`** | Working directory where test commands are executed.               | **false**    | `.`                  |
-|                         | Can be absolute or relative to the repository root.               |              |                      |
-| **`container`**         | Whether running in container mode (skips checkout and node setup) | **false**    | `false`              |
-| **`coverage`**          | Code coverage reporter to use. Supported values:                  | **false**    | -                    |
-|                         | - "Codecov": Upload coverage to Codecov                           |              |                      |
-|                         | - "lcov": Use lcov-reporter-action for PR comments                |              |                      |
-|                         | - "": No coverage reporting                                       |              |                      |
-| **`lcov-file`**         | Path to LCOV file for coverage reporting.                         | **false**    | `coverage/lcov.info` |
-|                         | Only used when coverage is set to "lcov".                         |              |                      |
-| **`codecov-token`**     | Codecov token for private repositories.                           | **false**    | -                    |
-|                         | Not required for public repositories when using OIDC.             |              |                      |
-| **`github-token`**      | GitHub token for LCOV reporter PR comments.                       | **false**    | -                    |
-|                         | Required when coverage is set to "lcov".                          |              |                      |
-| **`fail-on-error`**     | Whether to fail the action if tests fail                          | **false**    | `true`               |
+| **Input**               | **Description**                                                       | **Required** | **Default**                       |
+| ----------------------- | --------------------------------------------------------------------- | ------------ | --------------------------------- |
+| **`working-directory`** | Working directory where test commands are executed.                   | **false**    | `.`                               |
+|                         | Can be absolute or relative to the repository root.                   |              |                                   |
+| **`container`**         | Whether running in container mode (skips checkout and node setup)     | **false**    | `false`                           |
+| **`coverage`**          | Code coverage reporter to use. Supported values:                      | **false**    | -                                 |
+|                         | - "Codecov": Upload coverage to Codecov                               |              |                                   |
+|                         | - "GitHub": Use ReportGenerator for PR comments with coverage reports |              |                                   |
+|                         | - "": No coverage reporting                                           |              |                                   |
+| **`coverage-files`**    | Path to coverage files for reporting.                                 | **false**    | `coverage/cobertura-coverage.xml` |
+|                         | Supports multiple formats (Cobertura, OpenCover, lcov, etc.).         |              |                                   |
+|                         | Can be a single file or multiple files separated by semicolons.       |              |                                   |
+| **`codecov-token`**     | Codecov token for private repositories.                               | **false**    | -                                 |
+|                         | Not required for public repositories when using OIDC.                 |              |                                   |
+| **`github-token`**      | GitHub token for coverage PR comments.                                | **false**    | -                                 |
+|                         | Required when coverage is set to "GitHub".                            |              |                                   |
+| **`fail-on-error`**     | Whether to fail the action if tests fail                              | **false**    | `true`                            |
 
+<!-- jscpd:ignore-start -->
 <!-- inputs:end -->
 <!-- secrets:start -->
 <!-- secrets:end -->
@@ -132,3 +134,4 @@ For more details, see the [license](http://choosealicense.com/licenses/mit/).
 This documentation was automatically generated by [CI Dokumentor](https://github.com/hoverkraft-tech/ci-dokumentor).
 
 <!-- generated:end -->
+<!-- jscpd:ignore-end -->

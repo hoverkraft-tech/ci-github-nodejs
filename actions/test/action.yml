@@ -20,16 +20,17 @@ inputs:
     description: |
       Code coverage reporter to use. Supported values:
       - "codecov": Upload coverage to Codecov
-      - "lcov": Use lcov-reporter-action for PR comments
+      - "github": Use ReportGenerator for PR comments with coverage reports
       - "": No coverage reporting
     required: false
     default: ""
-  lcov-file:
+  coverage-files:
     description: |
-      Path to LCOV file for coverage reporting.
-      Only used when coverage is set to "lcov".
+      Path to coverage files for reporting.
+      Supports multiple formats (Cobertura, OpenCover, lcov, etc.).
+      Can be a single file or multiple files separated by semicolons.
     required: false
-    default: "coverage/lcov.info"
+    default: "coverage/cobertura-coverage.xml"
   codecov-token:
     description: |
       Codecov token for private repositories.
@@ -74,29 +75,49 @@ runs:
       with:
         working-directory: ${{ inputs.working-directory }}
 
-    - shell: bash
-      id: run-test
-      working-directory: ${{ inputs.working-directory }}
+    # jscpd:ignore-start
+    - id: run-test
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       env:
         RUN_SCRIPT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
-        CI: "true"
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
         FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
-      run: |
-        set +e  # Don't exit on error, we want to process coverage
+      with:
+        script: |
+          const { exec } = require('child_process');
+          const { promisify } = require('util');
+          const execAsync = promisify(exec);
+          const path = require('path');
 
-        echo "🧪 Running tests..."
-        $RUN_SCRIPT_COMMAND test:ci
-        TEST_EXIT_CODE=$?
+          const workingDirectory = process.env.WORKING_DIRECTORY || '.';
+          const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
+          const failOnError = process.env.FAIL_ON_ERROR === 'true';
 
-        echo "test-exit-code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+          core.info('🧪 Running tests...');
 
-        if [ "$FAIL_ON_ERROR" = "true" ] && [ $TEST_EXIT_CODE -ne 0 ]; then
-          echo "::error::Tests failed with exit code $TEST_EXIT_CODE"
-        fi
-
-        # Always exit successfully here; we'll handle the failure later if needed
-        exit 0
-
+          try {
+            const { stdout, stderr } = await execAsync(`${runScriptCommand} test:ci`, {
+              cwd: path.resolve(process.env.GITHUB_WORKSPACE, workingDirectory),
+              env: { ...process.env, CI: 'true' }
+            });
+            
+            if (stdout) core.info(stdout);
+            if (stderr) core.warning(stderr);
+            
+            core.setOutput('test-exit-code', 0);
+          } catch (error) {
+            core.setOutput('test-exit-code', error.code || 1);
+            
+            if (error.stdout) core.info(error.stdout);
+            if (error.stderr) core.error(error.stderr);
+            
+            if (failOnError) {
+              core.setFailed(`Tests failed with exit code ${error.code || 1}`);
+            } else {
+              core.warning(`Tests failed with exit code ${error.code || 1}`);
+            }
+          }
+    # jscpd:ignore-end
     # Install dependencies for codecov in container mode
     - shell: bash
       if: inputs.coverage == 'codecov' && inputs.container == 'true'
@@ -115,7 +136,7 @@ runs:
 
     # Upload to Codecov
     - name: 📊 Upload coverage to Codecov
-      if: inputs.coverage == 'codecov'
+      if: always() && inputs.coverage == 'codecov'
       uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
       with:
         working-directory: ${{ inputs.working-directory }}
@@ -124,20 +145,26 @@ runs:
         disable_telem: true
         fail_ci_if_error: false
 
-    # LCOV Reporter for PR comments
+    # ReportGenerator for PR comments with coverage reports
     - name: 📊 Generate coverage report
-      if: inputs.coverage == 'lcov' && github.event_name == 'pull_request'
-      uses: zgosalvez/github-actions-report-lcov@f9eec0e06a1b39a77f558c7cd7fb91e0e7dbbb7b # v4.1.17
+      if: always() && inputs.coverage == 'github' && github.event_name == 'pull_request'
+      uses: danielpalme/ReportGenerator-GitHub-Action@d78d7a99ab2e53f4fa9e37c558feb9cd6a7a1c70 # v5.4.3
       with:
-        coverage-files: ${{ inputs.working-directory }}/${{ inputs.lcov-file }}
-        minimum-coverage: 0
-        artifact-name: coverage-report
-        github-token: ${{ inputs.github-token }}
-        update-comment: true
-        working-directory: ${{ inputs.working-directory }}
+        reports: ${{ inputs.coverage-files }}
+        targetdir: coveragereport
+        reporttypes: MarkdownSummaryGithub
+        sourcedirs: ${{ inputs.working-directory }}
+
+    - name: 📊 Add coverage PR comment
+      if: always() && inputs.coverage == 'github' && github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31 # v2.9.0
+      with:
+        recreate: true
+        path: coveragereport/SummaryGithub.md
+        GITHUB_TOKEN: ${{ inputs.github-token }}
 
     - shell: bash
-      if: steps.run-test.outputs.test-exit-code != '0' && inputs.fail-on-error == 'true'
+      if: always() && steps.run-test.outputs.test-exit-code != '0' && inputs.fail-on-error == 'true'
       run: |
         echo "::error::Tests failed. Please fix the failing tests."
         exit 1
