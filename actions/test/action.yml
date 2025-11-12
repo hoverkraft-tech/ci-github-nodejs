@@ -1,0 +1,142 @@
+name: "Test"
+description: "Action to test Node.js projects with support for coverage reporting and pull request annotations"
+author: Hoverkraft
+branding:
+  icon: check-square
+  color: gray-dark
+
+inputs:
+  working-directory:
+    description: |
+      Working directory where test commands are executed.
+      Can be absolute or relative to the repository root.
+    required: false
+    default: "."
+  container:
+    description: "Whether running in container mode (skips checkout and node setup)"
+    required: false
+    default: "false"
+  coverage:
+    description: |
+      Code coverage reporter to use. Supported values:
+      - "codecov": Upload coverage to Codecov
+      - "lcov": Use lcov-reporter-action for PR comments
+      - "": No coverage reporting
+    required: false
+    default: ""
+  lcov-file:
+    description: |
+      Path to LCOV file for coverage reporting.
+      Only used when coverage is set to "lcov".
+    required: false
+    default: "coverage/lcov.info"
+  codecov-token:
+    description: |
+      Codecov token for private repositories.
+      Not required for public repositories when using OIDC.
+    required: false
+    default: ""
+  fail-on-error:
+    description: "Whether to fail the action if tests fail"
+    required: false
+    default: "true"
+
+outputs:
+  test-exit-code:
+    description: "Exit code from the test run"
+    value: ${{ steps.run-test.outputs.test-exit-code }}
+
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+      run: mkdir -p ./self-test-action/ && cp -r $GITHUB_ACTION_PATH/../* ./self-test-action/
+
+    - id: setup-node
+      if: inputs.container != 'true'
+      uses: ./self-test-action/setup-node
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        dependencies-cache: |
+          nx
+          jest
+
+    - id: get-package-manager
+      if: inputs.container == 'true'
+      uses: ./self-test-action/get-package-manager
+      with:
+        working-directory: ${{ inputs.working-directory }}
+
+    - shell: bash
+      id: run-test
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        RUN_SCRIPT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
+        CI: "true"
+        FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
+      run: |
+        set +e  # Don't exit on error, we want to process coverage
+        
+        echo "🧪 Running tests..."
+        $RUN_SCRIPT_COMMAND test:ci
+        TEST_EXIT_CODE=$?
+        
+        echo "test-exit-code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+        
+        if [ "$FAIL_ON_ERROR" = "true" ] && [ $TEST_EXIT_CODE -ne 0 ]; then
+          echo "::error::Tests failed with exit code $TEST_EXIT_CODE"
+        fi
+        
+        # Always exit successfully here; we'll handle the failure later if needed
+        exit 0
+
+    # Install dependencies for codecov in container mode
+    - shell: bash
+      if: inputs.coverage == 'codecov' && inputs.container == 'true'
+      env:
+        REQUIRED_DEPS: |
+          git
+          curl
+          gpg
+      run: |
+        apt-get update
+        for dep in $REQUIRED_DEPS; do
+          if ! dpkg -s "$dep" >/dev/null 2>&1; then
+            apt-get install -y "$dep"
+          fi
+        done
+
+    # Upload to Codecov
+    - name: 📊 Upload coverage to Codecov
+      if: inputs.coverage == 'codecov'
+      uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        token: ${{ inputs.codecov-token }}
+        use_oidc: ${{ inputs.codecov-token == '' }}
+        disable_telem: true
+        fail_ci_if_error: false
+
+    # LCOV Reporter for PR comments
+    - name: 📊 Generate coverage report
+      if: inputs.coverage == 'lcov' && github.event_name == 'pull_request'
+      uses: zgosalvez/github-actions-report-lcov@f9eec0e06a1b39a77f558c7cd7fb91e0e7dbbb7b # v4.1.17
+      with:
+        coverage-files: ${{ inputs.working-directory }}/${{ inputs.lcov-file }}
+        minimum-coverage: 0
+        artifact-name: coverage-report
+        github-token: ${{ github.token }}
+        update-comment: true
+        working-directory: ${{ inputs.working-directory }}
+
+    - shell: bash
+      if: steps.run-test.outputs.test-exit-code != '0' && inputs.fail-on-error == 'true'
+      run: |
+        echo "::error::Tests failed. Please fix the failing tests."
+        exit 1
+
+    # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+    - shell: bash
+      if: always()
+      run: rm -fr ./self-test-action

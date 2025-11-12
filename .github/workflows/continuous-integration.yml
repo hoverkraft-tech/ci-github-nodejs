@@ -276,25 +276,12 @@ jobs:
       - run: |
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
-
-      - id: setup-node
-        if: inputs.container == ''
-        uses: ./self-workflow/actions/setup-node
-        with:
-          working-directory: ${{ inputs.working-directory }}
-          dependencies-cache: |
-            nx
-            prettier
-
-      - id: get-package-manager
-        if: inputs.container
-        uses: ./self-workflow/actions/get-package-manager
-        with:
-          working-directory: ${{ inputs.working-directory }}
       # jscpd:ignore-end
 
-      - run: ${{ inputs.container && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }} lint
-        working-directory: ${{ inputs.working-directory }}
+      - uses: ./self-workflow/actions/lint
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          container: ${{ inputs.container != '' }}
 
   build:
     name: 🏗️ Build
@@ -311,7 +298,7 @@ jobs:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
     outputs:
-      artifact-id: ${{ steps.build-artifact-id.outputs.artifact-id }}
+      artifact-id: ${{ steps.build.outputs.artifact-id }}
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@753288393de1f3d92f687a6761d236ca800f5306 # 0.28.1
         if: needs.setup.outputs.build-commands && inputs.container == ''
@@ -333,79 +320,17 @@ jobs:
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
       # jscpd:ignore-end
-      - if: needs.setup.outputs.build-commands
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          BUILD_ENV: ${{ needs.setup.outputs.build-env }}
-          BUILD_SECRETS: ${{ secrets.build-secrets }}
-        with:
-          script: |
-            const envInput = process.env.BUILD_ENV || '{}';
 
-            let buildEnv = {};
-
-            try {
-              buildEnv = JSON.parse(envInput);
-            } catch (e) {
-              core.setFailed(`Invalid build env JSON: ${e.message}`);
-            }
-
-            for (const [key, value] of Object.entries(buildEnv)) {
-              core.exportVariable(key, value);
-            }
-
-            const secretsInput = process.env.BUILD_SECRETS || '';
-            for (const line of secretsInput.split('\n').map(line => line.trim()).filter(Boolean)) {
-              const [key, ...rest] = line.split('=');
-              if (!key || !rest.length) {
-                return core.setFailed(`Invalid build secrets format: ${line}`);
-              }
-              const value = rest.join('=');
-              core.exportVariable(key.trim(), value.trim());
-            }
-
-      - id: setup-node
-        if: needs.setup.outputs.build-commands && inputs.container == ''
-        uses: ./self-workflow/actions/setup-node
+      - id: build
+        if: needs.setup.outputs.build-commands
+        uses: ./self-workflow/actions/build
         with:
           working-directory: ${{ inputs.working-directory }}
-          dependencies-cache: |
-            nx
-            gatsby
-            storybook
-
-      - id: get-package-manager
-        if: needs.setup.outputs.build-commands && inputs.container
-        uses: ./self-workflow/actions/get-package-manager
-        with:
-          working-directory: ${{ inputs.working-directory }}
-
-      - if: needs.setup.outputs.build-commands
-        working-directory: ${{ inputs.working-directory }}
-        env:
-          BUILD_COMMANDS: ${{ needs.setup.outputs.build-commands }}
-          RUN_SCRIPT_COMMAND: ${{ inputs.container && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
-        run: |
-          echo "$BUILD_COMMANDS" | while IFS= read -r COMMAND ; do
-              # Trim whitespace
-              COMMAND=$(echo "$COMMAND" | xargs)
-
-              # Skip empty lines
-              if [ -z "$COMMAND" ]; then
-                  continue
-              fi
-
-              echo -e "\n - Running $COMMAND"
-              $RUN_SCRIPT_COMMAND "$COMMAND"
-          done
-
-      - id: build-artifact-id
-        if: needs.setup.outputs.build-commands && needs.setup.outputs.build-artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: ${{ fromJSON(needs.setup.outputs.build-artifact).name }}
-          path: ${{ fromJSON(needs.setup.outputs.build-artifact).paths }}
-          if-no-files-found: error
+          build-commands: ${{ needs.setup.outputs.build-commands }}
+          build-env: ${{ needs.setup.outputs.build-env }}
+          build-secrets: ${{ secrets.build-secrets }}
+          build-artifact: ${{ needs.setup.outputs.build-artifact }}
+          container: ${{ inputs.container != '' }}
 
   test:
     name: 🧪 Test
@@ -422,6 +347,7 @@ jobs:
       contents: read
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
+      pull-requests: write
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@753288393de1f3d92f687a6761d236ca800f5306 # 0.28.1
         if: inputs.container == ''
@@ -446,43 +372,8 @@ jobs:
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
 
-      - id: setup-node
-        if: inputs.container == ''
-        uses: ./self-workflow/actions/setup-node
+      - uses: ./self-workflow/actions/test
         with:
           working-directory: ${{ inputs.working-directory }}
-          dependencies-cache: |
-            nx
-            jest
-
-      - id: get-package-manager
-        if: needs.setup.outputs.build-commands && inputs.container
-        uses: ./self-workflow/actions/get-package-manager
-        with:
-          working-directory: ${{ inputs.working-directory }}
-
-      - run: ${{ inputs.container && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }} test:ci
-        working-directory: ${{ inputs.working-directory }}
-        env:
-          CI: "true"
-
-      - if: inputs.coverage == 'codecov' && inputs.container
-        env:
-          REQUIRED_DEPS: |
-            git
-            curl
-            gpg
-        run: |
-          apt-get update
-          for dep in $REQUIRED_DEPS; do
-            if ! dpkg -s "$dep" >/dev/null 2>&1; then
-              apt-get install -y "$dep"
-            fi
-          done
-
-      - name: 📊 Code coverage
-        if: inputs.coverage == 'codecov'
-        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
-        with:
-          use_oidc: true
-          disable_telem: true
+          container: ${{ inputs.container != '' }}
+          coverage: ${{ inputs.coverage }}

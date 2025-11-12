@@ -1,0 +1,122 @@
+name: "Lint"
+description: "Action to lint Node.js projects with support for pull request reporting and annotations"
+author: Hoverkraft
+branding:
+  icon: check-circle
+  color: gray-dark
+
+inputs:
+  working-directory:
+    description: |
+      Working directory where lint commands are executed.
+      Can be absolute or relative to the repository root.
+    required: false
+    default: "."
+  container:
+    description: "Whether running in container mode (skips checkout and node setup)"
+    required: false
+    default: "false"
+  report-file:
+    description: |
+      Path to lint report file to process as GitHub annotations.
+      Supports common formats like checkstyle XML, eslint JSON, etc.
+      If not specified, no report processing is done.
+    required: false
+    default: ""
+  fail-on-error:
+    description: "Whether to fail the action if linting errors are found"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+      run: mkdir -p ./self-lint-action/ && cp -r $GITHUB_ACTION_PATH/../* ./self-lint-action/
+
+    - id: setup-node
+      if: inputs.container != 'true'
+      uses: ./self-lint-action/setup-node
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        dependencies-cache: |
+          nx
+          prettier
+
+    - id: get-package-manager
+      if: inputs.container == 'true'
+      uses: ./self-lint-action/get-package-manager
+      with:
+        working-directory: ${{ inputs.working-directory }}
+
+    - shell: bash
+      id: run-lint
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        RUN_SCRIPT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
+        FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
+      run: |
+        set +e  # Don't exit on error, we want to process the report
+        
+        echo "👕 Running lint..."
+        $RUN_SCRIPT_COMMAND lint
+        LINT_EXIT_CODE=$?
+        
+        echo "lint-exit-code=$LINT_EXIT_CODE" >> $GITHUB_OUTPUT
+        
+        if [ "$FAIL_ON_ERROR" = "true" ] && [ $LINT_EXIT_CODE -ne 0 ]; then
+          echo "::error::Linting failed with exit code $LINT_EXIT_CODE"
+        fi
+        
+        # Always exit successfully here; we'll handle the failure later if needed
+        exit 0
+
+    - shell: bash
+      if: inputs.report-file != '' && hashFiles(inputs.report-file) != ''
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        REPORT_FILE: ${{ inputs.report-file }}
+      run: |
+        set -e
+        
+        if [ ! -f "$REPORT_FILE" ]; then
+          echo "::warning::Lint report file not found: $REPORT_FILE"
+          exit 0
+        fi
+        
+        echo "📊 Processing lint report: $REPORT_FILE"
+        
+        # Detect report format and process accordingly
+        if echo "$REPORT_FILE" | grep -q "\.json$"; then
+          echo "Detected JSON format"
+          # Process ESLint JSON format
+          if jq -e 'type == "array"' "$REPORT_FILE" > /dev/null 2>&1; then
+            jq -r '.[] | select(.errorCount > 0 or .warningCount > 0) | .messages[] | 
+              "::warning file=\(.filePath // "unknown"),line=\(.line // 1),col=\(.column // 1)::\(.message)"' \
+              "$REPORT_FILE" || true
+          fi
+        elif echo "$REPORT_FILE" | grep -q "\.xml$"; then
+          echo "Detected XML format (checkstyle)"
+          # Process checkstyle XML format
+          # This is a simplified processor; for production, consider using a dedicated tool
+          if command -v xmllint > /dev/null 2>&1; then
+            xmllint --xpath '//error' "$REPORT_FILE" 2>/dev/null | \
+              sed -E 's/<error line="([0-9]+)" column="([0-9]+)" severity="([^"]+)" message="([^"]+)" source="([^"]+)"[^>]*>/::warning line=\1,col=\2::\4/g' || true
+          else
+            echo "::warning::xmllint not available, skipping XML report processing"
+          fi
+        else
+          echo "::warning::Unknown report format for $REPORT_FILE"
+        fi
+
+    - shell: bash
+      if: steps.run-lint.outputs.lint-exit-code != '0' && inputs.fail-on-error == 'true'
+      run: |
+        echo "::error::Linting failed. Please fix the errors above."
+        exit 1
+
+    # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+    - shell: bash
+      if: always()
+      run: rm -fr ./self-lint-action
