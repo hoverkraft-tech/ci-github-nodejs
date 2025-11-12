@@ -19,11 +19,11 @@ inputs:
   coverage:
     description: |
       Code coverage reporter to use. Supported values:
-      - "codecov": Upload coverage to Codecov
       - "github": Use ReportGenerator for PR comments with coverage reports
+      - "codecov": Upload coverage to Codecov
       - "": No coverage reporting
     required: false
-    default: ""
+    default: "github"
   coverage-files:
     description: |
       Path to coverage files for reporting.
@@ -35,27 +35,12 @@ inputs:
       - coverage/clover.xml
     required: false
     default: ""
-  codecov-token:
-    description: |
-      Codecov token for private repositories.
-      Not required for public repositories when using OIDC.
-    required: false
-    default: ""
   github-token:
     description: |
-      GitHub token for LCOV reporter PR comments.
-      Required when coverage is set to "lcov".
+      GitHub token for coverage PR comments.
+      Required when coverage is set to "github".
     required: false
     default: ""
-  fail-on-error:
-    description: "Whether to fail the action if tests fail"
-    required: false
-    default: "true"
-
-outputs:
-  test-exit-code:
-    description: "Exit code from the test run"
-    value: ${{ steps.run-test.outputs.test-exit-code }}
 
 runs:
   using: "composite"
@@ -79,27 +64,19 @@ runs:
       with:
         working-directory: ${{ inputs.working-directory }}
 
-    # jscpd:ignore-start
     - id: run-test
+      name: 🧪 Run tests
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       env:
-        RUN_SCRIPT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
+        RUN_TEST_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
-        FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
       with:
         script: |
-          const path = require('node:path');
-          const exec = require('@actions/exec');
-
           const workingDirectory = process.env.WORKING_DIRECTORY || '.';
-          const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
-          const failOnError = process.env.FAIL_ON_ERROR === 'true';
-
-          core.info('🧪 Running tests...');
-
+          const runScriptCommand = process.env.RUN_TEST_COMMAND;
           try {
             const result = await exec.getExecOutput(runScriptCommand, ['test:ci'], {
-              cwd: path.resolve(process.env.GITHUB_WORKSPACE, workingDirectory),
+              cwd: require('path').resolve(process.env.GITHUB_WORKSPACE, workingDirectory),
               env: { ...process.env, CI: 'true' },
               ignoreReturnCode: true
             });
@@ -109,45 +86,34 @@ runs:
             
             core.setOutput('test-exit-code', result.exitCode);
             
-            if (result.exitCode !== 0 && failOnError) {
+            if (result.exitCode !== 0) {
               core.setFailed(`Tests failed with exit code ${result.exitCode}`);
-            } else if (result.exitCode !== 0) {
-              core.warning(`Tests failed with exit code ${result.exitCode}`);
             }
           } catch (error) {
             core.setOutput('test-exit-code', 1);
             core.setFailed(`Test execution error: ${error.message}`);
           }
-    # jscpd:ignore-end
-    # Install dependencies for codecov in container mode
-    - shell: bash
-      if: inputs.coverage == 'codecov' && inputs.container == 'true'
-      env:
-        REQUIRED_DEPS: |
-          git
-          curl
-          gpg
-      run: |
-        apt-get update
-        for dep in $REQUIRED_DEPS; do
-          if ! dpkg -s "$dep" >/dev/null 2>&1; then
-            apt-get install -y "$dep"
-          fi
-        done
 
     # Auto-detect coverage files if not specified
     - id: detect-coverage-files
-      if: always() && inputs.coverage == 'github' && inputs.coverage-files == ''
+      if: always() && inputs.coverage == 'github'
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       env:
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        COVERAGE_FILES: ${{ inputs.coverage-files }}
       with:
         script: |
-          const fs = require('node:fs');
           const path = require('node:path');
+          const fs = require('node:fs');
 
           const workingDirectory = process.env.WORKING_DIRECTORY || '.';
           const workDir = path.resolve(process.env.GITHUB_WORKSPACE, workingDirectory);
+
+          if (process.env.COVERAGE_FILES && process.env.COVERAGE_FILES.trim() !== '') {
+            core.info(`Using specified coverage files: ${process.env.COVERAGE_FILES}`);            
+            core.setOutput('coverage-files', process.env.COVERAGE_FILES);
+            return;
+          }
 
           // Common coverage file paths
           const commonPaths = [
@@ -163,49 +129,65 @@ runs:
           for (const filePath of commonPaths) {
             const fullPath = path.join(workDir, filePath);
             if (fs.existsSync(fullPath)) {
-              core.info(`Auto-detected coverage file: ${filePath}`);
-              core.setOutput('coverage-files', filePath);
+              core.info(`Auto-detected coverage file: ${fullPath}`);
+              core.setOutput('coverage-files', fullPath);
               return;
             }
           }
 
           core.warning('No coverage file auto-detected');
-          core.setOutput('coverage-files', 'coverage/cobertura-coverage.xml');
 
-    # Upload to Codecov
+    # ReportGenerator for PR comments with coverage reports
+    - name: 📊 Generate coverage report
+      if: always() && inputs.coverage == 'github' && github.event_name == 'pull_request' && steps.detect-coverage-files.outputs.coverage-files
+      uses: danielpalme/ReportGenerator-GitHub-Action@dcdfb6e704e87df6b2ed0cf123a6c9f69e364869 # v5.5.0
+      with:
+        reports: ${{ steps.detect-coverage-files.outputs.coverage-files }}
+        targetdir: ${{ runner.temp }}/coveragereport-${{ github.run_id }}
+        reporttypes: MarkdownSummaryGithub
+        sourcedirs: ${{ inputs.working-directory }}
+
+    - if: always() && inputs.coverage == 'github'
+      id: get-coverage-report-summary
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      env:
+        SUMMARY_FILE: ${{ runner.temp }}/coveragereport-${{ github.run_id }}/SummaryGithub.md
+      with:
+        script: |
+          const fs = require('fs');
+          const summaryFilePath = process.env.SUMMARY_FILE;
+
+          if (!fs.existsSync(summaryFilePath)) {
+            return core.setFailed(`Coverage summary file not found: ${summaryFilePath}`);
+          }
+
+          const summaryContent = fs.readFileSync(summaryFilePath, 'utf8');
+          core.summary.addRaw(summaryContent).write();
+
+          core.setOutput('summary-content', summaryContent);
+
+    - name: 📊 Add coverage PR comment
+      if: always() && steps.get-coverage-report-summary.outputs.summary-content
+      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@5f11437c716059f30c635f90055060e4ef8b31a0 # 0.28.0
+      with:
+        title: "Code Coverage Report"
+        body: ${{ steps.get-coverage-report-summary.outputs.summary-content }}
+
+    # Install dependencies for codecov in container mode
+    - name: Install Codecov dependencies
+      if: inputs.coverage == 'codecov' && inputs.container == 'true'
+      uses: pkgxdev/setup@f211ee4db3110b42e5a156282372527e7c1ed723 # v4.0.0
+      with:
+        +: git curl gnupg.org
+
     - name: 📊 Upload coverage to Codecov
       if: always() && inputs.coverage == 'codecov'
       uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
       with:
         working-directory: ${{ inputs.working-directory }}
-        token: ${{ inputs.codecov-token }}
-        use_oidc: ${{ inputs.codecov-token == '' }}
+        use_oidc: true
         disable_telem: true
         fail_ci_if_error: false
-
-    # ReportGenerator for PR comments with coverage reports
-    - name: 📊 Generate coverage report
-      if: always() && inputs.coverage == 'github' && github.event_name == 'pull_request'
-      uses: danielpalme/ReportGenerator-GitHub-Action@d78d7a99ab2e53f4fa9e37c558feb9cd6a7a1c70 # v5.4.3
-      with:
-        reports: ${{ inputs.coverage-files != '' && inputs.coverage-files || steps.detect-coverage-files.outputs.coverage-files }}
-        targetdir: coveragereport
-        reporttypes: MarkdownSummaryGithub
-        sourcedirs: ${{ inputs.working-directory }}
-
-    - name: 📊 Add coverage PR comment
-      if: always() && inputs.coverage == 'github' && github.event_name == 'pull_request'
-      uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31 # v2.9.0
-      with:
-        recreate: true
-        path: coveragereport/SummaryGithub.md
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-
-    - shell: bash
-      if: always() && steps.run-test.outputs.test-exit-code != '0' && inputs.fail-on-error == 'true'
-      run: |
-        echo "::error::Tests failed. Please fix the failing tests."
-        exit 1
 
     # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
     - shell: bash

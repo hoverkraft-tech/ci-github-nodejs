@@ -25,18 +25,6 @@ inputs:
       - checkstyle-result.xml, checkstyle.xml
     required: false
     default: ""
-  report-format:
-    description: |
-      Format of the lint report file. Supported values:
-      - "eslint": ESLint JSON format
-      - "checkstyle": Checkstyle XML format
-      - "": Auto-detect from file extension
-    required: false
-    default: ""
-  fail-on-error:
-    description: "Whether to fail the action if linting errors are found"
-    required: false
-    default: "true"
 
 runs:
   using: "composite"
@@ -60,27 +48,21 @@ runs:
       with:
         working-directory: ${{ inputs.working-directory }}
 
-    # jscpd:ignore-start
     - id: run-lint
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       env:
-        RUN_SCRIPT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
+        RUN_LINT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
-        FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
       with:
         script: |
-          const path = require('node:path');
-          const exec = require('@actions/exec');
-
           const workingDirectory = process.env.WORKING_DIRECTORY || '.';
-          const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
-          const failOnError = process.env.FAIL_ON_ERROR === 'true';
+          const runScriptCommand = process.env.RUN_LINT_COMMAND;
 
           core.info('👕 Running lint...');
 
           try {
             const result = await exec.getExecOutput(runScriptCommand, ['lint'], {
-              cwd: path.resolve(process.env.GITHUB_WORKSPACE, workingDirectory),
+              cwd: require('path').resolve(process.env.GITHUB_WORKSPACE, workingDirectory),
               ignoreReturnCode: true
             });
             
@@ -89,29 +71,51 @@ runs:
             
             core.setOutput('lint-exit-code', result.exitCode);
             
-            if (result.exitCode !== 0 && failOnError) {
+            if (result.exitCode !== 0) {
               core.setFailed(`Linting failed with exit code ${result.exitCode}`);
-            } else if (result.exitCode !== 0) {
-              core.warning(`Linting failed with exit code ${result.exitCode}`);
             }
           } catch (error) {
             core.setOutput('lint-exit-code', 1);
             core.setFailed(`Linting error: ${error.message}`);
           }
-    # jscpd:ignore-end
+
     # Auto-detect report file if not specified
     - id: detect-report-file
-      if: always() && inputs.report-file == ''
+      if: always()
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       env:
+        REPORT_FILE: ${{ inputs.report-file }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
       with:
         script: |
-          const fs = require('node:fs');
           const path = require('node:path');
+          const fs = require('node:fs');
 
           const workingDirectory = process.env.WORKING_DIRECTORY || '.';
           const workDir = path.resolve(process.env.GITHUB_WORKSPACE, workingDirectory);
+
+          const autoDetectReportFormat = (filePath) => {
+            if (filePath.endsWith('.json')) {
+              return 'eslint';
+            } else if (filePath.endsWith('.xml')) {
+              return 'checkstyle';
+            }            
+            return core.setFailed(`Unable to auto-detect report format from file extension: ${filePath}`);
+          };
+
+          if (process.env.REPORT_FILE && process.env.REPORT_FILE.trim() !== '') {
+            const reportFilePath = path.join(workDir, process.env.REPORT_FILE.trim());
+
+            if (!fs.existsSync(reportFilePath)) {
+              core.setFailed(`Specified report file does not exist: ${process.env.REPORT_FILE.trim()}`);
+              return;
+            }
+            core.info(`Report file specified: ${reportFilePath}`);
+            core.setOutput('report-file', reportFilePath);
+            core.setOutput('report-format', autoDetectReportFormat(reportFilePath));
+
+            return;
+          }
 
           // Common lint report file paths
           const commonPaths = [
@@ -128,44 +132,32 @@ runs:
           for (const filePath of commonPaths) {
             const fullPath = path.join(workDir, filePath);
             if (fs.existsSync(fullPath)) {
-              core.info(`Auto-detected lint report file: ${filePath}`);
-              core.setOutput('report-file', filePath);
+              core.info(`Auto-detected lint report file: ${fullPath}`);
+              core.setOutput('report-file', fullPath);
               
               // Auto-detect format from extension
-              if (filePath.endsWith('.json')) {
-                core.setOutput('report-format', 'eslint');
-              } else if (filePath.endsWith('.xml')) {
-                core.setOutput('report-format', 'checkstyle');
-              }
+              core.setOutput('report-format', autoDetectReportFormat(fullPath));
               return;
             }
           }
 
           core.info('No lint report file auto-detected');
-          core.setOutput('report-file', '');
-          core.setOutput('report-format', '');
 
     # Process ESLint report
     - name: 📊 Annotate ESLint results
-      if: always() && (inputs.report-file != '' || steps.detect-report-file.outputs.report-file != '') && (inputs.report-format == 'eslint' || steps.detect-report-file.outputs.report-format == 'eslint' || (inputs.report-format == '' && steps.detect-report-file.outputs.report-format == ''))
-      uses: ataylorme/eslint-annotate-action@d57a1193d4c59cbfbf2f1529e82e2f8e0da1498d # v3.0.0
+      if: always() && steps.detect-report-file.outputs.report-format == 'eslint'
+      uses: ataylorme/eslint-annotate-action@d57a1193d4c59cbfbf3f86c271f42612f9dbd9e9 # v3.0.0
       with:
-        report-json: ${{ inputs.working-directory }}/${{ inputs.report-file != '' && inputs.report-file || steps.detect-report-file.outputs.report-file }}
+        report-json: ${{ steps.detect-report-file.outputs.report-file }}
         fail-on-error: false
         fail-on-warning: false
 
     # Process Checkstyle report
     - name: 📊 Annotate Checkstyle results
-      if: always() && (inputs.report-file != '' || steps.detect-report-file.outputs.report-file != '') && (inputs.report-format == 'checkstyle' || steps.detect-report-file.outputs.report-format == 'checkstyle')
-      uses: lcollins/checkstyle-github-action@8e0abb97e71a72c2cf9d6f0619e38002cb6e36c9 # v2.0.0
+      if: always() && steps.detect-report-file.outputs.report-format == 'checkstyle'
+      uses: lcollins/checkstyle-github-action@658deddef713a1132a9c59b64d754221b66a6f27 # v3.1.0
       with:
-        path: ${{ inputs.working-directory }}/${{ inputs.report-file != '' && inputs.report-file || steps.detect-report-file.outputs.report-file }}
-
-    - shell: bash
-      if: always() && steps.run-lint.outputs.lint-exit-code != '0' && inputs.fail-on-error == 'true'
-      run: |
-        echo "::error::Linting failed. Please fix the errors above."
-        exit 1
+        path: ${{ steps.detect-report-file.outputs.report-file }}
 
     # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
     - shell: bash

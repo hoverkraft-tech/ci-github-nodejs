@@ -11,6 +11,7 @@ jobs:
     uses: ./.github/workflows/continuous-integration.yml
     permissions:
       contents: read
+      pull-requests: write
       security-events: write
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
@@ -34,6 +35,24 @@ jobs:
 
       - name: Check the build artifacts
         run: test -f tests/npm/dist/test.txt
+
+  act-without-container-and-github-reports:
+    name: Act - Run the continuous integration workflow (without container and GitHub reports)
+    uses: ./.github/workflows/continuous-integration.yml
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+      id-token: write
+    with:
+      working-directory: tests/npm
+      build: |
+        {
+          "artifact": "dist"
+        }
+      test: |
+        {"coverage": "github"}
 
   arrange-with-container:
     permissions:
@@ -63,6 +82,7 @@ jobs:
     needs: arrange-with-container
     permissions:
       contents: read
+      pull-requests: write
       security-events: write
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
@@ -73,6 +93,8 @@ jobs:
         {
           "artifact": "dist"
         }
+      test: |
+        {"coverage": "codecov"}
 
   assert-with-container:
     name: Assert - Ensure build artifact has been uploaded (with container)

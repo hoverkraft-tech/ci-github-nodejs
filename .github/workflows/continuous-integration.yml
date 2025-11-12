@@ -52,10 +52,13 @@ on:
         required: false
         default: true
       lint:
-        description: "Optional flag to enable linting."
-        type: boolean
+        description: |
+          Whether to enable linting.
+          Set to `null` or empty to disable.
+          Accepts a JSON object for lint options. See [lint action](../actions/lint/README.md).
+        type: string
         required: false
-        default: true
+        default: "true"
       code-ql:
         description: "Code QL analysis language. See <https://github.com/github/codeql-action>."
         type: string
@@ -67,15 +70,13 @@ on:
         required: false
         default: true
       test:
-        description: "Optional flag to enable test."
-        type: boolean
-        required: false
-        default: true
-      coverage:
-        description: "Specify code coverage reporter. Supported values: `codecov`."
+        description: |
+          Whether to enable testing.
+          Set to `null` or empty to disable.
+          Accepts a JSON object for test options. See [test action](../actions/test/README.md).
         type: string
         required: false
-        default: "codecov"
+        default: "true"
       working-directory:
         description: "Working directory where the dependencies are installed."
         type: string
@@ -247,7 +248,7 @@ jobs:
 
   lint:
     name: 👕 Lint
-    if: inputs.checks == true && inputs.lint != false
+    if: inputs.checks == true && inputs.lint
     runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
     container:
       image: ${{ inputs.container != '' && inputs.container || null }}
@@ -277,6 +278,25 @@ jobs:
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
       # jscpd:ignore-end
+      - id: preparel-lint-options
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          LINT_INPUT: ${{ inputs.lint }}
+        with:
+          script: |
+            const lintInput = process.env.LINT_INPUT.trim();
+
+            let lintOptions = {};
+            if (lintInput && lintInput !== 'true') {
+              try {
+                const parsed = JSON.parse(lintInput);
+                lintOptions = { ...lintOptions, ...parsed };
+              } catch (error) {
+                core.setFailed(`Failed to parse lint input as JSON: ${error.message}`);
+                return;
+              }
+            }
+
       - uses: ./self-workflow/actions/lint
         with:
           working-directory: ${{ inputs.working-directory }}
@@ -332,7 +352,7 @@ jobs:
 
   test:
     name: 🧪 Test
-    if: inputs.checks == true && inputs.test == true
+    if: inputs.checks == true && inputs.test
     runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
     container:
       image: ${{ inputs.container != '' && inputs.container || null }}
@@ -343,9 +363,9 @@ jobs:
       - build
     permissions:
       contents: read
+      pull-requests: write
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
-      pull-requests: write
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@753288393de1f3d92f687a6761d236ca800f5306 # 0.28.1
         if: inputs.container == ''
@@ -370,9 +390,36 @@ jobs:
           if [ -f .gitignore ]; then grep -q "self-workflow" .gitignore || echo "self-workflow" >> .gitignore; else echo "self-workflow" >> .gitignore; fi
           if [ -f .dockerignore ]; then grep -q "self-workflow" .dockerignore || echo "self-workflow" >> .dockerignore; else echo "self-workflow" >> .dockerignore; fi
 
+      - id: prepare-test-options
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          TEST_INPUT: ${{ inputs.test }}
+        with:
+          script: |
+            const testInput = process.env.TEST_INPUT.trim();
+
+            let testOptions = {};
+            if (testInput && testInput !== 'true') {
+              try {
+                const parsed = JSON.parse(testInput);
+                testOptions = { ...testOptions, ...parsed };
+              } catch (error) {
+                core.setFailed(`Failed to parse test input as JSON: ${error.message}`);
+                return;
+              }
+            }
+
+            if (testOptions.coverage === undefined) {
+              testOptions.coverage = 'github';
+            }
+            core.setOutput('coverage', testOptions.coverage );
+
+            core.setOutput('coverage-files', testOptions['coverage-files'] || '');
+
       - uses: ./self-workflow/actions/test
         with:
           working-directory: ${{ inputs.working-directory }}
           container: ${{ inputs.container != '' }}
-          coverage: ${{ inputs.coverage }}
+          coverage: ${{ steps.prepare-test-options.outputs.coverage }}
+          coverage-files: ${{ steps.prepare-test-options.outputs['coverage-files'] }}
           github-token: ${{ github.token }}

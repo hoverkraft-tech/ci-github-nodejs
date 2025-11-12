@@ -28,8 +28,8 @@ inputs:
       Multi-line string of secrets in env format (KEY=VALUE).
       Example:
       ```
-      SECRET_KEY=${{ secrets.SECRET_KEY }}
-      API_TOKEN=${{ secrets.API_TOKEN }}
+      SECRET_KEY=$\{{ secrets.SECRET_KEY }}
+      API_TOKEN=$\{{ secrets.API_TOKEN }}
       ```
     required: false
     default: ""
@@ -102,7 +102,6 @@ runs:
             core.exportVariable(key.trim(), value.trim());
           }
 
-    # jscpd:ignore-start
     - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       env:
         BUILD_COMMANDS: ${{ inputs.build-commands }}
@@ -110,9 +109,6 @@ runs:
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
       with:
         script: |
-          const path = require('node:path');
-          const exec = require('@actions/exec');
-
           const buildCommands = process.env.BUILD_COMMANDS || '';
           const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
           const workingDirectory = process.env.WORKING_DIRECTORY || '.';
@@ -122,21 +118,25 @@ runs:
             .filter(Boolean);
 
           for (const command of commands) {
-            core.info(`\n🏗️ Running build command: ${command}`);
+            core.info(`Running build command: ${command}`);
             
             try {
               const result = await exec.getExecOutput(runScriptCommand, [command], {
-                cwd: path.resolve(process.env.GITHUB_WORKSPACE, workingDirectory)
+                cwd: require('path').resolve(process.env.GITHUB_WORKSPACE, workingDirectory)
               });
               
-              if (result.stdout) core.info(result.stdout);
-              if (result.stderr) core.warning(result.stderr);
+              if (result.stdout) {
+                core.info(result.stdout);
+              }
+              if (result.stderr) {
+                core.warning(result.stderr);
+              }
             } catch (error) {
               core.setFailed(`Build command "${command}" failed: ${error.message}`);
               throw error;
             }
           }
-    # jscpd:ignore-end
+
     - id: build-artifact-id
       if: inputs.build-artifact != ''
       uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0

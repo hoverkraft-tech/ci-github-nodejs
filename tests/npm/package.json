@@ -1,9 +1,10 @@
 {
   "name": "test-for-ci-with-npm",
+  "main": "src/index.js",
   "scripts": {
     "lint": "echo \"lint test\"",
     "build": "mkdir -p dist && echo \"build test\" > dist/test.txt",
-    "test:ci": "echo \"test CI\""
+    "test:ci": "jest --coverage"
   },
   "dependencies": {
     "gatsby": "^5.15.0",

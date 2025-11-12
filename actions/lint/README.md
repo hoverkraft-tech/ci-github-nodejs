@@ -1,6 +1,6 @@
 <!-- header:start -->
 
-# ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stY2lyY2xlIiBjb2xvcj0iZ3JheS1kYXJrIj48cGF0aCBkPSJNMjIgMTEuMDhWMTJhMTAgMTAgMCAxIDEtNS45My05LjE0Ij48L3BhdGg+PHBvbHlsaW5lIHBvaW50cz0iMjIgNCAxMiAxNC4wMSA5IDExLjAxIj48L3BvbHlsaW5lPjwvc3ZnPg==) GitHub Action: Lint
+# ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stY2lyY2xlIiBjb2xvcj0iYmx1ZSI+PHBhdGggZD0iTTIyIDExLjA4VjEyYTEwIDEwIDAgMSAxLTUuOTMtOS4xNCI+PC9wYXRoPjxwb2x5bGluZSBwb2ludHM9IjIyIDQgMTIgMTQuMDEgOSAxMS4wMSI+PC9wb2x5bGluZT48L3N2Zz4=) GitHub Action: Lint
 
 <div align="center">
   <img src="https://opengraph.githubassets.com/b83a39d0a270998cbae0974683a11eba4481aa44bbb4abbc39522474251c5b0a/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Lint" />
@@ -30,7 +30,7 @@ Action to lint Node.js projects with support for pull request reporting and anno
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@db1c1d36ff3e87c4513eded15d85acb78dcbd9b9 # copilot/refactor-ci-actions-lint-test
+- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@dde8f0c67661ed66da8871a9fb104d36e146d644 # copilot/refactor-ci-actions-lint-test
   with:
     # Working directory where lint commands are executed.
     # Can be absolute or relative to the repository root.
@@ -44,18 +44,10 @@ Action to lint Node.js projects with support for pull request reporting and anno
 
     # Path to lint report file to process as GitHub annotations.
     # Supports ESLint JSON and Checkstyle XML formats.
-    # If not specified, no report processing is done.
+    # If not specified, auto-detection will be attempted for common paths:
+    # - eslint-report.json, eslint.json
+    # - checkstyle-result.xml, checkstyle.xml
     report-file: ""
-
-    # Format of the lint report file. Supported values:
-    # - "eslint": ESLint JSON format
-    # - "checkstyle": Checkstyle XML format
-    # - "": Auto-detect from file extension
-    report-format: ""
-
-    # Whether to fail the action if linting errors are found
-    # Default: `true`
-    fail-on-error: "true"
 ```
 
 <!-- usage:end -->
@@ -63,21 +55,17 @@ Action to lint Node.js projects with support for pull request reporting and anno
 
 ## Inputs
 
-| **Input**               | **Description**                                                   | **Required** | **Default** |
-| ----------------------- | ----------------------------------------------------------------- | ------------ | ----------- |
-| **`working-directory`** | Working directory where lint commands are executed.               | **false**    | `.`         |
-|                         | Can be absolute or relative to the repository root.               |              |             |
-| **`container`**         | Whether running in container mode (skips checkout and node setup) | **false**    | `false`     |
-| **`report-file`**       | Path to lint report file to process as GitHub annotations.        | **false**    | -           |
-|                         | Supports ESLint JSON and Checkstyle XML formats.                  |              |             |
-|                         | If not specified, no report processing is done.                   |              |             |
-| **`report-format`**     | Format of the lint report file. Supported values:                 | **false**    | -           |
-|                         | - "ESLint": ESLint JSON format                                    |              |             |
-|                         | - "checkstyle": Checkstyle XML format                             |              |             |
-|                         | - "": Auto-detect from file extension                             |              |             |
-| **`fail-on-error`**     | Whether to fail the action if linting errors are found            | **false**    | `true`      |
+| **Input**               | **Description**                                                      | **Required** | **Default** |
+| ----------------------- | -------------------------------------------------------------------- | ------------ | ----------- |
+| **`working-directory`** | Working directory where lint commands are executed.                  | **false**    | `.`         |
+|                         | Can be absolute or relative to the repository root.                  |              |             |
+| **`container`**         | Whether running in container mode (skips checkout and node setup)    | **false**    | `false`     |
+| **`report-file`**       | Path to lint report file to process as GitHub annotations.           | **false**    | -           |
+|                         | Supports ESLint JSON and Checkstyle XML formats.                     |              |             |
+|                         | If not specified, auto-detection will be attempted for common paths: |              |             |
+|                         | - eslint-report.json, eslint.json                                    |              |             |
+|                         | - checkstyle-result.xml, checkstyle.xml                              |              |             |
 
-<!-- jscpd:ignore-start -->
 <!-- inputs:end -->
 <!-- secrets:start -->
 <!-- secrets:end -->
@@ -85,6 +73,11 @@ Action to lint Node.js projects with support for pull request reporting and anno
 <!-- outputs:end -->
 <!-- examples:start -->
 <!-- examples:end -->
+
+<!--
+// jscpd:ignore-start
+-->
+
 <!-- contributing:start -->
 
 ## Contributing
@@ -102,7 +95,7 @@ This project is licensed under the MIT License.
 
 SPDX-License-Identifier: MIT
 
-Copyright © 2025 Hoverkraft
+Copyright © 2025 hoverkraft
 
 For more details, see the [license](http://choosealicense.com/licenses/mit/).
 
@@ -114,4 +107,7 @@ For more details, see the [license](http://choosealicense.com/licenses/mit/).
 This documentation was automatically generated by [CI Dokumentor](https://github.com/hoverkraft-tech/ci-dokumentor).
 
 <!-- generated:end -->
-<!-- jscpd:ignore-end -->
+
+<!--
+// jscpd:ignore-end
+-->
