@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItcGFja2FnZSIgY29sb3I9ImJsdWUiPjxsaW5lIHgxPSIxNi41IiB5MT0iOS40IiB4Mj0iNy41IiB5Mj0iNC4yMSI+PC9saW5lPjxwYXRoIGQ9Ik0yMSAxNlY4YTIgMiAwIDAgMC0xLTEuNzNsLTctNGEyIDIgMCAwIDAtMiAwbC03IDRBMiAyIDAgMCAwIDMgOHY4YTIgMiAwIDAgMCAxIDEuNzNsNyA0YTIgMiAwIDAgMCAyIDBsNy00QTIgMiAwIDAgMCAyMSAxNnoiPjwvcGF0aD48cG9seWxpbmUgcG9pbnRzPSIzLjI3IDYuOTYgMTIgMTIuMDEgMjAuNzMgNi45NiI+PC9wb2x5bGluZT48bGluZSB4MT0iMTIiIHkxPSIyMi4wOCIgeDI9IjEyIiB5Mj0iMTIiPjwvbGluZT48L3N2Zz4=) GitHub Action: Build
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/b83a39d0a270998cbae0974683a11eba4481aa44bbb4abbc39522474251c5b0a/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Build" />
+  <img src="https://opengraph.githubassets.com/50237226ce5d3230f19bbf31d04efd98f21cb2150e9ae4acd09a498440ecde82/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Build" />
 </div>
 
 ---
@@ -30,7 +30,7 @@ Action to build Node.js projects with support for custom commands, environment v
 ## Usage
 
 ````yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/build@dde8f0c67661ed66da8871a9fb104d36e146d644 # copilot/refactor-ci-actions-lint-test
+- uses: hoverkraft-tech/ci-github-nodejs/actions/build@32a69b7b8fd5f7ab7bf656e7e88aa90ad235cf8d # 0.18.0
   with:
     # Working directory where the build commands are executed.
     # Can be absolute or relative to the repository root.
@@ -53,8 +53,8 @@ Action to build Node.js projects with support for custom commands, environment v
     # Multi-line string of secrets in env format (KEY=VALUE).
     # Example:
     # ```
-    # SECRET_KEY=${{ secrets.SECRET_KEY }}
-    # API_TOKEN=${{ secrets.API_TOKEN }}
+    # SECRET_KEY=$\{{ secrets.SECRET_KEY }}
+    # API_TOKEN=$\{{ secrets.API_TOKEN }}
     # ```
     build-secrets: ""
 
@@ -72,20 +72,20 @@ Action to build Node.js projects with support for custom commands, environment v
 
 ## Inputs
 
-| **Input**               | **Description**                                                                                                                         | **Required** | **Default** |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
-| **`working-directory`** | Working directory where the build commands are executed.                                                                                | **false**    | `.`         |
-|                         | Can be absolute or relative to the repository root.                                                                                     |              |             |
-| **`build-commands`**    | List of build commands to execute, one per line.                                                                                        | **true**     | -           |
-|                         | These are npm/pnpm/Yarn script names (e.g., "build", "compile").                                                                        |              |             |
-| **`build-env`**         | JSON object of environment variables to set during the build.                                                                           | **false**    | `\{}`       |
-|                         | Example: {"NODE_ENV": "production", "API_URL": "<https://api.example.com"}>                                                             |              |             |
-| **`build-secrets`**     | Multi-line string of secrets in env format (KEY=VALUE).                                                                                 | **false**    | -           |
-|                         | Example:                                                                                                                                |              |             |
-|                         | <!-- textlint-disable --><pre>SECRET_KEY=${{ secrets.SECRET_KEY }}&#13;API_TOKEN=${{ secrets.API_TOKEN }}</pre><!-- textlint-enable --> |              |             |
-| **`build-artifact`**    | JSON object specifying artifact upload configuration.                                                                                   | **false**    | -           |
-|                         | Format: {"name": "artifact-name", "paths": "path1\npath2"}                                                                              |              |             |
-| **`container`**         | Whether running in container mode (skips checkout and node setup)                                                                       | **false**    | `false`     |
+| **Input**               | **Description**                                                                                                                           | **Required** | **Default** |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
+| **`working-directory`** | Working directory where the build commands are executed.                                                                                  | **false**    | `.`         |
+|                         | Can be absolute or relative to the repository root.                                                                                       |              |             |
+| **`build-commands`**    | List of build commands to execute, one per line.                                                                                          | **true**     | -           |
+|                         | These are npm/pnpm/yarn script names (e.g., "build", "compile").                                                                          |              |             |
+| **`build-env`**         | JSON object of environment variables to set during the build.                                                                             | **false**    | `\{}`       |
+|                         | Example: {"NODE_ENV": "production", "API_URL": "<https://api.example.com"}>                                                               |              |             |
+| **`build-secrets`**     | Multi-line string of secrets in env format (KEY=VALUE).                                                                                   | **false**    | -           |
+|                         | Example:                                                                                                                                  |              |             |
+|                         | <!-- textlint-disable --><pre>SECRET_KEY=$\{{ secrets.SECRET_KEY }}&#13;API_TOKEN=$\{{ secrets.API_TOKEN }}</pre><!-- textlint-enable --> |              |             |
+| **`build-artifact`**    | JSON object specifying artifact upload configuration.                                                                                     | **false**    | -           |
+|                         | Format: {"name": "artifact-name", "paths": "path1\npath2"}                                                                                |              |             |
+| **`container`**         | Whether running in container mode (skips checkout and node setup)                                                                         | **false**    | `false`     |
 
 <!-- inputs:end -->
 <!-- secrets:start -->

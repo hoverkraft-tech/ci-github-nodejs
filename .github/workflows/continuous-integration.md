@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/5bff83a351121c577bee39e10ea7d6774aba5d0d7d7b114ba0e8b79d48d09267/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/50237226ce5d3230f19bbf31d04efd98f21cb2150e9ae4acd09a498440ecde82/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -34,6 +34,7 @@ Workflow to performs continuous integration steps agains a Node.js project:
 
 - **`contents`**: `read`
 - **`id-token`**: `write`
+- **`pull-requests`**: `write`
 - **`security-events`**: `write`
 
 <!-- overview:end -->
@@ -51,7 +52,7 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@23af54bc615d657aa9c13c472ae701445c1811a6 # 0.17.1
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@32a69b7b8fd5f7ab7bf656e7e88aa90ad235cf8d # 0.18.0
     secrets:
       # Secrets to be used during the build step.
       # Must be a multi-line env formatted string.
@@ -99,9 +100,12 @@ jobs:
       # Default: `true`
       checks: true
 
-      # Optional flag to enable linting.
+      # Whether to enable linting.
+      # Set to `null` or empty to disable.
+      # Accepts a JSON object for lint options. See [lint action](../actions/lint/README.md).
+      #
       # Default: `true`
-      lint: true
+      lint: "true"
 
       # Code QL analysis language. See <https://github.com/github/codeql-action>.
       # Default: `typescript`
@@ -111,13 +115,12 @@ jobs:
       # Default: `true`
       dependency-review: true
 
-      # Optional flag to enable test.
+      # Whether to enable testing.
+      # Set to `null` or empty to disable.
+      # Accepts a JSON object for test options. See [test action](../actions/test/README.md).
+      #
       # Default: `true`
-      test: true
-
-      # Specify code coverage reporter. Supported values: `codecov`.
-      # Default: `codecov`
-      coverage: codecov
+      test: "true"
 
       # Working directory where the dependencies are installed.
       # Default: `.`
@@ -150,11 +153,14 @@ jobs:
 |                         | Example:                                                                                                                                                                                                                                                                         |              |             |                     |
 |                         | <!-- textlint-disable --><pre lang="json">{&#13; "commands": [&#13; "build",&#13; "generate-artifacts"&#13; ],&#13; "env": {&#13; "CUSTOM_ENV_VAR": "value"&#13; },&#13; "artifact": [&#13; "dist/",&#13; "packages/package-a/build/"&#13; ]&#13;}</pre><!-- textlint-enable --> |              |             |                     |
 | **`checks`**            | Optional flag to enable check steps.                                                                                                                                                                                                                                             | **false**    | **boolean** | `true`              |
-| **`lint`**              | Optional flag to enable linting.                                                                                                                                                                                                                                                 | **false**    | **boolean** | `true`              |
+| **`lint`**              | Whether to enable linting.                                                                                                                                                                                                                                                       | **false**    | **string**  | `true`              |
+|                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                               |              |             |                     |
+|                         | Accepts a JSON object for lint options. See [lint action](../actions/lint/README.md).                                                                                                                                                                                            |              |             |                     |
 | **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                                                                                                                                                                                                        | **false**    | **string**  | `typescript`        |
 | **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                        | **false**    | **boolean** | `true`              |
-| **`test`**              | Optional flag to enable test.                                                                                                                                                                                                                                                    | **false**    | **boolean** | `true`              |
-| **`coverage`**          | Specify code coverage reporter. Supported values: `codecov`.                                                                                                                                                                                                                     | **false**    | **string**  | `codecov`           |
+| **`test`**              | Whether to enable testing.                                                                                                                                                                                                                                                       | **false**    | **string**  | `true`              |
+|                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                               |              |             |                     |
+|                         | Accepts a JSON object for test options. See [test action](../actions/test/README.md).                                                                                                                                                                                            |              |             |                     |
 | **`working-directory`** | Working directory where the dependencies are installed.                                                                                                                                                                                                                          | **false**    | **string**  | `.`                 |
 | **`container`**         | Docker container image to run CI steps in. When specified, steps will execute inside this container instead of checking out code. The container should have the project code and dependencies pre-installed.                                                                     | **false**    | **string**  | -                   |
 
@@ -174,6 +180,13 @@ jobs:
 <!-- secrets:end -->
 
 <!-- outputs:start -->
+
+## Outputs
+
+| **Output**              | **Description**                                           |
+| ----------------------- | --------------------------------------------------------- |
+| **`build-artifact-id`** | ID of the build artifact) uploaded during the build step. |
+
 <!-- outputs:end -->
 
 <!-- examples:start -->
@@ -193,7 +206,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@23af54bc615d657aa9c13c472ae701445c1811a6 # 0.17.1
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@32a69b7b8fd5f7ab7bf656e7e88aa90ad235cf8d # 0.18.0
     permissions:
       id-token: write
       security-events: write
@@ -259,7 +272,7 @@ jobs:
   # Run CI checks inside the Docker container
   continuous-integration:
     needs: build-image
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@23af54bc615d657aa9c13c472ae701445c1811a6 # 0.17.1
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@32a69b7b8fd5f7ab7bf656e7e88aa90ad235cf8d # 0.18.0
     permissions:
       id-token: write
       security-events: write
