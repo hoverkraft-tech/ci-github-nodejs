@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stc3F1YXJlIiBjb2xvcj0iYmx1ZSI+PHBvbHlsaW5lIHBvaW50cz0iOSAxMSAxMiAxNCAyMiA0Ij48L3BvbHlsaW5lPjxwYXRoIGQ9Ik0yMSAxMnY3YTIgMiAwIDAgMS0yIDJINWEyIDIgMCAwIDEtMi0yVjVhMiAyIDAgMCAxIDItMmgxMSI+PC9wYXRoPjwvc3ZnPg==) GitHub Action: Test
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/b83a39d0a270998cbae0974683a11eba4481aa44bbb4abbc39522474251c5b0a/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Test" />
+  <img src="https://opengraph.githubassets.com/50237226ce5d3230f19bbf31d04efd98f21cb2150e9ae4acd09a498440ecde82/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Test" />
 </div>
 
 ---
@@ -30,7 +30,7 @@ Action to test Node.js projects with support for coverage reporting and pull req
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/test@dde8f0c67661ed66da8871a9fb104d36e146d644 # copilot/refactor-ci-actions-lint-test
+- uses: hoverkraft-tech/ci-github-nodejs/actions/test@32a69b7b8fd5f7ab7bf656e7e88aa90ad235cf8d # 0.18.0
   with:
     # Working directory where test commands are executed.
     # Can be absolute or relative to the repository root.
@@ -75,8 +75,8 @@ Action to test Node.js projects with support for coverage reporting and pull req
 |                         | Can be absolute or relative to the repository root.                   |              |             |
 | **`container`**         | Whether running in container mode (skips checkout and node setup)     | **false**    | `false`     |
 | **`coverage`**          | Code coverage reporter to use. Supported values:                      | **false**    | `github`    |
-|                         | - "GitHub": Use ReportGenerator for PR comments with coverage reports |              |             |
-|                         | - "Codecov": Upload coverage to Codecov                               |              |             |
+|                         | - "github": Use ReportGenerator for PR comments with coverage reports |              |             |
+|                         | - "codecov": Upload coverage to Codecov                               |              |             |
 |                         | - "": No coverage reporting                                           |              |             |
 | **`coverage-files`**    | Path to coverage files for reporting.                                 | **false**    | -           |
 |                         | Supports multiple formats (Cobertura, OpenCover, lcov, etc.).         |              |             |
@@ -86,7 +86,7 @@ Action to test Node.js projects with support for coverage reporting and pull req
 |                         | - coverage/lcov.info                                                  |              |             |
 |                         | - coverage/clover.xml                                                 |              |             |
 | **`github-token`**      | GitHub token for coverage PR comments.                                | **false**    | -           |
-|                         | Required when coverage is set to "GitHub".                            |              |             |
+|                         | Required when coverage is set to "github".                            |              |             |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
