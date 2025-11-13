@@ -66,7 +66,7 @@ runs:
 
     - id: run-test
       name: 🧪 Run tests
-      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       env:
         RUN_TEST_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
@@ -97,7 +97,7 @@ runs:
     # Auto-detect coverage files if not specified
     - id: detect-coverage-files
       if: always() && inputs.coverage == 'github'
-      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       env:
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
         COVERAGE_FILES: ${{ inputs.coverage-files }}
@@ -149,7 +149,7 @@ runs:
 
     - if: always() && inputs.coverage == 'github'
       id: get-coverage-report-summary
-      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       env:
         SUMMARY_FILE: ${{ runner.temp }}/coveragereport-${{ github.run_id }}/SummaryGithub.md
       with:
@@ -168,7 +168,7 @@ runs:
 
     - name: 📊 Add coverage PR comment
       if: always() && steps.get-coverage-report-summary.outputs.summary-content && github.event_name == 'pull_request'
-      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@5f11437c716059f30c635f90055060e4ef8b31a0 # 0.28.0
+      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@753288393de1f3d92f687a6761d236ca800f5306 # 0.28.1
       with:
         title: "Code Coverage Report"
         body: ${{ steps.get-coverage-report-summary.outputs.summary-content }}
