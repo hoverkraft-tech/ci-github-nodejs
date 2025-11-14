@@ -19,9 +19,9 @@ inputs:
   coverage:
     description: |
       Code coverage reporter to use. Supported values:
-      - "github": Use ReportGenerator for PR comments with coverage reports
-      - "codecov": Upload coverage to Codecov
-      - "": No coverage reporting
+      - `github`: Use ReportGenerator for PR comments with coverage reports
+      - `codecov`: Upload coverage to Codecov
+      - `""` or `null`: No coverage reporting
     required: false
     default: "github"
   coverage-files:
@@ -38,7 +38,7 @@ inputs:
   github-token:
     description: |
       GitHub token for coverage PR comments.
-      Required when coverage is set to "github".
+      Required when coverage is set to `github`.
     required: false
     default: ""
 

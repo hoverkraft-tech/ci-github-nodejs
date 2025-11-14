@@ -75,8 +75,8 @@ Action to test Node.js projects with support for coverage reporting and pull req
 |                         | Can be absolute or relative to the repository root.                   |              |             |
 | **`container`**         | Whether running in container mode (skips checkout and node setup)     | **false**    | `false`     |
 | **`coverage`**          | Code coverage reporter to use. Supported values:                      | **false**    | `github`    |
-|                         | - "github": Use ReportGenerator for PR comments with coverage reports |              |             |
-|                         | - "codecov": Upload coverage to Codecov                               |              |             |
+|                         | - "GitHub": Use ReportGenerator for PR comments with coverage reports |              |             |
+|                         | - "Codecov": Upload coverage to Codecov                               |              |             |
 |                         | - "": No coverage reporting                                           |              |             |
 | **`coverage-files`**    | Path to coverage files for reporting.                                 | **false**    | -           |
 |                         | Supports multiple formats (Cobertura, OpenCover, lcov, etc.).         |              |             |
@@ -86,7 +86,7 @@ Action to test Node.js projects with support for coverage reporting and pull req
 |                         | - coverage/lcov.info                                                  |              |             |
 |                         | - coverage/clover.xml                                                 |              |             |
 | **`github-token`**      | GitHub token for coverage PR comments.                                | **false**    | -           |
-|                         | Required when coverage is set to "github".                            |              |             |
+|                         | Required when coverage is set to "GitHub".                            |              |             |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
