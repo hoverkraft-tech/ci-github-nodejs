@@ -1,0 +1,7 @@
+# FIXME: Temporary ignores to bypass actionlint limitations. See https://github.com/rhysd/actionlint/issues/590.
+paths:
+  .github/workflows/continuous-integration.yml:
+    ignore:
+      - 'both "username" and "password" must be specified in "credentials" section'
+      - '"credentials" section is scalar node but mapping node is expected'
+      - '"container" section is alias node but mapping node is expected'
