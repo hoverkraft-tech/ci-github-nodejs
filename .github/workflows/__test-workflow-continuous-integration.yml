@@ -109,3 +109,50 @@ jobs:
 
       - name: Check the build artifacts
         run: test -f ${{ runner.temp }}/usr/src/app/dist/test.txt
+
+  act-with-container-advanced:
+    name: Act - Run the continuous integration workflow (with container and advanced options)
+    uses: ./.github/workflows/continuous-integration.yml
+    needs: arrange-with-container
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
+      id-token: write
+    with:
+      container: |
+        {
+          "image": "${{ fromJSON(needs.arrange-with-container.outputs.built-images).ci-npm.images[0] }}",
+          "env": {
+            "NODE_ENV": "test",
+            "CI": "true"
+          },
+          "options": "--cpus 1",
+          "credentials": {
+            "username": "${{ github.actor }}"
+          }
+        }
+      working-directory: /usr/src/app/
+      build: |
+        {
+          "artifact": "dist"
+        }
+      test: |
+        {"coverage": "codecov"}
+    secrets:
+      container-password: ${{ secrets.GITHUB_TOKEN }}
+
+  assert-with-container-advanced:
+    name: Assert - Ensure build artifact has been uploaded (with container advanced)
+    runs-on: ubuntu-latest
+    needs: act-with-container-advanced
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          artifact-ids: ${{ needs.act-with-container-advanced.outputs.build-artifact-id }}
+          path: ${{ runner.temp }}
+
+      - name: Check the build artifacts
+        run: test -f ${{ runner.temp }}/usr/src/app/dist/test.txt

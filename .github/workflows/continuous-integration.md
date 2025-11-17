@@ -126,7 +126,29 @@ jobs:
       # Default: `.`
       working-directory: .
 
-      # Docker container image to run CI steps in. When specified, steps will execute inside this container instead of checking out code. The container should have the project code and dependencies pre-installed.
+      # Container configuration to run CI steps in.
+      # Accepts either a string (container image name) or a JSON object with container options.
+      #
+      # String format (simple):
+      # container: "node:18"
+      #
+      # JSON object format (advanced):
+      # container: |
+      #   {
+      #     "image": "node:18",
+      #     "env": {
+      #       "NODE_ENV": "production"
+      #     },
+      #     "ports": [8080],
+      #     "volumes": ["/tmp:/tmp"],
+      #     "options": "--cpus 2"
+      #   }
+      #
+      # All properties from GitHub's container specification are supported except credentials (use secrets instead).
+      # See https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container
+      #
+      # When specified, steps will execute inside this container instead of checking out code.
+      # The container should have the project code and dependencies pre-installed.
       container: ""
 ````
 
@@ -162,9 +184,44 @@ jobs:
 |                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                               |              |             |                     |
 |                         | Accepts a JSON object for test options. See [test action](../actions/test/README.md).                                                                                                                                                                                            |              |             |                     |
 | **`working-directory`** | Working directory where the dependencies are installed.                                                                                                                                                                                                                          | **false**    | **string**  | `.`                 |
-| **`container`**         | Docker container image to run CI steps in. When specified, steps will execute inside this container instead of checking out code. The container should have the project code and dependencies pre-installed.                                                                     | **false**    | **string**  | -                   |
+| **`container`**         | Container configuration to run CI steps in. Accepts string or JSON object. See Container Configuration below                                                                                                                                                                     | **false**    | **string**  | -                   |
 
 <!-- inputs:end -->
+
+### Container Configuration
+
+The `container` input accepts either:
+
+**Simple string format** (image name only):
+
+```yaml
+container: "node:18"
+```
+
+**Advanced JSON format** (with container options):
+
+```yaml
+container: |
+  {
+    "image": "node:18",
+    "env": {
+      "NODE_ENV": "production"
+    },
+    "options": "--cpus 2"
+  }
+```
+
+**Supported properties:**
+
+- `image` (string, required) - Container image name
+- `env` (object) - Environment variables
+- `options` (string) - Additional Docker options
+
+**Note:** `ports`, `volumes`, and `credentials` are not currently supported due to GitHub Actions workflow syntax limitations.
+
+See [GitHub's container specification](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container) for more details.
+
+When specified, steps will execute inside this container instead of checking out code. The container should have the project code and dependencies pre-installed.
 
 <!-- secrets:start -->
 
@@ -285,6 +342,43 @@ jobs:
       dependency-review: false
       # Specify which build/test commands to run (they should exist in package.json)
       build: "" # Skip build as it was done in the Docker image
+      lint: true
+      test: true
+```
+
+### Continuous Integration with Advanced Container Options
+
+This example shows how to use advanced container options like environment variables, credentials, and additional Docker options.
+
+```yaml
+name: Continuous Integration - Advanced Container Options
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  continuous-integration:
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@32a69b7b8fd5f7ab7bf656e7e88aa90ad235cf8d # 0.18.0
+    permissions:
+      id-token: write
+      security-events: write
+      contents: read
+    with:
+      container: |
+        {
+          "image": "node:18-alpine",
+          "env": {
+            "NODE_ENV": "production",
+            "CI": "true"
+          },
+          "options": "--cpus 2 --memory 4g"
+        }
+      # When using container mode, code-ql and dependency-review are typically disabled
+      # as they require repository checkout
+      code-ql: ""
+      dependency-review: false
+      build: "build"
       lint: true
       test: true
 ```
