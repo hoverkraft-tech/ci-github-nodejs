@@ -120,6 +120,7 @@ runs:
           const parseDependencies = async (command) => {
             const { stdout } = await exec.getExecOutput(command, undefined, {
               cwd: workingDirectory,
+              silent: true,
             });
 
             if (stdout === '') {
