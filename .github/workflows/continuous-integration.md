@@ -207,7 +207,12 @@ container: |
     "env": {
       "NODE_ENV": "production"
     },
-    "options": "--cpus 2"
+    "options": "--cpus 2",
+    "ports": [8080, 3000],
+    "volumes": ["/tmp:/tmp", "/cache:/cache"],
+    "credentials": {
+      "username": "myusername"
+    }
   }
 ```
 
@@ -216,8 +221,29 @@ container: |
 - `image` (string, required) - Container image name
 - `env` (object) - Environment variables
 - `options` (string) - Additional Docker options
+- `ports` (array) - Port mappings
+- `volumes` (array) - Volume mounts
+- `credentials` (object) - Registry credentials with `username` property
 
-**Note:** `ports`, `volumes`, and `credentials` are not currently supported due to GitHub Actions workflow syntax limitations.
+#### Container Registry Credentials
+
+For private container images, specify the username in the container input's `credentials.username` property and pass the password via the `container-password` secret:
+
+```yaml
+jobs:
+  continuous-integration:
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@main
+    secrets:
+      container-password: ${{ secrets.REGISTRY_PASSWORD }}
+    with:
+      container: |
+        {
+          "image": "ghcr.io/myorg/my-private-image:latest",
+          "credentials": {
+            "username": "myusername"
+          }
+        }
+```
 
 See [GitHub's container specification](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container) for more details.
 
@@ -227,12 +253,14 @@ When specified, steps will execute inside this container instead of checking out
 
 ## Secrets
 
-| **Secret**          | **Description**                                                                                                      | **Required** |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------ |
-| **`build-secrets`** | Secrets to be used during the build step.                                                                            | **false**    |
-|                     | Must be a multi-line env formatted string.                                                                           |              |
-|                     | Example:                                                                                                             |              |
-|                     | <!-- textlint-disable --><pre lang="txt">SECRET_EXAMPLE=$\{{ secrets.SECRET_EXAMPLE }}</pre><!-- textlint-enable --> |              |
+| **Secret**               | **Description**                                                                                                                          | **Required** |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| **`build-secrets`**      | Secrets to be used during the build step.                                                                                                | **false**    |
+|                          | Must be a multi-line env formatted string.                                                                                               |              |
+|                          | Example:                                                                                                                                 |              |
+|                          | <!-- textlint-disable --><pre lang="txt">SECRET_EXAMPLE=$\{{ secrets.SECRET_EXAMPLE }}</pre><!-- textlint-enable -->                     |              |
+| **`container-password`** | Password or token for authenticating to the container registry.                                                                          | **false**    |
+|                          | Required when using private container images. The username should be specified in the container input's `credentials.username` property. |              |
 
 <!-- secrets:end -->
 
@@ -348,7 +376,7 @@ jobs:
 
 ### Continuous Integration with Advanced Container Options
 
-This example shows how to use advanced container options like environment variables, credentials, and additional Docker options.
+This example shows how to use advanced container options like environment variables, ports, volumes, credentials, and additional Docker options.
 
 ```yaml
 name: Continuous Integration - Advanced Container Options
@@ -364,15 +392,22 @@ jobs:
       id-token: write
       security-events: write
       contents: read
+    secrets:
+      container-password: ${{ secrets.REGISTRY_PASSWORD }}
     with:
       container: |
         {
-          "image": "node:18-alpine",
+          "image": "ghcr.io/myorg/node-image:18-alpine",
           "env": {
             "NODE_ENV": "production",
             "CI": "true"
           },
-          "options": "--cpus 2 --memory 4g"
+          "options": "--cpus 2 --memory 4g",
+          "ports": [3000, 8080],
+          "volumes": ["/tmp:/tmp", "/cache:/workspace/cache"],
+          "credentials": {
+            "username": "myusername"
+          }
         }
       # When using container mode, code-ql and dependency-review are typically disabled
       # as they require repository checkout

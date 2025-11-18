@@ -5,3 +5,6 @@ paths:
       - 'both "username" and "password" must be specified in "credentials" section'
       - '"credentials" section is scalar node but mapping node is expected'
       - '"container" section is alias node but mapping node is expected'
+      - '"env" section must be mapping node but got scalar node'
+      - '"ports" section must be sequence node but got scalar node'
+      - '"volumes" section must be sequence node but got scalar node'
