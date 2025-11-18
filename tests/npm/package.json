@@ -3,6 +3,7 @@
   "main": "src/index.js",
   "scripts": {
     "lint": "echo \"lint test\"",
+    "lint:ci": "echo \"lint:ci test\"",
     "build": "mkdir -p dist && echo \"build test\" > dist/test.txt",
     "test:ci": "jest --coverage"
   },

@@ -119,12 +119,12 @@ runs:
 
           for (const command of commands) {
             core.info(`Running build command: ${command}`);
-            
+
             try {
               const result = await exec.getExecOutput(runScriptCommand, [command], {
                 cwd: require('path').resolve(process.env.GITHUB_WORKSPACE, workingDirectory)
               });
-              
+
               if (result.stdout) {
                 core.info(result.stdout);
               }

@@ -11,6 +11,7 @@ jobs:
     uses: ./.github/workflows/continuous-integration.yml
     permissions:
       contents: read
+      packages: read
       pull-requests: write
       security-events: write
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
@@ -41,6 +42,7 @@ jobs:
     uses: ./.github/workflows/continuous-integration.yml
     permissions:
       contents: read
+      packages: read
       pull-requests: write
       security-events: write
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
@@ -82,6 +84,7 @@ jobs:
     needs: arrange-with-container
     permissions:
       contents: read
+      packages: read
       pull-requests: write
       security-events: write
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
@@ -116,6 +119,7 @@ jobs:
     needs: arrange-with-container
     permissions:
       contents: read
+      packages: read
       pull-requests: write
       security-events: write
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659

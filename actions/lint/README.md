@@ -42,6 +42,13 @@ Action to lint Node.js projects with support for pull request reporting and anno
     # Default: `false`
     container: "false"
 
+    # NPM/package manager script command to run for linting.
+    # This should be a script defined in your package.json.
+    # The command should generate lint report files in a standard format (ESLint JSON or Checkstyle XML).
+    #
+    # Default: `lint:ci`
+    command: "lint:ci"
+
     # Path to lint report file to process as GitHub annotations.
     # Supports ESLint JSON and Checkstyle XML formats.
     # If not specified, auto-detection will be attempted for common paths:
@@ -60,6 +67,9 @@ Action to lint Node.js projects with support for pull request reporting and anno
 | **`working-directory`** | Working directory where lint commands are executed.                  | **false**    | `.`         |
 |                         | Can be absolute or relative to the repository root.                  |              |             |
 | **`container`**         | Whether running in container mode (skips checkout and node setup)    | **false**    | `false`     |
+| **`command`**           | NPM/package manager script command to run for linting.               | **false**    | `lint:ci`   |
+|                         | This should be a script defined in your package.json.                |              |             |
+|                         | The command should generate lint report files in a standard format.  |              |             |
 | **`report-file`**       | Path to lint report file to process as GitHub annotations.           | **false**    | -           |
 |                         | Supports ESLint JSON and Checkstyle XML formats.                     |              |             |
 |                         | If not specified, auto-detection will be attempted for common paths: |              |             |

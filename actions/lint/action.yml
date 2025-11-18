@@ -16,13 +16,18 @@ inputs:
     description: "Whether running in container mode (skips checkout and node setup)"
     required: false
     default: "false"
+  command:
+    description: |
+      NPM/package manager script command to run for linting.
+      This should be a script defined in your package.json.
+      The command should generate lint report files in a standard format (ESLint JSON or Checkstyle XML).
+    required: false
+    default: "lint:ci"
   report-file:
     description: |
-      Path to lint report file to process as GitHub annotations.
-      Supports ESLint JSON and Checkstyle XML formats.
-      If not specified, auto-detection will be attempted for common paths:
-      - eslint-report.json, eslint.json
-      - checkstyle-result.xml, checkstyle.xml
+      Optional lint report path forwarded to the [parse-ci-reports](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) action.
+      Provide an absolute path or one relative to the working directory.
+      When omitted, the action falls back to "auto:lint" detection (ESLint JSON / Checkstyle XML).
     required: false
     default: ""
 
@@ -53,24 +58,26 @@ runs:
       env:
         RUN_LINT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        LINT_COMMAND: ${{ inputs.command }}
       with:
         script: |
           const workingDirectory = process.env.WORKING_DIRECTORY || '.';
           const runScriptCommand = process.env.RUN_LINT_COMMAND;
+          const lintCommand = process.env.LINT_COMMAND || 'lint:ci';
 
-          core.info('👕 Running lint...');
+          core.info(`👕 Running lint command: ${lintCommand}...`);
 
           try {
-            const result = await exec.getExecOutput(runScriptCommand, ['lint'], {
+            const result = await exec.getExecOutput(runScriptCommand, [lintCommand], {
               cwd: require('path').resolve(process.env.GITHUB_WORKSPACE, workingDirectory),
               ignoreReturnCode: true
             });
-            
+
             if (result.stdout) core.info(result.stdout);
             if (result.stderr) core.warning(result.stderr);
-            
+
             core.setOutput('lint-exit-code', result.exitCode);
-            
+
             if (result.exitCode !== 0) {
               core.setFailed(`Linting failed with exit code ${result.exitCode}`);
             }
@@ -79,85 +86,13 @@ runs:
             core.setFailed(`Linting error: ${error.message}`);
           }
 
-    # Auto-detect report file if not specified
-    - id: detect-report-file
+    - name: 📊 Parse lint reports
       if: always()
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-      env:
-        REPORT_FILE: ${{ inputs.report-file }}
-        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      uses: hoverkraft-tech/ci-github-common/actions/parse-ci-reports@1127e708e4072515056a4b0d26bcb0653646cedc # 0.30.0
       with:
-        script: |
-          const path = require('node:path');
-          const fs = require('node:fs');
-
-          const workingDirectory = process.env.WORKING_DIRECTORY || '.';
-          const workDir = path.resolve(process.env.GITHUB_WORKSPACE, workingDirectory);
-
-          const autoDetectReportFormat = (filePath) => {
-            if (filePath.endsWith('.json')) {
-              return 'eslint';
-            } else if (filePath.endsWith('.xml')) {
-              return 'checkstyle';
-            }            
-            return core.setFailed(`Unable to auto-detect report format from file extension: ${filePath}`);
-          };
-
-          if (process.env.REPORT_FILE && process.env.REPORT_FILE.trim() !== '') {
-            const reportFilePath = path.join(workDir, process.env.REPORT_FILE.trim());
-
-            if (!fs.existsSync(reportFilePath)) {
-              core.setFailed(`Specified report file does not exist: ${process.env.REPORT_FILE.trim()}`);
-              return;
-            }
-            core.info(`Report file specified: ${reportFilePath}`);
-            core.setOutput('report-file', reportFilePath);
-            core.setOutput('report-format', autoDetectReportFormat(reportFilePath));
-
-            return;
-          }
-
-          // Common lint report file paths
-          const commonPaths = [
-            'eslint-report.json',
-            'eslint.json',
-            '.eslint-report.json',
-            'checkstyle-result.xml',
-            'checkstyle.xml',
-            'lint-results.xml',
-            'reports/eslint-report.json',
-            'reports/checkstyle.xml'
-          ];
-
-          for (const filePath of commonPaths) {
-            const fullPath = path.join(workDir, filePath);
-            if (fs.existsSync(fullPath)) {
-              core.info(`Auto-detected lint report file: ${fullPath}`);
-              core.setOutput('report-file', fullPath);
-              
-              // Auto-detect format from extension
-              core.setOutput('report-format', autoDetectReportFormat(fullPath));
-              return;
-            }
-          }
-
-          core.info('No lint report file auto-detected');
-
-    # Process ESLint report
-    - name: 📊 Annotate ESLint results
-      if: always() && steps.detect-report-file.outputs.report-format == 'eslint'
-      uses: ataylorme/eslint-annotate-action@d57a1193d4c59cbfbf3f86c271f42612f9dbd9e9 # v3.0.0
-      with:
-        report-json: ${{ steps.detect-report-file.outputs.report-file }}
-        fail-on-error: false
-        fail-on-warning: false
-
-    # Process Checkstyle report
-    - name: 📊 Annotate Checkstyle results
-      if: always() && steps.detect-report-file.outputs.report-format == 'checkstyle'
-      uses: lcollins/checkstyle-github-action@658deddef713a1132a9c59b64d754221b66a6f27 # v3.1.0
-      with:
-        path: ${{ steps.detect-report-file.outputs.report-file }}
+        report-paths: ${{ inputs.report-file || 'auto:lint' }}
+        report-name: "Lint Results"
+        output-format: "annotations,summary"
 
     # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
     - shell: bash

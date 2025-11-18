@@ -44,6 +44,7 @@ runs:
           if (!path.isAbsolute(workingDirectory)) {
             workingDirectory = path.join(process.env.GITHUB_WORKSPACE, workingDirectory);
           }
+          core.debug(`Resolved working directory: ${workingDirectory}`);
 
           if (!fs.existsSync(workingDirectory)) {
             core.setFailed(`The specified working directory does not exist: ${workingDirectory}`);
@@ -91,6 +92,8 @@ runs:
           }
 
           let relativeWorkingDirectory = path.relative(process.env.GITHUB_WORKSPACE, workingDirectory) || '.';
+          core.debug(`Relative working directory to GITHUB_WORKSPACE (${process.env.GITHUB_WORKSPACE}): ${relativeWorkingDirectory}`);
+
           let cacheDependencyPathPrefix = relativeWorkingDirectory;
 
           if (relativeWorkingDirectory.startsWith('../')) {
@@ -114,6 +117,8 @@ runs:
               cacheDependencyPathPrefix = '';
             }
           }
+
+          core.debug(`Cache dependency path prefix: ${cacheDependencyPathPrefix}`);
 
           const packageManagerConfig = {
             yarn: {

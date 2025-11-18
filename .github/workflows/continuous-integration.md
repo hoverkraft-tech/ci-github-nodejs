@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/b6dcaafc587a2f813f157270f31cf5a39003dfd51e49d546897431af67c35caa/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/796cce3050cf55c01571df72efa43f2569a49c372477a636309d0180b3fd4043/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -34,6 +34,7 @@ Workflow to performs continuous integration steps agains a Node.js project:
 
 - **`contents`**: `read`
 - **`id-token`**: `write`
+- **`packages`**: `read`
 - **`pull-requests`**: `write`
 - **`security-events`**: `write`
 
@@ -52,7 +53,7 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@ce2bb8274a37c1219be2bcae2a1b2528c2c72957 # 0.19.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@2b8788166256f66b42262e273b4be22a3fc162e8 # copilot/configure-lint-and-test-commands
     permissions: {}
     secrets:
       # Secrets to be used during the build step.
@@ -67,6 +68,10 @@ jobs:
       # Used when the container image is hosted in a private registry.
       # See https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container#defining-credentials-for-a-container-registry.
       container-password: ""
+
+      # GitHub token to use for authentication.
+      # Defaults to `GITHUB_TOKEN` if not provided.
+      github-token: ""
     with:
       # JSON array of runner(s) to use.
       # See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job.
@@ -113,11 +118,16 @@ jobs:
       # Default: `true`
       lint: "true"
 
-      # Code QL analysis language. See <https://github.com/github/codeql-action>.
+      # Code QL analysis language.
+      # See https://github.com/github/codeql-action.
+      #
       # Default: `typescript`
       code-ql: typescript
 
-      # Enable dependency review scan. See <https://github.com/actions/dependency-review-action>.
+      # Enable dependency review scan.
+      # Works with public repositories and private repositories with a GitHub Advanced Security license.
+      # See https://github.com/actions/dependency-review-action.
+      #
       # Default: `true`
       dependency-review: true
 
@@ -136,11 +146,13 @@ jobs:
       # Accepts either a string (container image name) or a JSON object with container options.
       #
       # String format (simple):
+      #
       # ```yml
       # container: "node:18"
       # ```
       #
       # JSON object format (advanced):
+      #
       # ```json
       # {
       # "image": "node:18",
@@ -156,9 +168,16 @@ jobs:
       # }
       # ```
       #
-      # Supported properties: image (required), env (object), options (string), ports (array), volumes (array), credentials (object with username).
+      # Supported properties:
       #
-      # See https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container
+      # - `image` (required)
+      # - `env` (object)
+      # - `options` (string)
+      # - `ports` (array)
+      # - `volumes` (array)
+      # - `credentials` (object with `username`).
+      #
+      # See https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container.
       #
       # When specified, steps will execute inside this container instead of checking out code.
       # The container should have the project code and dependencies pre-installed.
@@ -191,8 +210,11 @@ jobs:
 | **`lint`**              | Whether to enable linting.                                                                                                                                                                                                                                                                                                      | **false**    | **string**  | `true`              |
 |                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                                                                              |              |             |                     |
 |                         | Accepts a JSON object for lint options. See [lint action](../actions/lint/README.md).                                                                                                                                                                                                                                           |              |             |                     |
-| **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                                                                                                                                                                                                                                                       | **false**    | **string**  | `typescript`        |
-| **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                                                                       | **false**    | **boolean** | `true`              |
+| **`code-ql`**           | Code QL analysis language.                                                                                                                                                                                                                                                                                                      | **false**    | **string**  | `typescript`        |
+|                         | See <https://github.com/github/codeql-action>.                                                                                                                                                                                                                                                                                  |              |             |                     |
+| **`dependency-review`** | Enable dependency review scan.                                                                                                                                                                                                                                                                                                  | **false**    | **boolean** | `true`              |
+|                         | Works with public repositories and private repositories with a GitHub Advanced Security license.                                                                                                                                                                                                                                |              |             |                     |
+|                         | See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                                                                                                      |              |             |                     |
 | **`test`**              | Whether to enable testing.                                                                                                                                                                                                                                                                                                      | **false**    | **string**  | `true`              |
 |                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                                                                              |              |             |                     |
 |                         | Accepts a JSON object for test options. See [test action](../actions/test/README.md).                                                                                                                                                                                                                                           |              |             |                     |
@@ -201,12 +223,21 @@ jobs:
 |                         | Accepts either a string (container image name) or a JSON object with container options.                                                                                                                                                                                                                                         |              |             |                     |
 |                         |                                                                                                                                                                                                                                                                                                                                 |              |             |                     |
 |                         | String format (simple):                                                                                                                                                                                                                                                                                                         |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                                                                 |              |             |                     |
 |                         | <!-- textlint-disable --><pre lang="yml">container: "node:18"</pre><!-- textlint-enable -->                                                                                                                                                                                                                                     |              |             |                     |
 |                         | JSON object format (advanced):                                                                                                                                                                                                                                                                                                  |              |             |                     |
-|                         | <!-- textlint-disable --><pre lang="json">{&#13; "image": "node:18",&#13; "env": {&#13; "NODE_ENV": "production"&#13; },&#13; "options": "--cpus 2",&#13; "ports": [8080, 3000],&#13; "volumes": ["/tmp:/tmp", "/cache:/cache"],&#13; "credentials": {&#13; "username": "myusername"&#13; }&#13;}</pre><!-- textlint-enable --> |              |             |                     |
-|                         | Supported properties: image (required), env (object), options (string), ports (array), volumes (array), credentials (object with username).                                                                                                                                                                                     |              |             |                     |
 |                         |                                                                                                                                                                                                                                                                                                                                 |              |             |                     |
-|                         | See <https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container>                                                                                                                                                                                                             |              |             |                     |
+|                         | <!-- textlint-disable --><pre lang="json">{&#13; "image": "node:18",&#13; "env": {&#13; "NODE_ENV": "production"&#13; },&#13; "options": "--cpus 2",&#13; "ports": [8080, 3000],&#13; "volumes": ["/tmp:/tmp", "/cache:/cache"],&#13; "credentials": {&#13; "username": "myusername"&#13; }&#13;}</pre><!-- textlint-enable --> |              |             |                     |
+|                         | Supported properties:                                                                                                                                                                                                                                                                                                           |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                                                                 |              |             |                     |
+|                         | - `image` (required)                                                                                                                                                                                                                                                                                                            |              |             |                     |
+|                         | - `env` (object)                                                                                                                                                                                                                                                                                                                |              |             |                     |
+|                         | - `options` (string)                                                                                                                                                                                                                                                                                                            |              |             |                     |
+|                         | - `ports` (array)                                                                                                                                                                                                                                                                                                               |              |             |                     |
+|                         | - `volumes` (array)                                                                                                                                                                                                                                                                                                             |              |             |                     |
+|                         | - `credentials` (object with `username`).                                                                                                                                                                                                                                                                                       |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                                                                 |              |             |                     |
+|                         | See <https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container>.                                                                                                                                                                                                            |              |             |                     |
 |                         |                                                                                                                                                                                                                                                                                                                                 |              |             |                     |
 |                         | When specified, steps will execute inside this container instead of checking out code.                                                                                                                                                                                                                                          |              |             |                     |
 |                         | The container should have the project code and dependencies pre-installed.                                                                                                                                                                                                                                                      |              |             |                     |
@@ -287,6 +318,8 @@ When specified, steps will execute inside this container instead of checking out
 | **`container-password`** | Password for container registry authentication, if required.                                                                                                       | **false**    |
 |                          | Used when the container image is hosted in a private registry.                                                                                                     |              |
 |                          | See <https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container#defining-credentials-for-a-container-registry>. |              |
+| **`github-token`**       | GitHub token to use for authentication.                                                                                                                            | **false**    |
+|                          | Defaults to `GITHUB_TOKEN` if not provided.                                                                                                                        |              |
 
 <!-- secrets:end -->
 
@@ -317,7 +350,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@ce2bb8274a37c1219be2bcae2a1b2528c2c72957 # 0.19.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@2b8788166256f66b42262e273b4be22a3fc162e8 # copilot/configure-lint-and-test-commands
     permissions:
       id-token: write
       security-events: write
@@ -383,7 +416,7 @@ jobs:
   # Run CI checks inside the Docker container
   continuous-integration:
     needs: build-image
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@ce2bb8274a37c1219be2bcae2a1b2528c2c72957 # 0.19.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@2b8788166256f66b42262e273b4be22a3fc162e8 # copilot/configure-lint-and-test-commands
     permissions:
       id-token: write
       security-events: write
@@ -413,7 +446,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@ce2bb8274a37c1219be2bcae2a1b2528c2c72957 # 0.19.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@2b8788166256f66b42262e273b4be22a3fc162e8 # copilot/configure-lint-and-test-commands
     permissions:
       id-token: write
       security-events: write

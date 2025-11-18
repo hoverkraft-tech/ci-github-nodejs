@@ -28,6 +28,8 @@ _Actions for continuous integration steps: build, lint, and test._
 
 #### - [Test](actions/test/README.md)
 
+#### - [Rewrite Report Paths](actions/rewrite-report-paths/README.md)
+
 ### Dependencies
 
 _Actions dedicated to caching and validating Node.js dependencies._
