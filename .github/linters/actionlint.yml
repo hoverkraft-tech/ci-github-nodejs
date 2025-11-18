@@ -8,3 +8,4 @@ paths:
       - '"env" section must be mapping node but got scalar node'
       - '"ports" section must be sequence node but got scalar node'
       - '"volumes" section must be sequence node but got scalar node'
+      - '"runs-on" section is alias node but mapping node is expected'

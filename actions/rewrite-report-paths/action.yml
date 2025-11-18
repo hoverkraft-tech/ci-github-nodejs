@@ -1,0 +1,151 @@
+name: "Rewrite Report Paths"
+description: "Rewrites file paths in report files to match repository paths when running in containers"
+author: hoverkraft
+branding:
+  icon: edit
+  color: blue
+
+inputs:
+  report-files:
+    description: |
+      Path or glob pattern for report files to process.
+      Supports multiple files separated by newlines.
+      Common patterns: coverage/**, reports/**, **/*.xml, **/*.json
+    required: true
+  source-root:
+    description: |
+      Source root path in the container that should be replaced.
+      If not specified, will attempt to auto-detect from file paths.
+    required: false
+    default: ""
+  target-root:
+    description: |
+      Target root path in the repository.
+      Typically this is the GITHUB_WORKSPACE or a subdirectory.
+    required: false
+    default: ""
+  working-directory:
+    description: |
+      Working directory where report files are located.
+      Can be absolute or relative to the repository root.
+    required: false
+    default: "."
+
+runs:
+  using: "composite"
+  steps:
+    - id: rewrite-paths
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      env:
+        REPORT_FILES: ${{ inputs.report-files }}
+        SOURCE_ROOT: ${{ inputs.source-root }}
+        TARGET_ROOT: ${{ inputs.target-root }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          const { glob } = require('glob');
+
+          const workingDirectory = process.env.WORKING_DIRECTORY || '.';
+          const workDir = path.resolve(process.env.GITHUB_WORKSPACE, workingDirectory);
+          const reportFilesInput = process.env.REPORT_FILES.trim();
+
+          if (!reportFilesInput) {
+            core.warning('No report files specified for path rewriting');
+            return;
+          }
+
+          // Parse report files (can be newline separated or comma separated)
+          const reportPatterns = reportFilesInput
+            .split(/[\n,]/)
+            .map(p => p.trim())
+            .filter(Boolean);
+
+          core.info(`Looking for report files matching patterns: ${reportPatterns.join(', ')}`);
+
+          // Find all matching files
+          let reportFiles = [];
+          for (const pattern of reportPatterns) {
+            const fullPattern = path.isAbsolute(pattern) ? pattern : path.join(workDir, pattern);
+            const matches = await glob(fullPattern, { nodir: true });
+            reportFiles.push(...matches);
+          }
+
+          if (reportFiles.length === 0) {
+            core.warning(`No report files found matching patterns: ${reportPatterns.join(', ')}`);
+            return;
+          }
+
+          core.info(`Found ${reportFiles.length} report file(s) to process`);
+
+          // Determine source and target roots
+          let sourceRoot = process.env.SOURCE_ROOT.trim();
+          const targetRoot = process.env.TARGET_ROOT.trim() || process.env.GITHUB_WORKSPACE;
+
+          // Auto-detect source root if not provided
+          if (!sourceRoot) {
+            // Common container working directories
+            const commonRoots = ['/app', '/workspace', '/usr/src/app', '/home/node/app'];
+            
+            // Try to detect from the first file
+            if (reportFiles.length > 0) {
+              const firstFile = reportFiles[0];
+              const content = fs.readFileSync(firstFile, 'utf8');
+              
+              for (const root of commonRoots) {
+                if (content.includes(root)) {
+                  sourceRoot = root;
+                  core.info(`Auto-detected source root: ${sourceRoot}`);
+                  break;
+                }
+              }
+            }
+            
+            if (!sourceRoot) {
+              core.warning('Could not auto-detect source root. Skipping path rewriting.');
+              return;
+            }
+          }
+
+          core.info(`Rewriting paths from "${sourceRoot}" to "${targetRoot}"`);
+
+          let filesProcessed = 0;
+          let pathsReplaced = 0;
+
+          // Process each report file
+          for (const reportFile of reportFiles) {
+            try {
+              let content = fs.readFileSync(reportFile, 'utf8');
+              const originalContent = content;
+              
+              // Create a regex to match the source root path
+              // Handle both Unix-style and Windows-style paths
+              const escapedSource = sourceRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const regex = new RegExp(escapedSource.replace(/\\\//g, '[\\\\/]'), 'g');
+              
+              // Count matches before replacement
+              const matches = content.match(regex);
+              const matchCount = matches ? matches.length : 0;
+              
+              if (matchCount > 0) {
+                // Replace source root with target root
+                content = content.replace(regex, targetRoot.replace(/\\/g, '/'));
+                
+                // Write back the modified content
+                fs.writeFileSync(reportFile, content, 'utf8');
+                
+                core.info(`✅ Processed ${reportFile}: ${matchCount} path(s) rewritten`);
+                filesProcessed++;
+                pathsReplaced += matchCount;
+              } else {
+                core.info(`⏭️  Skipped ${reportFile}: no matching paths found`);
+              }
+            } catch (error) {
+              core.warning(`Failed to process ${reportFile}: ${error.message}`);
+            }
+          }
+
+          core.info(`\n📊 Summary: ${filesProcessed} file(s) processed, ${pathsReplaced} path(s) rewritten`);
+          core.setOutput('files-processed', filesProcessed);
+          core.setOutput('paths-replaced', pathsReplaced);

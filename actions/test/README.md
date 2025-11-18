@@ -42,6 +42,13 @@ Action to test Node.js projects with support for coverage reporting and pull req
     # Default: `false`
     container: "false"
 
+    # NPM/package manager script command to run for testing.
+    # This should be a script defined in your package.json.
+    # The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).
+    #
+    # Default: `test:ci`
+    command: "test:ci"
+
     # Code coverage reporter to use. Supported values:
     # - `github`: Use ReportGenerator for PR comments with coverage reports
     # - `codecov`: Upload coverage to Codecov
@@ -69,24 +76,27 @@ Action to test Node.js projects with support for coverage reporting and pull req
 
 ## Inputs
 
-| **Input**               | **Description**                                                       | **Required** | **Default** |
-| ----------------------- | --------------------------------------------------------------------- | ------------ | ----------- |
-| **`working-directory`** | Working directory where test commands are executed.                   | **false**    | `.`         |
-|                         | Can be absolute or relative to the repository root.                   |              |             |
-| **`container`**         | Whether running in container mode (skips checkout and node setup)     | **false**    | `false`     |
-| **`coverage`**          | Code coverage reporter to use. Supported values:                      | **false**    | `github`    |
-|                         | - `github`: Use ReportGenerator for PR comments with coverage reports |              |             |
-|                         | - `codecov`: Upload coverage to Codecov                               |              |             |
-|                         | - `""` or `null`: No coverage reporting                               |              |             |
-| **`coverage-files`**    | Path to coverage files for reporting.                                 | **false**    | -           |
-|                         | Supports multiple formats (Cobertura, OpenCover, lcov, etc.).         |              |             |
-|                         | Can be a single file or multiple files separated by semicolons.       |              |             |
-|                         | If not specified, auto-detection will be attempted for common paths:  |              |             |
-|                         | - coverage/cobertura-coverage.xml, coverage/coverage.xml              |              |             |
-|                         | - coverage/lcov.info                                                  |              |             |
-|                         | - coverage/clover.xml                                                 |              |             |
-| **`github-token`**      | GitHub token for coverage PR comments.                                | **false**    | -           |
-|                         | Required when coverage is set to `github`.                            |              |             |
+| **Input**               | **Description**                                                         | **Required** | **Default** |
+| ----------------------- | ----------------------------------------------------------------------- | ------------ | ----------- |
+| **`working-directory`** | Working directory where test commands are executed.                     | **false**    | `.`         |
+|                         | Can be absolute or relative to the repository root.                     |              |             |
+| **`container`**         | Whether running in container mode (skips checkout and node setup)       | **false**    | `false`     |
+| **`command`**           | NPM/package manager script command to run for testing.                  | **false**    | `test:ci`   |
+|                         | This should be a script defined in your package.json.                   |              |             |
+|                         | The command should generate coverage report files in a standard format. |              |             |
+| **`coverage`**          | Code coverage reporter to use. Supported values:                        | **false**    | `github`    |
+|                         | - "GitHub": Use ReportGenerator for PR comments with coverage reports   |              |             |
+|                         | - "Codecov": Upload coverage to Codecov                                 |              |             |
+|                         | - "": No coverage reporting                                             |              |             |
+| **`coverage-files`**    | Path to coverage files for reporting.                                   | **false**    | -           |
+|                         | Supports multiple formats (Cobertura, OpenCover, lcov, etc.).           |              |             |
+|                         | Can be a single file or multiple files separated by semicolons.         |              |             |
+|                         | If not specified, auto-detection will be attempted for common paths:    |              |             |
+|                         | - coverage/cobertura-coverage.xml, coverage/coverage.xml                |              |             |
+|                         | - coverage/lcov.info                                                    |              |             |
+|                         | - coverage/clover.xml                                                   |              |             |
+| **`github-token`**      | GitHub token for coverage PR comments.                                  | **false**    | -           |
+|                         | Required when coverage is set to "GitHub".                              |              |             |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
