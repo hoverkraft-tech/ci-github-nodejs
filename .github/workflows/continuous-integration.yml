@@ -99,12 +99,16 @@ on:
             "env": {
               "NODE_ENV": "production"
             },
-            "options": "--cpus 2"
+            "options": "--cpus 2",
+            "ports": [8080, 3000],
+            "volumes": ["/tmp:/tmp", "/cache:/cache"],
+            "credentials": {
+              "username": "myusername"
+            }
           }
           ```
 
-          Supported properties: image (required), env (object), options (string).
-          Note: ports, volumes, and credentials are not currently supported due to GitHub Actions limitations.
+          Supported properties: image (required), env (object), options (string), ports (array), volumes (array), credentials (object with username).
 
           See https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container
 
@@ -143,7 +147,10 @@ jobs:
     permissions: {}
     outputs:
       container-image: ${{ steps.parse.outputs.container-image }}
+      container-env: ${{ steps.parse.outputs.container-env }}
       container-options: ${{ steps.parse.outputs.container-options }}
+      container-ports: ${{ steps.parse.outputs.container-ports }}
+      container-volumes: ${{ steps.parse.outputs.container-volumes }}
       container-username: ${{ steps.parse.outputs.container-username }}
     steps:
       - id: parse
@@ -191,8 +198,20 @@ jobs:
             }
             core.setOutput('container-image', container.image);
 
+            if (container.env) {
+              core.setOutput('container-env', JSON.stringify(container.env));
+            }
+
             if (container.options) {
               core.setOutput('container-options', container.options);
+            }
+
+            if (container.ports) {
+              core.setOutput('container-ports', JSON.stringify(container.ports));
+            }
+
+            if (container.volumes) {
+              core.setOutput('container-volumes', JSON.stringify(container.volumes));
             }
 
             if (container.credentials?.username) {
@@ -233,7 +252,10 @@ jobs:
     needs: prepare
     container: &container-setup
       image: ${{ needs.prepare.outputs.container-image || '' }}
+      env: ${{ fromJSON(needs.prepare.outputs.container-env || '{}') }}
       options: ${{ needs.prepare.outputs.container-options || ' ' }}
+      ports: ${{ fromJSON(needs.prepare.outputs.container-ports || '[]') }}
+      volumes: ${{ fromJSON(needs.prepare.outputs.container-volumes || '[]') }}
       credentials: ${{ fromJSON(needs.prepare.outputs.container-username && format('{{"username":{0},"password":{1}}}',toJSON(needs.prepare.outputs.container-username),toJSON(secrets.container-password)) || '{}') }}
     permissions:
       contents: read
