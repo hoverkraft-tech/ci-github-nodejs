@@ -91,26 +91,43 @@ runs:
           }
 
           let relativeWorkingDirectory = path.relative(process.env.GITHUB_WORKSPACE, workingDirectory) || '.';
-          let isOutsideWorkspace = false;
+          let cacheDependencyPathPrefix = relativeWorkingDirectory;
 
           if (relativeWorkingDirectory.startsWith('../')) {
-            core.warning(`Working directory "${workingDirectory}" is outside GITHUB_WORKSPACE. Caching will be disabled for setup-node.`);
-            isOutsideWorkspace = true;
+            // Working directory is outside GITHUB_WORKSPACE
+            // Create a symlink inside GITHUB_WORKSPACE to enable caching
+            const symlinkName = '.github-actions-cache';
+            const symlinkPath = path.join(process.env.GITHUB_WORKSPACE, symlinkName);
+
+            try {
+              // Remove existing symlink if it exists
+              if (fs.existsSync(symlinkPath)) {
+                fs.unlinkSync(symlinkPath);
+              }
+
+              // Create symlink pointing to the working directory
+              fs.symlinkSync(workingDirectory, symlinkPath, 'dir');
+              core.info(`Created symlink at "${symlinkPath}" pointing to "${workingDirectory}" to enable caching.`);
+              cacheDependencyPathPrefix = symlinkName;
+            } catch (error) {
+              core.warning(`Failed to create symlink for caching: ${error.message}. Caching will be disabled.`);
+              cacheDependencyPathPrefix = '';
+            }
           }
 
           const packageManagerConfig = {
             yarn: {
-              cacheDependencyPath: isOutsideWorkspace ? '' : `${relativeWorkingDirectory}/**/yarn.lock`,
+              cacheDependencyPath: cacheDependencyPathPrefix ? `${cacheDependencyPathPrefix}/**/yarn.lock` : '',
               installCommand: 'yarn install --frozen-lockfile',
               runScriptCommand: 'yarn',
             },
             pnpm: {
-              cacheDependencyPath: isOutsideWorkspace ? '' : `${relativeWorkingDirectory}/**/pnpm-lock.yaml`,
+              cacheDependencyPath: cacheDependencyPathPrefix ? `${cacheDependencyPathPrefix}/**/pnpm-lock.yaml` : '',
               installCommand: 'pnpm install --frozen-lockfile',
               runScriptCommand: 'pnpm',
             },
             npm: {
-              cacheDependencyPath: isOutsideWorkspace ? '' : `${relativeWorkingDirectory}/**/package-lock.json`,
+              cacheDependencyPath: cacheDependencyPathPrefix ? `${cacheDependencyPathPrefix}/**/package-lock.json` : '',
               installCommand: 'npm ci',
               runScriptCommand: 'npm run',
             },
