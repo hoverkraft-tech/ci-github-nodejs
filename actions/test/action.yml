@@ -168,7 +168,7 @@ runs:
 
     - name: 📊 Add coverage PR comment
       if: always() && steps.get-coverage-report-summary.outputs.summary-content && github.event_name == 'pull_request'
-      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@753288393de1f3d92f687a6761d236ca800f5306 # 0.28.1
+      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
       with:
         title: "Code Coverage Report"
         body: ${{ steps.get-coverage-report-summary.outputs.summary-content }}
