@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/50237226ce5d3230f19bbf31d04efd98f21cb2150e9ae4acd09a498440ecde82/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/b6dcaafc587a2f813f157270f31cf5a39003dfd51e49d546897431af67c35caa/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -52,7 +52,8 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@32a69b7b8fd5f7ab7bf656e7e88aa90ad235cf8d # 0.18.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@ce2bb8274a37c1219be2bcae2a1b2528c2c72957 # 0.19.0
+    permissions: {}
     secrets:
       # Secrets to be used during the build step.
       # Must be a multi-line env formatted string.
@@ -61,6 +62,11 @@ jobs:
       # SECRET_EXAMPLE=$\{{ secrets.SECRET_EXAMPLE }}
       # ```
       build-secrets: ""
+
+      # Password for container registry authentication, if required.
+      # Used when the container image is hosted in a private registry.
+      # See https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container#defining-credentials-for-a-container-registry.
+      container-password: ""
     with:
       # JSON array of runner(s) to use.
       # See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job.
@@ -130,21 +136,28 @@ jobs:
       # Accepts either a string (container image name) or a JSON object with container options.
       #
       # String format (simple):
+      # ```yml
       # container: "node:18"
+      # ```
       #
       # JSON object format (advanced):
-      # container: |
-      #   {
-      #     "image": "node:18",
-      #     "env": {
-      #       "NODE_ENV": "production"
-      #     },
-      #     "ports": [8080],
-      #     "volumes": ["/tmp:/tmp"],
-      #     "options": "--cpus 2"
-      #   }
+      # ```json
+      # {
+      # "image": "node:18",
+      # "env": {
+      # "NODE_ENV": "production"
+      # },
+      # "options": "--cpus 2",
+      # "ports": [8080, 3000],
+      # "volumes": ["/tmp:/tmp", "/cache:/cache"],
+      # "credentials": {
+      # "username": "myusername"
+      # }
+      # }
+      # ```
       #
-      # All properties from GitHub's container specification are supported except credentials (use secrets instead).
+      # Supported properties: image (required), env (object), options (string), ports (array), volumes (array), credentials (object with username).
+      #
       # See https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container
       #
       # When specified, steps will execute inside this container instead of checking out code.
@@ -160,31 +173,43 @@ jobs:
 
 ### Workflow Call Inputs
 
-| **Input**               | **Description**                                                                                                                                                                                                                                                                  | **Required** | **Type**    | **Default**         |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- | ------------------- |
-| **`runs-on`**           | JSON array of runner(s) to use.                                                                                                                                                                                                                                                  | **false**    | **string**  | `["ubuntu-latest"]` |
-|                         | See <https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job>.                                                                                                                                                                                               |              |             |                     |
-| **`build`**             | Build parameters. Must be a string or a JSON object.                                                                                                                                                                                                                             | **false**    | **string**  | `build`             |
-|                         | For string, provide a list of commands to run during the build step, one per line.                                                                                                                                                                                               |              |             |                     |
-|                         | For JSON object, provide the following properties:                                                                                                                                                                                                                               |              |             |                     |
-|                         |                                                                                                                                                                                                                                                                                  |              |             |                     |
-|                         | - `commands`: Array of commands to run during the build step.                                                                                                                                                                                                                    |              |             |                     |
-|                         | - `env`: Object of environment variables to set during the build step.                                                                                                                                                                                                           |              |             |                     |
-|                         | - `artifact`: String or array of strings specifying paths to artifacts to upload after the build                                                                                                                                                                                 |              |             |                     |
-|                         |                                                                                                                                                                                                                                                                                  |              |             |                     |
-|                         | Example:                                                                                                                                                                                                                                                                         |              |             |                     |
-|                         | <!-- textlint-disable --><pre lang="json">{&#13; "commands": [&#13; "build",&#13; "generate-artifacts"&#13; ],&#13; "env": {&#13; "CUSTOM_ENV_VAR": "value"&#13; },&#13; "artifact": [&#13; "dist/",&#13; "packages/package-a/build/"&#13; ]&#13;}</pre><!-- textlint-enable --> |              |             |                     |
-| **`checks`**            | Optional flag to enable check steps.                                                                                                                                                                                                                                             | **false**    | **boolean** | `true`              |
-| **`lint`**              | Whether to enable linting.                                                                                                                                                                                                                                                       | **false**    | **string**  | `true`              |
-|                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                               |              |             |                     |
-|                         | Accepts a JSON object for lint options. See [lint action](../actions/lint/README.md).                                                                                                                                                                                            |              |             |                     |
-| **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                                                                                                                                                                                                        | **false**    | **string**  | `typescript`        |
-| **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                        | **false**    | **boolean** | `true`              |
-| **`test`**              | Whether to enable testing.                                                                                                                                                                                                                                                       | **false**    | **string**  | `true`              |
-|                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                               |              |             |                     |
-|                         | Accepts a JSON object for test options. See [test action](../actions/test/README.md).                                                                                                                                                                                            |              |             |                     |
-| **`working-directory`** | Working directory where the dependencies are installed.                                                                                                                                                                                                                          | **false**    | **string**  | `.`                 |
-| **`container`**         | Container configuration to run CI steps in. Accepts string or JSON object. See Container Configuration below                                                                                                                                                                     | **false**    | **string**  | -                   |
+| **Input**               | **Description**                                                                                                                                                                                                                                                                                                                 | **Required** | **Type**    | **Default**         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- | ------------------- |
+| **`runs-on`**           | JSON array of runner(s) to use.                                                                                                                                                                                                                                                                                                 | **false**    | **string**  | `["ubuntu-latest"]` |
+|                         | See <https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job>.                                                                                                                                                                                                                                              |              |             |                     |
+| **`build`**             | Build parameters. Must be a string or a JSON object.                                                                                                                                                                                                                                                                            | **false**    | **string**  | `build`             |
+|                         | For string, provide a list of commands to run during the build step, one per line.                                                                                                                                                                                                                                              |              |             |                     |
+|                         | For JSON object, provide the following properties:                                                                                                                                                                                                                                                                              |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                                                                 |              |             |                     |
+|                         | - `commands`: Array of commands to run during the build step.                                                                                                                                                                                                                                                                   |              |             |                     |
+|                         | - `env`: Object of environment variables to set during the build step.                                                                                                                                                                                                                                                          |              |             |                     |
+|                         | - `artifact`: String or array of strings specifying paths to artifacts to upload after the build                                                                                                                                                                                                                                |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                                                                 |              |             |                     |
+|                         | Example:                                                                                                                                                                                                                                                                                                                        |              |             |                     |
+|                         | <!-- textlint-disable --><pre lang="json">{&#13; "commands": [&#13; "build",&#13; "generate-artifacts"&#13; ],&#13; "env": {&#13; "CUSTOM_ENV_VAR": "value"&#13; },&#13; "artifact": [&#13; "dist/",&#13; "packages/package-a/build/"&#13; ]&#13;}</pre><!-- textlint-enable -->                                                |              |             |                     |
+| **`checks`**            | Optional flag to enable check steps.                                                                                                                                                                                                                                                                                            | **false**    | **boolean** | `true`              |
+| **`lint`**              | Whether to enable linting.                                                                                                                                                                                                                                                                                                      | **false**    | **string**  | `true`              |
+|                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                                                                              |              |             |                     |
+|                         | Accepts a JSON object for lint options. See [lint action](../actions/lint/README.md).                                                                                                                                                                                                                                           |              |             |                     |
+| **`code-ql`**           | Code QL analysis language. See <https://github.com/github/codeql-action>.                                                                                                                                                                                                                                                       | **false**    | **string**  | `typescript`        |
+| **`dependency-review`** | Enable dependency review scan. See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                                                                       | **false**    | **boolean** | `true`              |
+| **`test`**              | Whether to enable testing.                                                                                                                                                                                                                                                                                                      | **false**    | **string**  | `true`              |
+|                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                                                                              |              |             |                     |
+|                         | Accepts a JSON object for test options. See [test action](../actions/test/README.md).                                                                                                                                                                                                                                           |              |             |                     |
+| **`working-directory`** | Working directory where the dependencies are installed.                                                                                                                                                                                                                                                                         | **false**    | **string**  | `.`                 |
+| **`container`**         | Container configuration to run CI steps in.                                                                                                                                                                                                                                                                                     | **false**    | **string**  | -                   |
+|                         | Accepts either a string (container image name) or a JSON object with container options.                                                                                                                                                                                                                                         |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                                                                 |              |             |                     |
+|                         | String format (simple):                                                                                                                                                                                                                                                                                                         |              |             |                     |
+|                         | <!-- textlint-disable --><pre lang="yml">container: "node:18"</pre><!-- textlint-enable -->                                                                                                                                                                                                                                     |              |             |                     |
+|                         | JSON object format (advanced):                                                                                                                                                                                                                                                                                                  |              |             |                     |
+|                         | <!-- textlint-disable --><pre lang="json">{&#13; "image": "node:18",&#13; "env": {&#13; "NODE_ENV": "production"&#13; },&#13; "options": "--cpus 2",&#13; "ports": [8080, 3000],&#13; "volumes": ["/tmp:/tmp", "/cache:/cache"],&#13; "credentials": {&#13; "username": "myusername"&#13; }&#13;}</pre><!-- textlint-enable --> |              |             |                     |
+|                         | Supported properties: image (required), env (object), options (string), ports (array), volumes (array), credentials (object with username).                                                                                                                                                                                     |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                                                                 |              |             |                     |
+|                         | See <https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container>                                                                                                                                                                                                             |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                                                                 |              |             |                     |
+|                         | When specified, steps will execute inside this container instead of checking out code.                                                                                                                                                                                                                                          |              |             |                     |
+|                         | The container should have the project code and dependencies pre-installed.                                                                                                                                                                                                                                                      |              |             |                     |
 
 <!-- inputs:end -->
 
@@ -253,14 +278,15 @@ When specified, steps will execute inside this container instead of checking out
 
 ## Secrets
 
-| **Secret**               | **Description**                                                                                                                          | **Required** |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| **`build-secrets`**      | Secrets to be used during the build step.                                                                                                | **false**    |
-|                          | Must be a multi-line env formatted string.                                                                                               |              |
-|                          | Example:                                                                                                                                 |              |
-|                          | <!-- textlint-disable --><pre lang="txt">SECRET_EXAMPLE=$\{{ secrets.SECRET_EXAMPLE }}</pre><!-- textlint-enable -->                     |              |
-| **`container-password`** | Password or token for authenticating to the container registry.                                                                          | **false**    |
-|                          | Required when using private container images. The username should be specified in the container input's `credentials.username` property. |              |
+| **Secret**               | **Description**                                                                                                                                                    | **Required** |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
+| **`build-secrets`**      | Secrets to be used during the build step.                                                                                                                          | **false**    |
+|                          | Must be a multi-line env formatted string.                                                                                                                         |              |
+|                          | Example:                                                                                                                                                           |              |
+|                          | <!-- textlint-disable --><pre lang="txt">SECRET_EXAMPLE=$\{{ secrets.SECRET_EXAMPLE }}</pre><!-- textlint-enable -->                                               |              |
+| **`container-password`** | Password for container registry authentication, if required.                                                                                                       | **false**    |
+|                          | Used when the container image is hosted in a private registry.                                                                                                     |              |
+|                          | See <https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container#defining-credentials-for-a-container-registry>. |              |
 
 <!-- secrets:end -->
 
@@ -291,7 +317,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@32a69b7b8fd5f7ab7bf656e7e88aa90ad235cf8d # 0.18.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@ce2bb8274a37c1219be2bcae2a1b2528c2c72957 # 0.19.0
     permissions:
       id-token: write
       security-events: write
@@ -357,7 +383,7 @@ jobs:
   # Run CI checks inside the Docker container
   continuous-integration:
     needs: build-image
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@32a69b7b8fd5f7ab7bf656e7e88aa90ad235cf8d # 0.18.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@ce2bb8274a37c1219be2bcae2a1b2528c2c72957 # 0.19.0
     permissions:
       id-token: write
       security-events: write
@@ -387,7 +413,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@32a69b7b8fd5f7ab7bf656e7e88aa90ad235cf8d # 0.18.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@ce2bb8274a37c1219be2bcae2a1b2528c2c72957 # 0.19.0
     permissions:
       id-token: write
       security-events: write
