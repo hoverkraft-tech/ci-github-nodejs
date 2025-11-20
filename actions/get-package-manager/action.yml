@@ -91,23 +91,26 @@ runs:
           }
 
           let relativeWorkingDirectory = path.relative(process.env.GITHUB_WORKSPACE, workingDirectory) || '.';
+          let isOutsideWorkspace = false;
+
           if (relativeWorkingDirectory.startsWith('../')) {
-            relativeWorkingDirectory = path.resolve(workingDirectory);
+            core.warning(`Working directory "${workingDirectory}" is outside GITHUB_WORKSPACE. Caching will be disabled for setup-node.`);
+            isOutsideWorkspace = true;
           }
 
           const packageManagerConfig = {
             yarn: {
-              cacheDependencyPath: `${relativeWorkingDirectory}/**/yarn.lock`,
+              cacheDependencyPath: isOutsideWorkspace ? '' : `${relativeWorkingDirectory}/**/yarn.lock`,
               installCommand: 'yarn install --frozen-lockfile',
               runScriptCommand: 'yarn',
             },
             pnpm: {
-              cacheDependencyPath: `${relativeWorkingDirectory}/**/pnpm-lock.yaml`,
+              cacheDependencyPath: isOutsideWorkspace ? '' : `${relativeWorkingDirectory}/**/pnpm-lock.yaml`,
               installCommand: 'pnpm install --frozen-lockfile',
               runScriptCommand: 'pnpm',
             },
             npm: {
-              cacheDependencyPath: `${relativeWorkingDirectory}/**/package-lock.json`,
+              cacheDependencyPath: isOutsideWorkspace ? '' : `${relativeWorkingDirectory}/**/package-lock.json`,
               installCommand: 'npm ci',
               runScriptCommand: 'npm run',
             },
