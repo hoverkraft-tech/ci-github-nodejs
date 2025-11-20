@@ -230,11 +230,11 @@ jobs:
       security-events: write
     runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@753288393de1f3d92f687a6761d236ca800f5306 # 0.28.1
-      - uses: github/codeql-action/init@014f16e7ab1402f30e7c3329d33797e7948572db # v4.31.3
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
+      - uses: github/codeql-action/init@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v4.31.4
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@014f16e7ab1402f30e7c3329d33797e7948572db # v4.31.3
+      - uses: github/codeql-action/analyze@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v4.31.4
 
   dependency-review:
     name: 🛡️ Dependency Review
@@ -243,7 +243,7 @@ jobs:
       contents: read
     runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@753288393de1f3d92f687a6761d236ca800f5306 # 0.28.1
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
       - uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
 
   setup:
@@ -267,7 +267,7 @@ jobs:
       build-artifact: ${{ steps.build-variables.outputs.artifact }}
     steps:
       - if: needs.prepare.outputs.container-image == null
-        uses: hoverkraft-tech/ci-github-common/actions/checkout@753288393de1f3d92f687a6761d236ca800f5306 # 0.28.1
+        uses: hoverkraft-tech/ci-github-common/actions/checkout@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
 
       - id: build-variables
         if: inputs.build != ''
@@ -382,12 +382,12 @@ jobs:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@753288393de1f3d92f687a6761d236ca800f5306 # 0.28.1
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
         if: needs.prepare.outputs.container-image == null
 
       - id: oidc
         uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
@@ -438,14 +438,14 @@ jobs:
     outputs:
       artifact-id: ${{ steps.build.outputs.artifact-id }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@753288393de1f3d92f687a6761d236ca800f5306 # 0.28.1
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
         if: needs.setup.outputs.build-commands && needs.prepare.outputs.container-image == null
 
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       - id: oidc
         if: needs.setup.outputs.build-commands
         uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         if: needs.setup.outputs.build-commands
         with:
           path: ./self-workflow
@@ -484,7 +484,7 @@ jobs:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@753288393de1f3d92f687a6761d236ca800f5306 # 0.28.1
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
         if: needs.prepare.outputs.container-image == null
 
       - if: needs.build.outputs.artifact-id && needs.prepare.outputs.container-image == null
@@ -496,7 +496,7 @@ jobs:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       - id: oidc
         uses: ChristopherHX/oidc@73eee1ff03fdfce10eda179f617131532209edbd # v3
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           path: ./self-workflow
           repository: ${{ steps.oidc.outputs.job_workflow_repo_name_and_owner }}
