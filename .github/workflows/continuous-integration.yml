@@ -230,7 +230,7 @@ jobs:
       security-events: write
     runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@1127e708e4072515056a4b0d26bcb0653646cedc # 0.30.0
       - uses: github/codeql-action/init@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v4.31.4
         with:
           languages: ${{ inputs.code-ql }}
@@ -243,7 +243,7 @@ jobs:
       contents: read
     runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@1127e708e4072515056a4b0d26bcb0653646cedc # 0.30.0
       - uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
 
   setup:
@@ -267,7 +267,7 @@ jobs:
       build-artifact: ${{ steps.build-variables.outputs.artifact }}
     steps:
       - if: needs.prepare.outputs.container-image == null
-        uses: hoverkraft-tech/ci-github-common/actions/checkout@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
+        uses: hoverkraft-tech/ci-github-common/actions/checkout@1127e708e4072515056a4b0d26bcb0653646cedc # 0.30.0
 
       - id: build-variables
         if: inputs.build != ''
@@ -382,7 +382,7 @@ jobs:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@1127e708e4072515056a4b0d26bcb0653646cedc # 0.30.0
         if: needs.prepare.outputs.container-image == null
 
       - id: oidc
@@ -438,7 +438,7 @@ jobs:
     outputs:
       artifact-id: ${{ steps.build.outputs.artifact-id }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@1127e708e4072515056a4b0d26bcb0653646cedc # 0.30.0
         if: needs.setup.outputs.build-commands && needs.prepare.outputs.container-image == null
 
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
@@ -484,7 +484,7 @@ jobs:
       # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
       id-token: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@d95c78dc4b10250a07e227d3ddf33b0ea093e28d # 0.29.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@1127e708e4072515056a4b0d26bcb0653646cedc # 0.30.0
         if: needs.prepare.outputs.container-image == null
 
       - if: needs.build.outputs.artifact-id && needs.prepare.outputs.container-image == null
