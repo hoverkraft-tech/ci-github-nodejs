@@ -20,14 +20,20 @@ inputs:
     description: |
       NPM/package manager script command to run for linting.
       This should be a script defined in your package.json.
-      The command should generate lint report files in a standard format (ESLint JSON or Checkstyle XML).
+      The command should generate lint report files in a standard format.
     required: false
     default: "lint:ci"
   report-file:
     description: |
       Optional lint report path forwarded to the [parse-ci-reports](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) action.
       Provide an absolute path or one relative to the working directory.
-      When omitted, the action falls back to "auto:lint" detection (ESLint JSON / Checkstyle XML).
+      When omitted, the action falls back to "auto:lint" detection.
+    required: false
+    default: ""
+  path-mapping:
+    description: |
+      Optional path mapping to adjust file paths in test and coverage reports.
+      See the [parse-ci-reports documentation](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) for details.
     required: false
     default: ""
 
@@ -61,25 +67,22 @@ runs:
         LINT_COMMAND: ${{ inputs.command }}
       with:
         script: |
-          const workingDirectory = process.env.WORKING_DIRECTORY || '.';
+          const workingDirectory = process.env.WORKING_DIRECTORY;
           const runScriptCommand = process.env.RUN_LINT_COMMAND;
           const lintCommand = process.env.LINT_COMMAND || 'lint:ci';
 
           core.info(`👕 Running lint command: ${lintCommand}...`);
 
           try {
-            const result = await exec.getExecOutput(runScriptCommand, [lintCommand], {
-              cwd: require('path').resolve(process.env.GITHUB_WORKSPACE, workingDirectory),
+            const exitCode = await exec.exec(runScriptCommand, [lintCommand], {
+              cwd: workingDirectory,
               ignoreReturnCode: true
             });
 
-            if (result.stdout) core.info(result.stdout);
-            if (result.stderr) core.warning(result.stderr);
+            core.setOutput('lint-exit-code', exitCode);
 
-            core.setOutput('lint-exit-code', result.exitCode);
-
-            if (result.exitCode !== 0) {
-              core.setFailed(`Linting failed with exit code ${result.exitCode}`);
+            if (exitCode !== 0) {
+              core.setFailed(`Linting failed with exit code ${exitCode}`);
             }
           } catch (error) {
             core.setOutput('lint-exit-code', 1);
@@ -90,7 +93,9 @@ runs:
       if: always()
       uses: hoverkraft-tech/ci-github-common/actions/parse-ci-reports@c314229c3ca6914f7023ffca7afc26753ab99b41 # 0.30.1
       with:
+        working-directory: ${{ inputs.working-directory }}
         report-paths: ${{ inputs.report-file || 'auto:lint' }}
+        path-mapping: ${{ inputs.path-mapping }}
         report-name: "Lint Results"
         output-format: "annotations,summary"
 

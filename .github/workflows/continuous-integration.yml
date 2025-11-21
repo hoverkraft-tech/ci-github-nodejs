@@ -56,6 +56,15 @@ on:
           Whether to enable linting.
           Set to `null` or empty to disable.
           Accepts a JSON object for lint options. See [lint action](../actions/lint/README.md).
+          It should generate lint reports in standard formats.
+
+          Example: 
+
+          ```json:package.json
+          {
+            "lint:ci": "eslint . --output-file eslint-report.json --format json"
+          }
+          ```
         type: string
         required: false
         default: "true"
@@ -79,6 +88,15 @@ on:
           Whether to enable testing.
           Set to `null` or empty to disable.
           Accepts a JSON object for test options. See [test action](../actions/test/README.md).
+          If coverage is enabled, it should generate test and coverage reports in standard formats.
+
+          Example: 
+
+          ```json:package.json
+          {
+            "test:ci": "vitest run --reporter=default --reporter=junit --outputFile=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text"
+          }
+          ```
         type: string
         required: false
         default: "true"
@@ -111,6 +129,9 @@ on:
             "volumes": ["/tmp:/tmp", "/cache:/cache"],
             "credentials": {
               "username": "myusername"
+            },
+            pathMapping: {
+              "/app": "./relative/path/to/app"
             }
           }
           ```
@@ -123,6 +144,7 @@ on:
           - `ports` (array)
           - `volumes` (array)
           - `credentials` (object with `username`).
+          - `pathMapping` (object) path mapping from container paths to repository paths. Defaults is working directory is mapped with repository root.
 
           See https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container.
 
@@ -171,12 +193,14 @@ jobs:
       container-ports: ${{ steps.parse.outputs.container-ports }}
       container-volumes: ${{ steps.parse.outputs.container-volumes }}
       container-username: ${{ steps.parse.outputs.container-username }}
+      path-mapping: ${{ steps.parse.outputs.path-mapping }}
     steps:
       - id: parse
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           CONTAINER_INPUT: ${{ inputs.container }}
           CONTAINER_PASSWORD: ${{ secrets.container-password }}
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
         with:
           script: |
             const containerInput = process.env.CONTAINER_INPUT.trim();
@@ -192,15 +216,25 @@ jobs:
               options: '--user root:root'
             };
 
+            let pathMapping = {
+              [process.env.WORKING_DIRECTORY || '.']: process.env.GITHUB_WORKSPACE,
+            };
+
             if (isJson) {
               try {
-                const parsedContainer = JSON.parse(containerInput);
+                const {pathMapping: parsedPathMapping, ...parsedContainer} = JSON.parse(containerInput);
                 core.debug(`Parsed container input as JSON: ${JSON.stringify(parsedContainer)}`);
+                
                 container = {
                   ...container,
                   ...parsedContainer,
                   options: `${container.options} ${parsedContainer.options || ''}`.trim()
                 };
+
+                core.debug(`Parsed path mapping: ${JSON.stringify(parsedPathMapping)}`);
+                if (parsedPathMapping){
+                  pathMapping = parsedPathMapping;
+                } 
 
               } catch (error) {
                 return core.setFailed(`Failed to parse container input as JSON: ${error.message}`,{ cause: error });
@@ -241,6 +275,16 @@ jobs:
             } else if (process.env.CONTAINER_PASSWORD) {
               return core.setFailed('Container credentials username must be provided when container password is specified.');
             }
+
+            core.debug(`Parsed path mapping: ${JSON.stringify(pathMapping)}`);
+            if (!pathMapping || typeof pathMapping !== 'object' || Object.keys(pathMapping).length === 0){
+              return core.setFailed('At least one path mapping must be specified in the container configuration.');
+            }
+
+            core.setOutput('path-mapping', Object.entries(pathMapping).reduce((acc, [containerPath, repoPath]) => {
+              acc += `${acc?',' : ''}${containerPath}:${repoPath}`;
+              return acc;
+            }, ""));
 
   code-ql:
     name: 🛡️ CodeQL Analysis
@@ -449,6 +493,7 @@ jobs:
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           command: ${{ steps.preparel-lint-options.outputs.command }}
           report-file: ${{ steps.preparel-lint-options.outputs.report-file }}
+          path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
 
   build:
     if: inputs.checks == true
@@ -559,7 +604,7 @@ jobs:
               testOptions.coverage = 'github';
             }
             core.setOutput('coverage', testOptions.coverage );
-            core.setOutput('coverage-files', testOptions['coverage-files'] || '');
+            core.setOutput('report-file', testOptions['report-file'] || '');
             core.setOutput('command', testOptions.command || 'test:ci');
 
       - name: Run tests
@@ -569,5 +614,6 @@ jobs:
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           command: ${{ steps.prepare-test-options.outputs.command }}
           coverage: ${{ steps.prepare-test-options.outputs.coverage }}
-          coverage-files: ${{ steps.prepare-test-options.outputs.coverage-files }}
+          report-file: ${{ steps.prepare-test-options.outputs.report-file }}
+          path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
           github-token: ${{ secrets.github-token || github.token }}
