@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/7f0140d4f1e75e60c76a76a40db0e0190a923e751b6153a58668b9da523cfb28/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/c77bac75f0a5745bf85132edbeef115dc3c74ec45b17031716fdead2c865de2f/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -53,7 +53,7 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@7b558a563bfd8b37268ab6e820219294a2bb8474 # fix/continuous-integration-reports
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@a9809af04394e66675b8644865be1ddcec02cdcd # 0.20.0
     permissions: {}
     secrets:
       # Secrets to be used during the build step.
@@ -387,7 +387,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@7b558a563bfd8b37268ab6e820219294a2bb8474 # fix/continuous-integration-reports
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@a9809af04394e66675b8644865be1ddcec02cdcd # 0.20.0
     permissions:
       id-token: write
       security-events: write
@@ -453,7 +453,7 @@ jobs:
   # Run CI checks inside the Docker container
   continuous-integration:
     needs: build-image
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@7b558a563bfd8b37268ab6e820219294a2bb8474 # fix/continuous-integration-reports
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@a9809af04394e66675b8644865be1ddcec02cdcd # 0.20.0
     permissions:
       id-token: write
       security-events: write
@@ -477,7 +477,7 @@ on:
     branches: [main]
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@7b558a563bfd8b37268ab6e820219294a2bb8474 # fix/continuous-integration-reports
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@a9809af04394e66675b8644865be1ddcec02cdcd # 0.20.0
     permissions:
       id-token: write
       security-events: write
@@ -505,7 +505,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@7b558a563bfd8b37268ab6e820219294a2bb8474 # fix/continuous-integration-reports
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@a9809af04394e66675b8644865be1ddcec02cdcd # 0.20.0
     permissions:
       id-token: write
       security-events: write
