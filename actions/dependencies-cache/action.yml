@@ -114,7 +114,7 @@ runs:
 
           let execResult;
           try {
-            execResult = await exec.getExecOutput(packageManager, commandArgs, { cwd: workingDirectory });
+            execResult = await exec.getExecOutput(packageManager, commandArgs, { cwd: workingDirectory, silent: true });
           } catch (error) {
             core.setFailed(`Unable to get Jest config: ${error.message}`);
             return;
