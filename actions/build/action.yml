@@ -109,9 +109,25 @@ runs:
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
       with:
         script: |
+          const fs = require('node:fs');
+          const path = require('node:path');
+
           const buildCommands = process.env.BUILD_COMMANDS || '';
           const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
-          const workingDirectory = process.env.WORKING_DIRECTORY || '.';
+
+          let workingDirectory = process.env.WORKING_DIRECTORY || '.';
+          if (!path.isAbsolute(workingDirectory)) {
+            workingDirectory = path.join(process.env.GITHUB_WORKSPACE, workingDirectory);
+          }
+
+          if (!fs.existsSync(workingDirectory)) {
+            core.setFailed(`The specified working directory does not exist: ${workingDirectory}`);
+            return;
+          }
+
+          workingDirectory = path.resolve(workingDirectory);
+          core.debug(`Running in working directory: ${workingDirectory}`);
+          process.chdir(workingDirectory);
 
           const commands = buildCommands.split('\n')
             .map(cmd => cmd.trim())
@@ -121,15 +137,14 @@ runs:
             core.info(`Running build command: ${command}`);
 
             try {
-              const result = await exec.getExecOutput(runScriptCommand, [command], {
-                cwd: require('path').resolve(process.env.GITHUB_WORKSPACE, workingDirectory)
+              const exitCode = await exec.exec(runScriptCommand, [command], {
+                cwd: workingDirectory,
+              ignoreReturnCode: true
               });
 
-              if (result.stdout) {
-                core.info(result.stdout);
-              }
-              if (result.stderr) {
-                core.warning(result.stderr);
+              if(exitCode !== 0) {
+                core.setFailed(`Build command "${command}" failed with exit code ${exitCode}`);
+                throw new Error(`Build command "${command}" failed with exit code ${exitCode}`);
               }
             } catch (error) {
               core.setFailed(`Build command "${command}" failed: ${error.message}`);

@@ -84,9 +84,25 @@ runs:
         TEST_COMMAND: ${{ inputs.command }}
       with:
         script: |
-          const workingDirectory = process.env.WORKING_DIRECTORY;
+          const fs = require('node:fs');
+          const path = require('node:path');
+
           const runScriptCommand = process.env.RUN_TEST_COMMAND;
           const testCommand = process.env.TEST_COMMAND || 'test:ci';
+
+          let workingDirectory = process.env.WORKING_DIRECTORY || '.';
+          if (!path.isAbsolute(workingDirectory)) {
+            workingDirectory = path.join(process.env.GITHUB_WORKSPACE, workingDirectory);
+          }
+
+          if (!fs.existsSync(workingDirectory)) {
+            core.setFailed(`The specified working directory does not exist: ${workingDirectory}`);
+            return;
+          }
+
+          workingDirectory = path.resolve(workingDirectory);
+          core.debug(`Running in working directory: ${workingDirectory}`);
+          process.chdir(workingDirectory);
 
           core.info(`🧪 Running test command: ${testCommand}...`);
 
