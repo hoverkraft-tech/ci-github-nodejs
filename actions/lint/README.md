@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stY2lyY2xlIiBjb2xvcj0iYmx1ZSI+PHBhdGggZD0iTTIyIDExLjA4VjEyYTEwIDEwIDAgMSAxLTUuOTMtOS4xNCI+PC9wYXRoPjxwb2x5bGluZSBwb2ludHM9IjIyIDQgMTIgMTQuMDEgOSAxMS4wMSI+PC9wb2x5bGluZT48L3N2Zz4=) GitHub Action: Lint
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/c77bac75f0a5745bf85132edbeef115dc3c74ec45b17031716fdead2c865de2f/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Lint" />
+  <img src="https://opengraph.githubassets.com/a53f06a83c3dc992b76918ea13c13ad961acfcc4e23b4cd4ed05f6dd0904ddac/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Lint" />
 </div>
 
 ---
@@ -30,7 +30,7 @@ Action to lint Node.js projects with support for pull request reporting and anno
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@a9809af04394e66675b8644865be1ddcec02cdcd # 0.20.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@80acfc9bc4dd87030d73006dee4c788ed9af1fb0 # 0.20.1
   with:
     # Working directory where lint commands are executed.
     # Can be absolute or relative to the repository root.
@@ -42,8 +42,8 @@ Action to lint Node.js projects with support for pull request reporting and anno
     # Default: `false`
     container: "false"
 
-    # NPM/package manager script command to run for linting.
-    # This should be a script defined in your package.json.
+    # npm/pnpm/Yarn script command to run for linting.
+    # This should be a script defined in your `package.json`.
     # The command should generate lint report files in a standard format.
     #
     # Default: `lint:ci`
@@ -51,7 +51,7 @@ Action to lint Node.js projects with support for pull request reporting and anno
 
     # Optional lint report path forwarded to the [parse-ci-reports](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) action.
     # Provide an absolute path or one relative to the working directory.
-    # When omitted, the action falls back to "auto:lint" detection.
+    # When omitted, the action falls back to `auto:lint` detection.
     report-file: ""
 
     # Optional path mapping to adjust file paths in test and coverage reports.
@@ -69,12 +69,12 @@ Action to lint Node.js projects with support for pull request reporting and anno
 | **`working-directory`** | Working directory where lint commands are executed.                                                                                      | **false**    | `.`         |
 |                         | Can be absolute or relative to the repository root.                                                                                      |              |             |
 | **`container`**         | Whether running in container mode (skips checkout and node setup)                                                                        | **false**    | `false`     |
-| **`command`**           | NPM/package manager script command to run for linting.                                                                                   | **false**    | `lint:ci`   |
-|                         | This should be a script defined in your package.json.                                                                                    |              |             |
+| **`command`**           | npm/pnpm/Yarn script command to run for linting.                                                                                         | **false**    | `lint:ci`   |
+|                         | This should be a script defined in your `package.json`.                                                                                  |              |             |
 |                         | The command should generate lint report files in a standard format.                                                                      |              |             |
 | **`report-file`**       | Optional lint report path forwarded to the [parse-ci-reports](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) action. | **false**    | -           |
 |                         | Provide an absolute path or one relative to the working directory.                                                                       |              |             |
-|                         | When omitted, the action falls back to "auto:lint" detection.                                                                            |              |             |
+|                         | When omitted, the action falls back to `auto:lint` detection.                                                                            |              |             |
 | **`path-mapping`**      | Optional path mapping to adjust file paths in test and coverage reports.                                                                 | **false**    | -           |
 |                         | See the [parse-ci-reports documentation](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) for details.                 |              |             |
 
