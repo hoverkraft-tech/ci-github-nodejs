@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/c77bac75f0a5745bf85132edbeef115dc3c74ec45b17031716fdead2c865de2f/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/a53f06a83c3dc992b76918ea13c13ad961acfcc4e23b4cd4ed05f6dd0904ddac/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -53,7 +53,7 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@a9809af04394e66675b8644865be1ddcec02cdcd # 0.20.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@80acfc9bc4dd87030d73006dee4c788ed9af1fb0 # 0.20.1
     permissions: {}
     secrets:
       # Secrets to be used during the build step.
@@ -113,7 +113,7 @@ jobs:
 
       # Whether to enable linting.
       # Set to `null` or empty to disable.
-      # Accepts a JSON object for lint options. See [lint action](../actions/lint/README.md).
+      # Accepts a JSON object for lint options. See [lint action](../../actions/lint/README.md).
       # It should generate lint reports in standard formats.
       #
       # Example:
@@ -142,7 +142,7 @@ jobs:
 
       # Whether to enable testing.
       # Set to `null` or empty to disable.
-      # Accepts a JSON object for test options. See [test action](../actions/test/README.md).
+      # Accepts a JSON object for test options. See [test action](../../actions/test/README.md).
       # If coverage is enabled, it should generate test and coverage reports in standard formats.
       #
       # Example:
@@ -233,7 +233,7 @@ jobs:
 | **`checks`**            | Optional flag to enable check steps.                                                                                                                                                                                                                                                                                                                                                              | **false**    | **boolean** | `true`              |
 | **`lint`**              | Whether to enable linting.                                                                                                                                                                                                                                                                                                                                                                        | **false**    | **string**  | `true`              |
 |                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                                                                                                                                                |              |             |                     |
-|                         | Accepts a JSON object for lint options. See [lint action](../actions/lint/README.md).                                                                                                                                                                                                                                                                                                             |              |             |                     |
+|                         | Accepts a JSON object for lint options. See [lint action](../../actions/lint/README.md).                                                                                                                                                                                                                                                                                                          |              |             |                     |
 |                         | It should generate lint reports in standard formats.                                                                                                                                                                                                                                                                                                                                              |              |             |                     |
 |                         |                                                                                                                                                                                                                                                                                                                                                                                                   |              |             |                     |
 |                         | Example:                                                                                                                                                                                                                                                                                                                                                                                          |              |             |                     |
@@ -246,7 +246,7 @@ jobs:
 |                         | See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                                                                                                                                                                        |              |             |                     |
 | **`test`**              | Whether to enable testing.                                                                                                                                                                                                                                                                                                                                                                        | **false**    | **string**  | `true`              |
 |                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                                                                                                                                                |              |             |                     |
-|                         | Accepts a JSON object for test options. See [test action](../actions/test/README.md).                                                                                                                                                                                                                                                                                                             |              |             |                     |
+|                         | Accepts a JSON object for test options. See [test action](../../actions/test/README.md).                                                                                                                                                                                                                                                                                                          |              |             |                     |
 |                         | If coverage is enabled, it should generate test and coverage reports in standard formats.                                                                                                                                                                                                                                                                                                         |              |             |                     |
 |                         |                                                                                                                                                                                                                                                                                                                                                                                                   |              |             |                     |
 |                         | Example:                                                                                                                                                                                                                                                                                                                                                                                          |              |             |                     |
@@ -387,7 +387,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@a9809af04394e66675b8644865be1ddcec02cdcd # 0.20.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@80acfc9bc4dd87030d73006dee4c788ed9af1fb0 # 0.20.1
     permissions:
       id-token: write
       security-events: write
@@ -453,7 +453,7 @@ jobs:
   # Run CI checks inside the Docker container
   continuous-integration:
     needs: build-image
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@a9809af04394e66675b8644865be1ddcec02cdcd # 0.20.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@80acfc9bc4dd87030d73006dee4c788ed9af1fb0 # 0.20.1
     permissions:
       id-token: write
       security-events: write
@@ -477,7 +477,7 @@ on:
     branches: [main]
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@a9809af04394e66675b8644865be1ddcec02cdcd # 0.20.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@80acfc9bc4dd87030d73006dee4c788ed9af1fb0 # 0.20.1
     permissions:
       id-token: write
       security-events: write
@@ -505,7 +505,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@a9809af04394e66675b8644865be1ddcec02cdcd # 0.20.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@80acfc9bc4dd87030d73006dee4c788ed9af1fb0 # 0.20.1
     permissions:
       id-token: write
       security-events: write
