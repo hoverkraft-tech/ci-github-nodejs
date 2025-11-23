@@ -15,19 +15,26 @@ inputs:
   build-commands:
     description: |
       List of build commands to execute, one per line.
-      These are npm/pnpm/Yarn script names (e.g., "build", "compile").
+      These are npm/pnpm/Yarn script names (e.g., `build`, `compile`).
     required: true
   build-env:
     description: |
       JSON object of environment variables to set during the build.
-      Example: {"NODE_ENV": "production", "API_URL": "https://api.example.com"}
+      Example:
+
+      ```json
+      {
+        "NODE_ENV": "production",
+        "API_URL": "https://api.example.com"
+      }
+      ```
     required: false
     default: "{}"
   build-secrets:
     description: |
-      Multi-line string of secrets in env format (KEY=VALUE).
+      Multi-line string of secrets in env format (`KEY=VALUE`).
       Example:
-      ```
+      ```txt
       SECRET_KEY=$\{{ secrets.SECRET_KEY }}
       API_TOKEN=$\{{ secrets.API_TOKEN }}
       ```
@@ -36,7 +43,14 @@ inputs:
   build-artifact:
     description: |
       JSON object specifying artifact upload configuration.
-      Format: {"name": "artifact-name", "paths": "path1\npath2"}
+      Example:
+
+      ```json
+      {
+        "name": "artifact-name",
+        "paths": "path1\npath2"
+      }
+      ```
     required: false
     default: ""
   container:

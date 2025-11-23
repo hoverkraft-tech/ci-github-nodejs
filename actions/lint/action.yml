@@ -18,8 +18,8 @@ inputs:
     default: "false"
   command:
     description: |
-      NPM/package manager script command to run for linting.
-      This should be a script defined in your package.json.
+      npm/pnpm/Yarn script command to run for linting.
+      This should be a script defined in your `package.json`.
       The command should generate lint report files in a standard format.
     required: false
     default: "lint:ci"
@@ -27,7 +27,7 @@ inputs:
     description: |
       Optional lint report path forwarded to the [parse-ci-reports](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) action.
       Provide an absolute path or one relative to the working directory.
-      When omitted, the action falls back to "auto:lint" detection.
+      When omitted, the action falls back to `auto:lint` detection.
     required: false
     default: ""
   path-mapping:

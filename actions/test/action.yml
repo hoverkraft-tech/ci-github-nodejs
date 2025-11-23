@@ -18,8 +18,8 @@ inputs:
     default: "false"
   command:
     description: |
-      NPM/package manager script command to run for testing.
-      This should be a script defined in your package.json.
+      npm/pnpm/Yarn script command to run for testing.
+      This should be a script defined in your `package.json`.
       The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).
     required: false
     default: "test:ci"
@@ -33,11 +33,11 @@ inputs:
     default: "github"
   report-file:
     description: |
-      Optional test and coverage report paths forwarded to the hoverkraft-tech/ci-github-common/actions/parse-ci-reports action.
+      Optional test and coverage report paths forwarded to the [parse-ci-reports](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) action.
       Supports multiple formats (Cobertura, OpenCover, lcov, etc.).
       Provide absolute paths or paths relative to the working directory.
       Multiple entries can be separated by newlines, commas, or semicolons.
-      When omitted, the action falls back to "auto:test,auto:coverage" detection.
+      When omitted, the action falls back to `auto:test,auto:coverage` detection.
     required: false
     default: ""
   path-mapping:

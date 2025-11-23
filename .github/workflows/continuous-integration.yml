@@ -55,7 +55,7 @@ on:
         description: |
           Whether to enable linting.
           Set to `null` or empty to disable.
-          Accepts a JSON object for lint options. See [lint action](../actions/lint/README.md).
+          Accepts a JSON object for lint options. See [lint action](../../actions/lint/README.md).
           It should generate lint reports in standard formats.
 
           Example: 
@@ -87,7 +87,7 @@ on:
         description: |
           Whether to enable testing.
           Set to `null` or empty to disable.
-          Accepts a JSON object for test options. See [test action](../actions/test/README.md).
+          Accepts a JSON object for test options. See [test action](../../actions/test/README.md).
           If coverage is enabled, it should generate test and coverage reports in standard formats.
 
           Example: 
