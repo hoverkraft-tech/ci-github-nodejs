@@ -4,13 +4,14 @@ description: |
 
   ### Supported caches
 
-  - NX (`node_modules/.cache/nx`)
-  - Prettier (`node_modules/.cache/prettier`)
-  - Docusaurus (`.docusaurus`, `node_modules/.cache/webpack`)
-  - Astro (`node_modules/.astro`)
-  - Gatsby (`.cache`, `public`)
-  - Storybook (`node_modules/.cache/storybook`)
-  - Jest (auto-detected `cacheDirectory`)
+  - NX (`node_modules/.cache/nx`): `nx`
+  - Prettier (`node_modules/.cache/prettier`): `prettier`
+  - Docusaurus (`.docusaurus`, `node_modules/.cache/webpack`): `docusaurus`
+  - Vitest (`node_modules/.vite/vitest`): `vitest`
+  - Astro (`node_modules/.astro`): `astro`
+  - Gatsby (`.cache`, `public`): `gatsby`
+  - Storybook (`node_modules/.cache/storybook`): `storybook`
+  - Jest (auto-detected `cacheDirectory`): `jest`
 
 author: hoverkraft
 branding:
@@ -76,6 +77,15 @@ runs:
         key: ${{ runner.os }}-cache-docusaurus-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-cache-docusaurus-
+
+    - name: ♻️ Vitest cache
+      if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).vitest == true
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ inputs.working-directory }}/node_modules/.vite/vitest
+        key: ${{ runner.os }}-cache-vitest-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-cache-vitest-
 
     - name: ♻️ Astro cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).astro == true
