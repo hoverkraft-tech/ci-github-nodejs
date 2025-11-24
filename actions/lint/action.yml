@@ -68,24 +68,16 @@ runs:
       with:
         script: |
           const fs = require('node:fs');
-          const path = require('node:path');
-
-          const runScriptCommand = process.env.RUN_LINT_COMMAND;
-          const lintCommand = process.env.LINT_COMMAND || 'lint:ci';
-
-          let workingDirectory = process.env.WORKING_DIRECTORY || '.';
-          if (!path.isAbsolute(workingDirectory)) {
-            workingDirectory = path.join(process.env.GITHUB_WORKSPACE, workingDirectory);
-          }
-
+          const workingDirectory = process.env.WORKING_DIRECTORY;
           if (!fs.existsSync(workingDirectory)) {
             core.setFailed(`The specified working directory does not exist: ${workingDirectory}`);
             return;
           }
-
-          workingDirectory = path.resolve(workingDirectory);
           core.debug(`Running in working directory: ${workingDirectory}`);
           process.chdir(workingDirectory);
+
+          const runScriptCommand = process.env.RUN_LINT_COMMAND;
+          const lintCommand = process.env.LINT_COMMAND || 'lint:ci';
 
           core.info(`👕 Running lint command: ${lintCommand}...`);
 

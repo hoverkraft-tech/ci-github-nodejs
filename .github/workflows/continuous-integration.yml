@@ -330,6 +330,7 @@ jobs:
       build-env: ${{ steps.build-variables.outputs.env }}
       build-commands: ${{ steps.build-variables.outputs.commands }}
       build-artifact: ${{ steps.build-variables.outputs.artifact }}
+      working-directory: ${{ steps.build-variables.outputs.working-directory }}
     steps:
       - name: Checkout repository
         if: inputs.container == ''
@@ -355,6 +356,9 @@ jobs:
               core.setFailed(`The specified working directory does not exist: ${workingDirectory}`);
               return;
             }
+            workingDirectory = path.resolve(workingDirectory);
+            core.debug(`Running in working directory: ${workingDirectory}`);
+            core.setOutput('working-directory', workingDirectory);
 
             const buildInput = process.env.BUILD_INPUT.trim();
 
@@ -489,7 +493,7 @@ jobs:
       - name: Run lint
         uses: ./self-workflow/actions/lint
         with:
-          working-directory: ${{ inputs.working-directory }}
+          working-directory: ${{ needs.setup.outputs.working-directory }}
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           command: ${{ steps.preparel-lint-options.outputs.command }}
           report-file: ${{ steps.preparel-lint-options.outputs.report-file }}
@@ -536,7 +540,7 @@ jobs:
         uses: ./self-workflow/actions/build
         with:
           container: ${{ inputs.container != '' && 'true' || 'false' }}
-          working-directory: ${{ inputs.working-directory }}
+          working-directory: ${{ needs.setup.outputs.working-directory }}
           build-secrets: ${{ secrets.build-secrets }}
           build-commands: ${{ needs.setup.outputs.build-commands }}
           build-env: ${{ needs.setup.outputs.build-env }}
@@ -610,7 +614,7 @@ jobs:
       - name: Run tests
         uses: ./self-workflow/actions/test
         with:
-          working-directory: ${{ inputs.working-directory }}
+          working-directory: ${{ needs.setup.outputs.working-directory }}
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           command: ${{ steps.prepare-test-options.outputs.command }}
           coverage: ${{ steps.prepare-test-options.outputs.coverage }}
