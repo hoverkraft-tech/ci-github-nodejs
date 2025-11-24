@@ -64,8 +64,9 @@ runs:
           process.chdir(workingDirectory);
 
           const dependenciesPatterns = {
-            storybook: /@storybook\/[-a-z]+/,
-            nx: /@nx\/[-a-z]+/,
+            storybook: /@storybook\/[a-z0-9\-]+/,
+            nx: /@nx\/[a-z0-9\-]+/,
+            docusaurus: /@docusaurus\/[a-z0-9\-]+/,
           };
 
           const dependencies = `${{ inputs.dependencies }}`.split('\n').map(x => x.trim()).filter(x => x !== '');
