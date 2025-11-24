@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stc3F1YXJlIiBjb2xvcj0iYmx1ZSI+PHBvbHlsaW5lIHBvaW50cz0iOSAxMSAxMiAxNCAyMiA0Ij48L3BvbHlsaW5lPjxwYXRoIGQ9Ik0yMSAxMnY3YTIgMiAwIDAgMS0yIDJINWEyIDIgMCAwIDEtMi0yVjVhMiAyIDAgMCAxIDItMmgxMSI+PC9wYXRoPjwvc3ZnPg==) GitHub Action: Test
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/37509d7404c261847696d98c678948e95b072f3217fcfba735757b21fad5b5d7/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Test" />
+  <img src="https://opengraph.githubassets.com/9583af06e0716e1d6cf0f13319f864b9b10858c23c40a2073ed4ee97dc6dee98/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Test" />
 </div>
 
 ---
@@ -46,6 +46,9 @@ Action to test Node.js projects with support for coverage reporting and pull req
     # This should be a script defined in your `package.json`.
     # The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).
     #
+    # Vitest: `vitest run --reporter=default --reporter=junit --outputFile=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`
+    # Jest: `jest --ci --reporters=default --reporters=jest-junit --coverage`
+    #
     # Default: `test:ci`
     command: test:ci
 
@@ -86,6 +89,9 @@ Action to test Node.js projects with support for coverage reporting and pull req
 | **`command`**           | npm/pnpm/Yarn script command to run for testing.                                                                                                                       | **false**    | `test:ci`   |
 |                         | This should be a script defined in your `package.json`.                                                                                                                |              |             |
 |                         | The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).                                                                    |              |             |
+|                         |                                                                                                                                                                        |              |             |
+|                         | Vitest: `vitest run --reporter=default --reporter=junit --outputFile=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`                   |              |             |
+|                         | Jest: `jest --ci --reporters=default --reporters=jest-junit --coverage`                                                                                                |              |             |
 | **`coverage`**          | Code coverage reporter to use. Supported values:                                                                                                                       | **false**    | `github`    |
 |                         | - `github`: Parse coverage reports via [parse-ci-reports](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) action, with GitHub summaries/PR comments |              |             |
 |                         | - `codecov`: Upload coverage to Codecov                                                                                                                                |              |             |
