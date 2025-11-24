@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stY2lyY2xlIiBjb2xvcj0iYmx1ZSI+PHBhdGggZD0iTTIyIDExLjA4VjEyYTEwIDEwIDAgMSAxLTUuOTMtOS4xNCI+PC9wYXRoPjxwb2x5bGluZSBwb2ludHM9IjIyIDQgMTIgMTQuMDEgOSAxMS4wMSI+PC9wb2x5bGluZT48L3N2Zz4=) GitHub Action: Lint
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/671b0ea4350c2bc6b4d77231568b5cff82d03a757097ac80c75a7fc39b12901b/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Lint" />
+  <img src="https://opengraph.githubassets.com/37509d7404c261847696d98c678948e95b072f3217fcfba735757b21fad5b5d7/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Lint" />
 </div>
 
 ---
@@ -30,7 +30,7 @@ Action to lint Node.js projects with support for pull request reporting and anno
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@37ee7d1c137ffbd033eb3710d8fd43b7ed82ef4a # 0.20.3
+- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@ce2467e5d41ff0abe85094dcc39c98288448065a # 0.20.4
   with:
     # Working directory where lint commands are executed.
     # Can be absolute or relative to the repository root.
