@@ -58,7 +58,7 @@ on:
           Accepts a JSON object for lint options. See [lint action](../../actions/lint/README.md).
           It should generate lint reports in standard formats.
 
-          Example: 
+          Example:
 
           ```json:package.json
           {
@@ -90,7 +90,7 @@ on:
           Accepts a JSON object for test options. See [test action](../../actions/test/README.md).
           If coverage is enabled, it should generate test and coverage reports in standard formats.
 
-          Example: 
+          Example:
 
           ```json:package.json
           {
@@ -224,7 +224,7 @@ jobs:
               try {
                 const {pathMapping: parsedPathMapping, ...parsedContainer} = JSON.parse(containerInput);
                 core.debug(`Parsed container input as JSON: ${JSON.stringify(parsedContainer)}`);
-                
+
                 container = {
                   ...container,
                   ...parsedContainer,
@@ -234,7 +234,7 @@ jobs:
                 core.debug(`Parsed path mapping: ${JSON.stringify(parsedPathMapping)}`);
                 if (parsedPathMapping){
                   pathMapping = parsedPathMapping;
-                } 
+                }
 
               } catch (error) {
                 return core.setFailed(`Failed to parse container input as JSON: ${error.message}`,{ cause: error });
@@ -327,27 +327,25 @@ jobs:
       volumes: ${{ fromJSON(needs.prepare.outputs.container-volumes || '[]') }}
       credentials: ${{ fromJSON(needs.prepare.outputs.container-username && format('{{"username":{0},"password":{1}}}',toJSON(needs.prepare.outputs.container-username),toJSON(secrets.container-password)) || '{}') }}
     outputs:
+      working-directory: ${{ steps.working-directory.outputs.working-directory }}
       build-env: ${{ steps.build-variables.outputs.env }}
       build-commands: ${{ steps.build-variables.outputs.commands }}
       build-artifact: ${{ steps.build-variables.outputs.artifact }}
-      working-directory: ${{ steps.build-variables.outputs.working-directory }}
     steps:
       - name: Checkout repository
         if: inputs.container == ''
         uses: hoverkraft-tech/ci-github-common/actions/checkout@5e8d0e6d1e76d8577a070db6d0128a91b1c9d5ad # 0.30.2
 
-      - id: build-variables
-        if: inputs.build != ''
+      - id: working-directory
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKING_DIRECTORY: ${{ inputs.working-directory }}
-          BUILD_INPUT: ${{ inputs.build }}
+          WORKING_DIRECTORY_INPUT: ${{ inputs.working-directory }}
         with:
           script: |
             const fs = require('node:fs');
             const path = require('node:path');
 
-            let workingDirectory = process.env.WORKING_DIRECTORY || '.';
+            let workingDirectory = process.env.WORKING_DIRECTORY_INPUT || '.';
             if (!path.isAbsolute(workingDirectory)) {
               workingDirectory = path.join(process.env.GITHUB_WORKSPACE, workingDirectory);
             }
@@ -360,6 +358,17 @@ jobs:
             core.debug(`Running in working directory: ${workingDirectory}`);
             core.setOutput('working-directory', workingDirectory);
 
+      - id: build-variables
+        if: inputs.build != ''
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          WORKING_DIRECTORY: ${{ steps.working-directory.outputs.working-directory }}
+          BUILD_INPUT: ${{ inputs.build }}
+        with:
+          script: |
+            const path = require('node:path');
+
+            const workingDirectory = process.env.WORKING_DIRECTORY;
             const buildInput = process.env.BUILD_INPUT.trim();
 
             let commands = [];
