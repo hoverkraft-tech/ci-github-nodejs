@@ -31,6 +31,7 @@ Action to setup dependencies cache managment.
 - NX (`node_modules/.cache/nx`)
 - Prettier (`node_modules/.cache/prettier`)
 - Docusaurus (`.docusaurus`, `node_modules/.cache/webpack`)
+- Vitest (`node_modules/.vitest`)
 - Astro (`node_modules/.astro`)
 - Gatsby (`.cache`, `public`)
 - Storybook (`node_modules/.cache/storybook`)

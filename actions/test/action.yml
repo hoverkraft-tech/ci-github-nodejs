@@ -68,6 +68,7 @@ runs:
         dependencies-cache: |
           nx
           jest
+          vitest
 
     - id: get-package-manager
       if: inputs.container == 'true'

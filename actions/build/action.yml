@@ -79,6 +79,8 @@ runs:
           nx
           gatsby
           storybook
+          astro
+          docusaurus
 
     - id: get-package-manager
       if: inputs.container == 'true'
