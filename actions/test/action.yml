@@ -119,7 +119,7 @@ runs:
     - name: 📊 Parse coverage reports
       if: always() && inputs.coverage == 'github'
       id: parse-coverage-reports
-      uses: hoverkraft-tech/ci-github-common/actions/parse-ci-reports@c314229c3ca6914f7023ffca7afc26753ab99b41 # 0.30.1
+      uses: hoverkraft-tech/ci-github-common/actions/parse-ci-reports@5e8d0e6d1e76d8577a070db6d0128a91b1c9d5ad # 0.30.2
       with:
         working-directory: ${{ inputs.working-directory }}
         report-name: "Coverage Results"
@@ -129,7 +129,7 @@ runs:
 
     - name: 📊 Add coverage PR comment
       if: always() && inputs.coverage == 'github' && github.event_name == 'pull_request' && steps.parse-coverage-reports.outputs.markdown
-      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@c314229c3ca6914f7023ffca7afc26753ab99b41 # 0.30.1
+      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@5e8d0e6d1e76d8577a070db6d0128a91b1c9d5ad # 0.30.2
       with:
         title: "Code Coverage Report"
         body: ${{ steps.parse-coverage-reports.outputs.markdown }}
