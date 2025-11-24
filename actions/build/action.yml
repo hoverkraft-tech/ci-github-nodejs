@@ -167,6 +167,7 @@ runs:
         name: ${{ fromJSON(inputs.build-artifact).name }}
         path: ${{ fromJSON(inputs.build-artifact).paths }}
         if-no-files-found: error
+        include-hidden-files: true
 
     # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
     - shell: bash
