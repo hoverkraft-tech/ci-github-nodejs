@@ -124,24 +124,16 @@ runs:
       with:
         script: |
           const fs = require('node:fs');
-          const path = require('node:path');
-
-          const buildCommands = process.env.BUILD_COMMANDS || '';
-          const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
-
-          let workingDirectory = process.env.WORKING_DIRECTORY || '.';
-          if (!path.isAbsolute(workingDirectory)) {
-            workingDirectory = path.join(process.env.GITHUB_WORKSPACE, workingDirectory);
-          }
-
+          const workingDirectory = process.env.WORKING_DIRECTORY;
           if (!fs.existsSync(workingDirectory)) {
             core.setFailed(`The specified working directory does not exist: ${workingDirectory}`);
             return;
           }
-
-          workingDirectory = path.resolve(workingDirectory);
           core.debug(`Running in working directory: ${workingDirectory}`);
           process.chdir(workingDirectory);
+
+          const buildCommands = process.env.BUILD_COMMANDS || '';
+          const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
 
           const commands = buildCommands.split('\n')
             .map(cmd => cmd.trim())
