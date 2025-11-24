@@ -21,6 +21,10 @@ inputs:
       npm/pnpm/Yarn script command to run for linting.
       This should be a script defined in your `package.json`.
       The command should generate lint report files in a standard format.
+
+      ESLint: `eslint --format json -o eslint-report.json .`
+      Prettier: `prettier --check . | tee prettier-report.txt`
+      Astro: `astro check | tee astro-report.txt`
     required: false
     default: "lint:ci"
   report-file:

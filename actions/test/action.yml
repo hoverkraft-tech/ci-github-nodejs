@@ -21,6 +21,9 @@ inputs:
       npm/pnpm/Yarn script command to run for testing.
       This should be a script defined in your `package.json`.
       The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).
+
+      Vitest: `vitest run --reporter=default --reporter=junit --outputFile=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`
+      Jest: `jest --ci --reporters=default --reporters=jest-junit --coverage`
     required: false
     default: "test:ci"
   coverage:
