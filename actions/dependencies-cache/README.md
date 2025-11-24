@@ -26,6 +26,16 @@
 
 Action to setup dependencies cache managment.
 
+### Supported caches
+
+- NX (`node_modules/.cache/nx`)
+- Prettier (`node_modules/.cache/prettier`)
+- Docusaurus (`.docusaurus`, `node_modules/.cache/webpack`)
+- Astro (`node_modules/.astro`)
+- Gatsby (`.cache`, `public`)
+- Storybook (`node_modules/.cache/storybook`)
+- Jest (auto-detected `cacheDirectory`)
+
 <!-- overview:end -->
 
 <!-- usage:start -->
