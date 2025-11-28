@@ -130,7 +130,7 @@ on:
             "credentials": {
               "username": "myusername"
             },
-            pathMapping: {
+            "pathMapping": {
               "/app": "./relative/path/to/app"
             }
           }

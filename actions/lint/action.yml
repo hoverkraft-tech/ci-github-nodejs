@@ -29,7 +29,7 @@ inputs:
     default: "lint:ci"
   report-file:
     description: |
-      Optional lint report path forwarded to the [parse-ci-reports](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) action.
+      Optional lint report path forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/parse-ci-reports) action.
       Provide an absolute path or one relative to the working directory.
       When omitted, the action falls back to `auto:lint` detection.
     required: false
@@ -37,7 +37,7 @@ inputs:
   path-mapping:
     description: |
       Optional path mapping to adjust file paths in test and coverage reports.
-      See the [parse-ci-reports documentation](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) for details.
+      See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/parse-ci-reports) for details.
     required: false
     default: ""
 

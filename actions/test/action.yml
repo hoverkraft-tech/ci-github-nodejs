@@ -29,14 +29,14 @@ inputs:
   coverage:
     description: |
       Code coverage reporter to use. Supported values:
-      - `github`: Parse coverage reports via [parse-ci-reports](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) action, with GitHub summaries/PR comments
+      - `github`: Parse coverage reports via [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/parse-ci-reports) action, with GitHub summaries/PR comments
       - `codecov`: Upload coverage to Codecov
       - `""` or `null`: No coverage reporting
     required: false
     default: "github"
   report-file:
     description: |
-      Optional test and coverage report paths forwarded to the [parse-ci-reports](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) action.
+      Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/parse-ci-reports) action.
       Supports multiple formats (Cobertura, OpenCover, lcov, etc.).
       Provide absolute paths or paths relative to the working directory.
       Multiple entries can be separated by newlines, commas, or semicolons.
