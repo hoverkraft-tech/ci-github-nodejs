@@ -51,58 +51,58 @@ runs:
       with:
         +: ${{ steps.check-codecov-deps.outputs.missing-deps }}
 
-    # Fix pkgxdev gnupg's gpgconf.ctl which contains unexpanded environment variables
-    - name: Fix GPG configuration
-      if: contains(steps.check-codecov-deps.outputs.missing-deps, 'gnupg.org')
+    - name: Fix unexpanded environment variables
+      if: steps.check-codecov-deps.outputs.missing-deps
       uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       with:
         script: |
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const os = require('node:os');
 
-          // Find and remove the malformed gpgconf.ctl file that contains unexpanded shell variables
-          // The pkgxdev gnupg installs gpgconf.ctl next to the gpgconf binary
-          try {
-            const gpgconfPath = await io.which('gpgconf', false);
-            if (gpgconfPath) {
-              const gpgconfCtl = path.join(path.dirname(gpgconfPath), 'gpgconf.ctl');
-              if (fs.existsSync(gpgconfCtl)) {
-                core.info(`Removing malformed gpgconf.ctl: ${gpgconfCtl}`);
-                await io.rmRF(gpgconfCtl);
-              }
+          const templatePattern = /\$\{([^}:]+)(?::-([^}]*))?\}/;
+          const unsafeSyntaxPattern = /`|\$\(/;
+
+          // Use bash parameter expansion to mirror pkgx-style ${VAR:-default} templates safely.
+          const resolveWithBash = async (value) => {
+            const sanitizedValue = value.replace(/(["\\])/g, '\\$1');
+            const shellScript = [
+              'set -eo pipefail',
+              `resolved_value="${sanitizedValue}"`,
+              "printf '%s' \"${resolved_value}\"",
+            ].join('\n');
+
+            const { stdout } = await exec.getExecOutput(
+              'bash',
+              ['-c', shellScript],
+              { env: process.env, silent: true }
+            );
+
+            return stdout;
+          };
+
+          for (const [envKey, rawValue] of Object.entries(process.env)) {
+            if (typeof rawValue !== 'string' || !templatePattern.test(rawValue)) {
+              core.debug(`Skipping ${envKey} because it does not match the template pattern.`);
+              continue;
             }
-          } catch (error) {
-            core.warning(`Failed to check/remove gpgconf.ctl: ${error.message}`);
-          }
-
-          // Ensure GNUPGHOME is set up correctly
-          const gnupgHome = path.join(os.homedir(), '.gnupg');
-          await io.mkdirP(gnupgHome);
-          fs.chmodSync(gnupgHome, 0o700);
-
-    # Fix pkgxdev curl's .curlrc which contains unexpanded environment variables
-    - name: Fix curl configuration
-      if: contains(steps.check-codecov-deps.outputs.missing-deps, 'curl')
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-      with:
-        script: |
-          const fs = require('node:fs');
-          const path = require('node:path');
-
-          // Find and fix the .curlrc file that contains unexpanded shell variables like ${SSL_CERT_FILE:-...}
-          // The pkgxdev curl installs .curlrc next to the curl binary
-          try {
-            const curlPath = await io.which('curl', false);
-            if (curlPath) {
-              const curlrc = path.join(path.dirname(curlPath), '.curlrc');
-              if (fs.existsSync(curlrc)) {
-                core.info(`Removing malformed .curlrc: ${curlrc}`);
-                await io.rmRF(curlrc);
-              }
+            
+            if (unsafeSyntaxPattern.test(rawValue)) {
+              core.debug(`Skipping ${envKey} because it contains unsupported command substitution syntax.`);
+              continue;
             }
-          } catch (error) {
-            core.warning(`Failed to check/remove .curlrc: ${error.message}`);
+
+            try {
+              const resolvedValue = await resolveWithBash(rawValue);
+
+              if (resolvedValue === rawValue) {
+                core.debug(`No changes for ${envKey}, skipping update.`);
+                continue;
+              }
+
+              core.debug(`Resolved ${envKey}: "${rawValue}" -> "${resolvedValue}"`);
+              process.env[envKey] = resolvedValue;
+              core.exportVariable(envKey, resolvedValue);
+            } catch (error) {
+              core.warning(`Failed to resolve ${envKey}: ${error.message}`);
+            }
           }
 
     - name: 📊 Upload coverage to Codecov
