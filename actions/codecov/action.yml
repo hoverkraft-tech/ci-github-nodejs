@@ -51,58 +51,103 @@ runs:
       with:
         +: ${{ steps.check-codecov-deps.outputs.missing-deps }}
 
-    # Fix pkgxdev gnupg's gpgconf.ctl which contains unexpanded environment variables
-    - name: Fix GPG configuration
-      if: contains(steps.check-codecov-deps.outputs.missing-deps, 'gnupg.org')
+    - name: Fix unexpanded environment variables
+      if: steps.check-codecov-deps.outputs.missing-deps
       uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       with:
         script: |
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const os = require('node:os');
+          const templatePattern = /\$\{([^}:]+)(?::-([^}]*))?\}/g;
+          const unsafeSyntaxPattern = /`|\$\(/;
+          const resolving = new Set();
+          const resolvedCache = new Map();
 
-          // Find and remove the malformed gpgconf.ctl file that contains unexpanded shell variables
-          // The pkgxdev gnupg installs gpgconf.ctl next to the gpgconf binary
-          try {
-            const gpgconfPath = await io.which('gpgconf', false);
-            if (gpgconfPath) {
-              const gpgconfCtl = path.join(path.dirname(gpgconfPath), 'gpgconf.ctl');
-              if (fs.existsSync(gpgconfCtl)) {
-                core.info(`Removing malformed gpgconf.ctl: ${gpgconfCtl}`);
-                await io.rmRF(gpgconfCtl);
-              }
+          const hasTemplate = (value) => {
+            if (typeof value !== 'string') {
+              return false;
             }
-          } catch (error) {
-            core.warning(`Failed to check/remove gpgconf.ctl: ${error.message}`);
-          }
 
-          // Ensure GNUPGHOME is set up correctly
-          const gnupgHome = path.join(os.homedir(), '.gnupg');
-          await io.mkdirP(gnupgHome);
-          fs.chmodSync(gnupgHome, 0o700);
+            templatePattern.lastIndex = 0;
+            return templatePattern.test(value);
+          };
 
-    # Fix pkgxdev curl's .curlrc which contains unexpanded environment variables
-    - name: Fix curl configuration
-      if: contains(steps.check-codecov-deps.outputs.missing-deps, 'curl')
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-      with:
-        script: |
-          const fs = require('node:fs');
-          const path = require('node:path');
+          const getReferencedVariables = (value) => {
+            templatePattern.lastIndex = 0;
+            return Array.from(value.matchAll(templatePattern), (match) => match[1]);
+          };
 
-          // Find and fix the .curlrc file that contains unexpanded shell variables like ${SSL_CERT_FILE:-...}
-          // The pkgxdev curl installs .curlrc next to the curl binary
-          try {
-            const curlPath = await io.which('curl', false);
-            if (curlPath) {
-              const curlrc = path.join(path.dirname(curlPath), '.curlrc');
-              if (fs.existsSync(curlrc)) {
-                core.info(`Removing malformed .curlrc: ${curlrc}`);
-                await io.rmRF(curlrc);
-              }
+          const sanitizeForDoubleQuotes = (value) => value.replace(/(["\\])/g, '\\$1');
+
+          const resolveEnvVariable = async (envKey) => {
+            const rawValue = process.env[envKey];
+
+            if (!hasTemplate(rawValue)) {
+              core.debug(`Skipping ${envKey} because it does not match the template pattern.`);
+              return rawValue;
             }
-          } catch (error) {
-            core.warning(`Failed to check/remove .curlrc: ${error.message}`);
+
+            if (unsafeSyntaxPattern.test(rawValue)) {
+              core.debug(`Skipping ${envKey} because it contains unsupported command substitution syntax.`);
+              return rawValue;
+            }
+
+            if (resolvedCache.has(envKey)) {
+              return resolvedCache.get(envKey);
+            }
+
+            if (resolving.has(envKey)) {
+              core.debug(`Detected circular reference while resolving ${envKey}, falling back to defaults.`);
+              return rawValue;
+            }
+
+            resolving.add(envKey);
+
+            const referencedVariables = getReferencedVariables(rawValue);
+            for (const variableName of referencedVariables) {
+              if (variableName === envKey) {
+                continue;
+              }
+
+              await resolveEnvVariable(variableName);
+            }
+
+            const envForBash = { ...process.env };
+            delete envForBash[envKey];
+
+            const scriptLines = [
+              'set -eo pipefail',
+              `resolved_value="${sanitizeForDoubleQuotes(rawValue)}"`,
+              "printf '%s' \"${resolved_value}\"",
+            ];
+
+            let resolvedValue = rawValue;
+            try {
+              const { stdout } = await exec.getExecOutput(
+                'bash',
+                ['-c', scriptLines.join('\n')],
+                { env: envForBash, silent: true }
+              );
+
+              resolvedValue = stdout.replace(/\r?\n$/, '');
+            } catch (error) {
+              core.warning(`Failed to resolve ${envKey}: ${error.message}`);
+            }
+
+            resolving.delete(envKey);
+            resolvedCache.set(envKey, resolvedValue);
+
+            if (resolvedValue !== rawValue) {
+              core.debug(`Resolved ${envKey}: "${rawValue}" -> "${resolvedValue}"`);
+              process.env[envKey] = resolvedValue;
+              core.exportVariable(envKey, resolvedValue);
+            } else {
+              core.debug(`No changes for ${envKey}, skipping update.`);
+            }
+
+            return resolvedValue;
+          };
+
+          for (const envKey of Object.keys(process.env)) {
+            await resolveEnvVariable(envKey);
           }
 
     - name: 📊 Upload coverage to Codecov
