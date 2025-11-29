@@ -138,9 +138,34 @@ runs:
         title: "Code Coverage Report"
         body: ${{ steps.parse-coverage-reports.outputs.markdown }}
 
-    # Install dependencies for codecov in container mode
-    - name: Install Codecov dependencies
+    # Check and install dependencies for codecov in container mode
+    - name: Check and install Codecov dependencies
       if: inputs.coverage == 'codecov' && inputs.container == 'true'
+      id: check-codecov-deps
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      with:
+        script: |
+          const path = require('node:path');
+
+          // Check which dependencies are missing
+          const deps = ['git', 'curl', 'gpg'];
+          const missingDeps = [];
+
+          for (const dep of deps) {
+            try {
+              await io.which(dep, true);
+              core.info(`✓ ${dep} is already available`);
+            } catch {
+              core.info(`✗ ${dep} is not available, will be installed`);
+              missingDeps.push(dep);
+            }
+          }
+
+          core.setOutput('missing-deps', missingDeps.join(' '));
+          core.setOutput('needs-install', missingDeps.length > 0 ? 'true' : 'false');
+
+    - name: Install missing Codecov dependencies
+      if: inputs.coverage == 'codecov' && inputs.container == 'true' && steps.check-codecov-deps.outputs.needs-install == 'true'
       uses: pkgxdev/setup@f211ee4db3110b42e5a156282372527e7c1ed723 # v4.0.0
       with:
         +: git curl gnupg.org
@@ -148,23 +173,32 @@ runs:
     # Fix pkgxdev gnupg's gpgconf.ctl which contains unexpanded environment variables
     - name: Fix GPG configuration
       if: inputs.coverage == 'codecov' && inputs.container == 'true'
-      shell: bash
-      run: |
-        # Find and remove the malformed gpgconf.ctl file that contains unexpanded shell variables
-        # The pkgxdev gnupg installs gpgconf.ctl next to the gpgconf binary
-        if command -v gpgconf >/dev/null 2>&1; then
-          gpgconf_bin=$(command -v gpgconf)
-          gpgconf_ctl="$(dirname "$gpgconf_bin")/gpgconf.ctl"
-          if [ -f "$gpgconf_ctl" ]; then
-            echo "Removing malformed gpgconf.ctl: $gpgconf_ctl"
-            if ! rm -f "$gpgconf_ctl"; then
-              echo "Warning: Failed to remove gpgconf.ctl, GPG may not work correctly"
-            fi
-          fi
-        fi
-        # Ensure GNUPGHOME is set up correctly
-        mkdir -p "$HOME/.gnupg"
-        chmod 700 "$HOME/.gnupg"
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      with:
+        script: |
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const os = require('node:os');
+
+          // Find and remove the malformed gpgconf.ctl file that contains unexpanded shell variables
+          // The pkgxdev gnupg installs gpgconf.ctl next to the gpgconf binary
+          try {
+            const gpgconfPath = await io.which('gpgconf', false);
+            if (gpgconfPath) {
+              const gpgconfCtl = path.join(path.dirname(gpgconfPath), 'gpgconf.ctl');
+              if (fs.existsSync(gpgconfCtl)) {
+                core.info(`Removing malformed gpgconf.ctl: ${gpgconfCtl}`);
+                await io.rmRF(gpgconfCtl);
+              }
+            }
+          } catch (error) {
+            core.warning(`Failed to check/remove gpgconf.ctl: ${error.message}`);
+          }
+
+          // Ensure GNUPGHOME is set up correctly
+          const gnupgHome = path.join(os.homedir(), '.gnupg');
+          await io.mkdirP(gnupgHome);
+          fs.chmodSync(gnupgHome, 0o700);
 
     - name: 📊 Upload coverage to Codecov
       if: always() && inputs.coverage == 'codecov'
