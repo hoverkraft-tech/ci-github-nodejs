@@ -143,7 +143,26 @@ runs:
       if: inputs.coverage == 'codecov' && inputs.container == 'true'
       uses: pkgxdev/setup@f211ee4db3110b42e5a156282372527e7c1ed723 # v4.0.0
       with:
-        +: git curl
+        +: git curl gnupg.org
+
+    # Fix pkgxdev gnupg's gpgconf.ctl which contains unexpanded environment variables
+    - name: Fix GPG configuration
+      if: inputs.coverage == 'codecov' && inputs.container == 'true'
+      shell: bash
+      run: |
+        # Find and remove the malformed gpgconf.ctl file that contains unexpanded shell variables
+        if command -v gpgconf >/dev/null 2>&1; then
+          gpgconf_ctl=$(dirname "$(which gpgconf)")/gpgconf.ctl
+          if [ -f "$gpgconf_ctl" ]; then
+            echo "Removing malformed gpgconf.ctl: $gpgconf_ctl"
+            rm -f "$gpgconf_ctl"
+          fi
+        fi
+        # Ensure GNUPGHOME is set up correctly
+        if [ -n "$HOME" ]; then
+          mkdir -p "$HOME/.gnupg"
+          chmod 700 "$HOME/.gnupg"
+        fi
 
     - name: 📊 Upload coverage to Codecov
       if: always() && inputs.coverage == 'codecov'
@@ -155,9 +174,6 @@ runs:
         use_oidc: true
         disable_telem: true
         fail_ci_if_error: false
-        # Skip validation in container mode because pkgxdev-installed gnupg has issues
-        # with gpgconf.ctl containing unexpanded environment variables
-        skip_validation: ${{ inputs.container == 'true' }}
 
     # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
     - shell: bash
