@@ -53,6 +53,10 @@ inputs:
     description: |
       GitHub token for coverage PR comments.
       Required when coverage is set to `github`.
+      Requires permissions to create and update PR comments:
+
+      - `issues: write`
+      - `pull-requests: write`
     required: false
     default: ""
 
@@ -140,39 +144,36 @@ runs:
 
     # Check and install dependencies for codecov in container mode
     - name: Check and install Codecov dependencies
-      if: inputs.coverage == 'codecov' && inputs.container == 'true'
+      if: always() &&  inputs.coverage == 'codecov' && inputs.container == 'true'
       id: check-codecov-deps
       uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       with:
         script: |
-          const path = require('node:path');
-
           // Check which dependencies are missing
-          const deps = ['git', 'curl', 'gpg'];
+          const deps = {"git": "git", "curl": "curl", "gpg": "gnupg.org"};
           const missingDeps = [];
 
-          for (const dep of deps) {
+          for (const [dep, pkg] of Object.entries(deps)) {
             try {
               await io.which(dep, true);
-              core.info(`✓ ${dep} is already available`);
             } catch {
-              core.info(`✗ ${dep} is not available, will be installed`);
-              missingDeps.push(dep);
+              missingDeps.push(pkg);
             }
           }
 
-          core.setOutput('missing-deps', missingDeps.join(' '));
-          core.setOutput('needs-install', missingDeps.length > 0 ? 'true' : 'false');
+          if (missingDeps.length > 0) {
+            core.setOutput('missing-deps', missingDeps.join(' '));
+          }
 
     - name: Install missing Codecov dependencies
-      if: inputs.coverage == 'codecov' && inputs.container == 'true' && steps.check-codecov-deps.outputs.needs-install == 'true'
+      if: always() && steps.check-codecov-deps.outputs.missing-deps
       uses: pkgxdev/setup@f211ee4db3110b42e5a156282372527e7c1ed723 # v4.0.0
       with:
-        +: git curl gnupg.org
+        +: ${{ steps.check-codecov-deps.outputs.missing-deps }}
 
     # Fix pkgxdev gnupg's gpgconf.ctl which contains unexpanded environment variables
     - name: Fix GPG configuration
-      if: inputs.coverage == 'codecov' && inputs.container == 'true'
+      if: always() && contains(steps.check-codecov-deps.outputs.missing-deps, 'gnupg.org')
       uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       with:
         script: |
