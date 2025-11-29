@@ -151,18 +151,18 @@ runs:
       shell: bash
       run: |
         # Find and remove the malformed gpgconf.ctl file that contains unexpanded shell variables
+        # The pkgxdev gnupg installs gpgconf.ctl next to the gpgconf binary
         if command -v gpgconf >/dev/null 2>&1; then
-          gpgconf_ctl=$(dirname "$(which gpgconf)")/gpgconf.ctl
+          gpgconf_bin=$(command -v gpgconf)
+          gpgconf_ctl="$(dirname "$gpgconf_bin")/gpgconf.ctl"
           if [ -f "$gpgconf_ctl" ]; then
             echo "Removing malformed gpgconf.ctl: $gpgconf_ctl"
             rm -f "$gpgconf_ctl"
           fi
         fi
         # Ensure GNUPGHOME is set up correctly
-        if [ -n "$HOME" ]; then
-          mkdir -p "$HOME/.gnupg"
-          chmod 700 "$HOME/.gnupg"
-        fi
+        mkdir -p "$HOME/.gnupg"
+        chmod 700 "$HOME/.gnupg"
 
     - name: 📊 Upload coverage to Codecov
       if: always() && inputs.coverage == 'codecov'
