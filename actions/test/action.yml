@@ -157,7 +157,9 @@ runs:
           gpgconf_ctl="$(dirname "$gpgconf_bin")/gpgconf.ctl"
           if [ -f "$gpgconf_ctl" ]; then
             echo "Removing malformed gpgconf.ctl: $gpgconf_ctl"
-            rm -f "$gpgconf_ctl"
+            if ! rm -f "$gpgconf_ctl"; then
+              echo "Warning: Failed to remove gpgconf.ctl, GPG may not work correctly"
+            fi
           fi
         fi
         # Ensure GNUPGHOME is set up correctly
