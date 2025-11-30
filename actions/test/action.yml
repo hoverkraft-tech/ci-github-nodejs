@@ -209,7 +209,6 @@ runs:
         script: |
           const fs = require('node:fs');
           const path = require('node:path');
-          const os = require('node:os');
 
           // Find and fix the .curlrc file that contains unexpanded shell variables like ${SSL_CERT_FILE:-...}
           // The pkgxdev curl installs .curlrc next to the curl binary
