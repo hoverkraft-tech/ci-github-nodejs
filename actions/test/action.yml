@@ -142,99 +142,12 @@ runs:
         title: "Code Coverage Report"
         body: ${{ steps.parse-coverage-reports.outputs.markdown }}
 
-    # Check and install dependencies for codecov in container mode
-    - name: Check and install Codecov dependencies
-      if: always() &&  inputs.coverage == 'codecov' && inputs.container == 'true'
-      id: check-codecov-deps
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-      with:
-        script: |
-          // Check which dependencies are missing
-          const deps = {"git": "git", "curl": "curl", "gpg": "gnupg.org"};
-          const missingDeps = [];
-
-          for (const [dep, pkg] of Object.entries(deps)) {
-            try {
-              await io.which(dep, true);
-            } catch {
-              missingDeps.push(pkg);
-            }
-          }
-
-          if (missingDeps.length > 0) {
-            core.setOutput('missing-deps', missingDeps.join(' '));
-          }
-
-    - name: Install missing Codecov dependencies
-      if: always() && steps.check-codecov-deps.outputs.missing-deps
-      uses: pkgxdev/setup@f211ee4db3110b42e5a156282372527e7c1ed723 # v4.0.0
-      with:
-        +: ${{ steps.check-codecov-deps.outputs.missing-deps }}
-
-    # Fix pkgxdev gnupg's gpgconf.ctl which contains unexpanded environment variables
-    - name: Fix GPG configuration
-      if: always() && contains(steps.check-codecov-deps.outputs.missing-deps, 'gnupg.org')
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-      with:
-        script: |
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const os = require('node:os');
-
-          // Find and remove the malformed gpgconf.ctl file that contains unexpanded shell variables
-          // The pkgxdev gnupg installs gpgconf.ctl next to the gpgconf binary
-          try {
-            const gpgconfPath = await io.which('gpgconf', false);
-            if (gpgconfPath) {
-              const gpgconfCtl = path.join(path.dirname(gpgconfPath), 'gpgconf.ctl');
-              if (fs.existsSync(gpgconfCtl)) {
-                core.info(`Removing malformed gpgconf.ctl: ${gpgconfCtl}`);
-                await io.rmRF(gpgconfCtl);
-              }
-            }
-          } catch (error) {
-            core.warning(`Failed to check/remove gpgconf.ctl: ${error.message}`);
-          }
-
-          // Ensure GNUPGHOME is set up correctly
-          const gnupgHome = path.join(os.homedir(), '.gnupg');
-          await io.mkdirP(gnupgHome);
-          fs.chmodSync(gnupgHome, 0o700);
-
-    # Fix pkgxdev curl's .curlrc which contains unexpanded environment variables
-    - name: Fix curl configuration
-      if: always() && contains(steps.check-codecov-deps.outputs.missing-deps, 'curl')
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-      with:
-        script: |
-          const fs = require('node:fs');
-          const path = require('node:path');
-
-          // Find and fix the .curlrc file that contains unexpanded shell variables like ${SSL_CERT_FILE:-...}
-          // The pkgxdev curl installs .curlrc next to the curl binary
-          try {
-            const curlPath = await io.which('curl', false);
-            if (curlPath) {
-              const curlrc = path.join(path.dirname(curlPath), '.curlrc');
-              if (fs.existsSync(curlrc)) {
-                core.info(`Removing malformed .curlrc: ${curlrc}`);
-                await io.rmRF(curlrc);
-              }
-            }
-          } catch (error) {
-            core.warning(`Failed to check/remove .curlrc: ${error.message}`);
-          }
-
     - name: 📊 Upload coverage to Codecov
       if: always() && inputs.coverage == 'codecov'
-      uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
+      uses: ./self-test-action/codecov
       with:
-        directory: ${{ inputs.working-directory }}
-        root_dir: ${{ inputs.working-directory }}
         working-directory: ${{ inputs.working-directory }}
-        use_oidc: true
-        disable_telem: true
-        fail_ci_if_error: false
+        container: ${{ inputs.container }}
 
     # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
     - shell: bash
