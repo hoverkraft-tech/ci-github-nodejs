@@ -147,7 +147,6 @@ runs:
       uses: ./self-test-action/codecov
       with:
         working-directory: ${{ inputs.working-directory }}
-        container: ${{ inputs.container }}
 
     # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
     - shell: bash

@@ -1,37 +1,92 @@
-# Codecov Action
+<!-- header:start -->
 
-Action to upload coverage to Codecov with support for container mode.
+# ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItdXBsb2FkLWNsb3VkIiBjb2xvcj0iYmx1ZSI+PHBvbHlsaW5lIHBvaW50cz0iMTYgMTYgMTIgMTIgOCAxNiI+PC9wb2x5bGluZT48bGluZSB4MT0iMTIiIHkxPSIxMiIgeDI9IjEyIiB5Mj0iMjEiPjwvbGluZT48cGF0aCBkPSJNMjAuMzkgMTguMzlBNSA1IDAgMCAwIDE4IDloLTEuMjZBOCA4IDAgMSAwIDMgMTYuMyI+PC9wYXRoPjxwb2x5bGluZSBwb2ludHM9IjE2IDE2IDEyIDEyIDggMTYiPjwvcG9seWxpbmU+PC9zdmc+) GitHub Action: Codecov
+
+<div align="center">
+  <img src="https://opengraph.githubassets.com/36aa7cc4e1d084a81183a986cfab32857be10fa31cf7e5e4b9820a5989b4dae9/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Codecov" />
+</div>
+
+---
+
+<!-- header:end -->
+<!-- badges:start -->
+
+[![Marketplace](https://img.shields.io/badge/Marketplace-codecov-blue?logo=github-actions)](https://github.com/marketplace/actions/codecov)
+[![Release](https://img.shields.io/github/v/release/hoverkraft-tech/ci-github-nodejs)](https://github.com/hoverkraft-tech/ci-github-nodejs/releases)
+[![License](https://img.shields.io/github/license/hoverkraft-tech/ci-github-nodejs)](http://choosealicense.com/licenses/mit/)
+[![Stars](https://img.shields.io/github/stars/hoverkraft-tech/ci-github-nodejs?style=social)](https://img.shields.io/github/stars/hoverkraft-tech/ci-github-nodejs?style=social)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/hoverkraft-tech/ci-github-nodejs/blob/main/CONTRIBUTING.md)
+
+<!-- badges:end -->
+<!-- overview:start -->
 
 ## Overview
 
-This action handles uploading code coverage to Codecov. When running in container mode, it automatically installs required dependencies (Git, cURL, gnupg) via pkgxdev, fixes configuration issues with unexpanded environment variables, uploads coverage, and then cleans up the installed dependencies.
+Action to upload coverage to Codecov.
+
+- **Automatic dependency management**: Automatically detects and installs missing dependencies (Git, cURL, gnupg) using pkgxdev
+- **Configuration fixes**: Automatically fixes pkgxdev configuration issues with unexpanded environment variables in gpgconf.ctl and .curlrc files
+- **Cleanup**: Uninstalls dependencies after Codecov upload is complete
+- **OIDC support**: Uses OIDC authentication with Codecov for secure uploads
+
+<!-- overview:end -->
+<!-- usage:start -->
 
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/codecov@main
+- uses: hoverkraft-tech/ci-github-nodejs/actions/codecov@9f334582b395b78e4d7c88fa08a8957a8fe5513c # copilot/fix-variable-expansion-issue
   with:
     # Working directory where coverage files are located.
     # Can be absolute or relative to the repository root.
     #
     # Default: `.`
     working-directory: .
-
-    # Whether running in container mode (installs dependencies if needed)
-    # Default: `false`
-    container: "false"
 ```
+
+<!-- usage:end -->
+<!-- inputs:start -->
 
 ## Inputs
 
-| **Input**               | **Description**                                                     | **Required** | **Default** |
-| ----------------------- | ------------------------------------------------------------------- | ------------ | ----------- |
-| **`working-directory`** | Working directory where coverage files are located.                 | **false**    | `.`         |
-| **`container`**         | Whether running in container mode (installs dependencies if needed) | **false**    | `false`     |
+| **Input**               | **Description**                                     | **Required** | **Default** |
+| ----------------------- | --------------------------------------------------- | ------------ | ----------- |
+| **`working-directory`** | Working directory where coverage files are located. | **false**    | `.`         |
+|                         | Can be absolute or relative to the repository root. |              |             |
 
-## Features
+<!-- inputs:end -->
+<!-- secrets:start -->
+<!-- secrets:end -->
+<!-- outputs:start -->
+<!-- outputs:end -->
+<!-- examples:start -->
+<!-- examples:end -->
+<!-- contributing:start -->
 
-- **Automatic dependency management**: In container mode, automatically detects and installs missing dependencies (Git, cURL, gnupg) using pkgxdev
-- **Configuration fixes**: Automatically fixes pkgxdev configuration issues with unexpanded environment variables in gpgconf.ctl and .curlrc files
-- **Cleanup**: Uninstalls dependencies after Codecov upload is complete
-- **OIDC support**: Uses OIDC authentication with Codecov for secure uploads
+## Contributing
+
+Contributions are welcome! Please see the [contributing guidelines](https://github.com/hoverkraft-tech/ci-github-nodejs/blob/main/CONTRIBUTING.md) for more details.
+
+<!-- contributing:end -->
+<!-- security:start -->
+<!-- security:end -->
+<!-- license:start -->
+
+## License
+
+This project is licensed under the MIT License.
+
+SPDX-License-Identifier: MIT
+
+Copyright © 2025 hoverkraft
+
+For more details, see the [license](http://choosealicense.com/licenses/mit/).
+
+<!-- license:end -->
+<!-- generated:start -->
+
+---
+
+This documentation was automatically generated by [CI Dokumentor](https://github.com/hoverkraft-tech/ci-dokumentor).
+
+<!-- generated:end -->
