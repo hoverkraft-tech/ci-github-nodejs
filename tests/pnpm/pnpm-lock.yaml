@@ -18,11 +18,11 @@ importers:
         specifier: ^22.1.3
         version: 22.1.3
       prettier:
-        specifier: ^3.7.1
-        version: 3.7.1
+        specifier: ^3.7.3
+        version: 3.7.3
       storybook:
-        specifier: ^10.1.0
-        version: 10.1.0(@testing-library/dom@10.4.0)(prettier@3.7.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^10.1.2
+        version: 10.1.2(@testing-library/dom@10.4.0)(prettier@3.7.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
 packages:
 
@@ -5389,8 +5389,8 @@ packages:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
 
-  prettier@3.7.1:
-    resolution: {integrity: sha512-RWKXE4qB3u5Z6yz7omJkjWwmTfLdcbv44jUVHC5NpfXwFGzvpQM798FGv/6WNK879tc+Cn0AAyherCl1KjbyZQ==}
+  prettier@3.7.3:
+    resolution: {integrity: sha512-QgODejq9K3OzoBbuyobZlUhznP5SKwPqp+6Q6xw6o8gnhr4O85L2U915iM2IDcfF2NPXVaM9zlo9tdwipnYwzg==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -5936,8 +5936,8 @@ packages:
     resolution: {integrity: sha512-eLoXW/DHyl62zxY4SCaIgnRhuMr6ri4juEYARS8E6sCEqzKpOiE521Ucofdx+KnDZl5xmvGYaaKCk5FEOxJCoQ==}
     engines: {node: '>= 0.4'}
 
-  storybook@10.1.0:
-    resolution: {integrity: sha512-RCTybwtyQaKRoU1Z8rWGv5h6ZN3+HelSM0WMMWKBsKgXZkpQ00vro1kd/tWILawxNiU2YS9Zo+4On5hx2Rm+8w==}
+  storybook@10.1.2:
+    resolution: {integrity: sha512-yFL15WVQJeagmptyRadd2cwJlMVCo6xPoTPt/R+lQXIJmsTDHOFl5cZooIsvgALe3hTi5hsuVL3pG2bPEUuYGg==}
     hasBin: true
     peerDependencies:
       prettier: ^2 || ^3
@@ -13327,7 +13327,7 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
-  prettier@3.7.1: {}
+  prettier@3.7.3: {}
 
   pretty-error@2.1.2:
     dependencies:
@@ -13988,7 +13988,7 @@ snapshots:
       es-errors: 1.3.0
       internal-slot: 1.1.0
 
-  storybook@10.1.0(@testing-library/dom@10.4.0)(prettier@3.7.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  storybook@10.1.2(@testing-library/dom@10.4.0)(prettier@3.7.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       '@storybook/global': 5.0.0
       '@storybook/icons': 2.0.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -14002,7 +14002,7 @@ snapshots:
       use-sync-external-store: 1.6.0(react@18.3.1)
       ws: 8.18.3
     optionalDependencies:
-      prettier: 3.7.1
+      prettier: 3.7.3
     transitivePeerDependencies:
       - '@testing-library/dom'
       - bufferutil
