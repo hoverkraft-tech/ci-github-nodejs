@@ -7,7 +7,7 @@ permissions: {}
 
 jobs:
   linter:
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@4bfbc05c189f1177cf7d47d3060cd1cbddf04ce2 # 0.32.0
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@f5847cb398fe65d53794e6aba98ebdfa0801f691 # 0.32.0
     permissions:
       contents: read
       statuses: write
@@ -32,6 +32,13 @@ jobs:
     name: Test action "has-installed-dependencies"
     needs: linter
     uses: ./.github/workflows/__test-action-has-installed-dependencies.yml
+    permissions:
+      contents: read
+
+  test-action-package:
+    name: Test action "package"
+    needs: linter
+    uses: ./.github/workflows/__test-action-package.yml
     permissions:
       contents: read
 

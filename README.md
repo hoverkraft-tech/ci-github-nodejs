@@ -26,6 +26,8 @@ _Actions for continuous integration steps: build, lint, and test._
 
 #### - [Codecov](actions/codecov/README.md)
 
+#### - [Package](actions/package/README.md)
+
 #### - [Lint](actions/lint/README.md)
 
 #### - [Test](actions/test/README.md)

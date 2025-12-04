@@ -1,0 +1,160 @@
+name: "Package"
+description: "Action to create and upload an npm package tarball from a Node.js project"
+author: hoverkraft
+branding:
+  icon: package
+  color: blue
+
+inputs:
+  working-directory:
+    description: |
+      Working directory where the package is packed.
+      Can be absolute or relative to the repository root.
+    required: false
+    default: "."
+  build-artifact-id:
+    description: |
+      Optional build artifact ID to download before packaging.
+      When provided, the artifact will be downloaded to the workspace.
+    required: false
+    default: ""
+  build-artifact-path:
+    description: |
+      Optional path to the build artifact contents relative to the workspace root.
+      Used to locate the files to be included in the package when a build artifact is downloaded.
+    required: false
+    default: "${{ github.workspace }}"
+  version:
+    description: |
+      Optional version to apply with `npm version` before packaging.
+      The version is applied without creating a Git tag.
+    required: false
+    default: ""
+  artifact-name:
+    description: "Name of the uploaded package tarball artifact"
+    required: false
+    default: "package-tarball"
+
+outputs:
+  package-tarball-path:
+    description: "Absolute path to the generated package tarball"
+    value: ${{ steps.package.outputs.package-tarball-path }}
+  package-tarball-artifact-id:
+    description: "Artifact ID of the uploaded package tarball"
+    value: ${{ steps.upload-package-tarball.outputs.artifact-id }}
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+
+    - shell: bash
+      # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+      run: mkdir -p ./self-package-action/ && cp -r $GITHUB_ACTION_PATH/../* ./self-package-action/
+
+    - id: working-directory
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@f5847cb398fe65d53794e6aba98ebdfa0801f691 # 0.32.0
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        enforce-path-in-workspace: "false"
+
+    - id: setup-node
+      uses: ./self-package-action/setup-node
+      with:
+        working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+
+    - name: Download build artifacts
+      if: inputs.build-artifact-id != ''
+      uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+      with:
+        artifact-ids: ${{ inputs.build-artifact-id }}
+        path: ${{ inputs.build-artifact-path }}
+
+    - id: package
+      name: Create package tarball for verification
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      env:
+        WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
+        RELEASE_VERSION: ${{ inputs.version }}
+        RUNNER_TEMP: ${{ runner.temp }}
+      with:
+        script: |
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const workingDirectory = process.env.WORKING_DIRECTORY;
+          core.debug(`Running in working directory: ${workingDirectory}`);
+          process.chdir(workingDirectory);
+
+          const releaseVersion = (process.env.RELEASE_VERSION || '').trim();
+          const runnerTemp = process.env.RUNNER_TEMP;
+
+          if (releaseVersion) {
+            core.info(`Updating package version to provided release version: ${releaseVersion}`);
+            const npmVersionResult = await exec.getExecOutput(
+              'npm',
+              ['version', releaseVersion, '--no-git-tag-version', '--no-workspaces-update'],
+              {
+                cwd: workingDirectory,
+                ignoreReturnCode: true,
+              },
+            );
+
+            if (npmVersionResult.exitCode !== 0) {
+              core.setFailed(`npm version failed with exit code ${npmVersionResult.exitCode}`);
+              return;
+            }
+          }
+
+          const npmPackResult = await exec.getExecOutput('npm', ['pack', '--json', '--pack-destination', runnerTemp], {
+            cwd: workingDirectory,
+            ignoreReturnCode: true,
+          });
+
+          core.debug(`npm pack stdout: ${npmPackResult.stdout}`);
+          core.debug(`npm pack stderr: ${npmPackResult.stderr}`);
+
+          if (npmPackResult.exitCode !== 0) {
+            core.setFailed(`npm pack failed with exit code ${npmPackResult.exitCode}: ${npmPackResult.stderr}`);
+            return;
+          }
+
+          let packageInfo;
+          try {
+            packageInfo = JSON.parse(npmPackResult.stdout);
+          } catch (error) {
+            core.setFailed(`Failed to parse npm pack output: ${error.message}`);
+            return;
+          }
+
+          core.debug(`packageInfo: ${JSON.stringify(packageInfo)}`);
+
+          const tarballName = packageInfo?.[0]?.filename;
+          if (!tarballName) {
+            core.setFailed('No tarball filename returned by npm pack');
+            return;
+          }
+
+          const tarballPath = path.join(runnerTemp, tarballName);
+          if (!fs.existsSync(tarballPath)) {
+            core.setFailed(`Tarball was not created at expected path: ${tarballPath}`);
+            return;
+          }
+
+          core.info(`Generated package tarball: ${tarballPath}`);
+          core.setOutput('package-tarball-path', tarballPath);
+
+    - name: Upload package tarball
+      id: upload-package-tarball
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.package.outputs.package-tarball-path }}
+        if-no-files-found: error
+
+    # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
+    - shell: bash
+      if: always()
+      run: rm -fr ./self-package-action
