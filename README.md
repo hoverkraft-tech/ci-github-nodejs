@@ -54,6 +54,10 @@ _Actions focused on discovering and preparing the Node.js environment._
 
 - [Continuous Integration](.github/workflows/continuous-integration.md) — documentation for the reusable Node.js CI workflow.
 
+### Release
+
+- [Release](.github/workflows/release.md) — documentation for the reusable Node.js release workflow with support for multiple registries and documentation generation.
+
 ## Contributing
 
 Contributions are welcome! Please review the [contributing guidelines](CONTRIBUTING.md) before opening a PR.
