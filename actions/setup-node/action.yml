@@ -16,6 +16,12 @@ inputs:
       Can be absolute or relative to the repository root.
     required: false
     default: "."
+  registry-url:
+    description: |
+      Optional registry to set up for auth.
+      See https://github.com/actions/setup-node?tab=readme-ov-file#usage.
+    required: false
+    default: ""
 
 outputs:
   run-script-command:
@@ -140,6 +146,7 @@ runs:
         node-version-file: ${{ steps.get-node-version-file.outputs.node-version-file }}
         cache: ${{ steps.get-package-manager.outputs.cache-dependency-path != '' && steps.get-package-manager.outputs.package-manager || '' }}
         cache-dependency-path: ${{ steps.get-package-manager.outputs.cache-dependency-path }}
+        registry-url: ${{ inputs.registry-url }}
 
     - shell: bash
       working-directory: ${{ inputs.working-directory }}
