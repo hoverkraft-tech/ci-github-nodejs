@@ -23,6 +23,12 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - id: working-directory
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@f5847cb398fe65d53794e6aba98ebdfa0801f691 # 0.32.0
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        enforce-path-in-workspace: "false"
+
     # Check and install dependencies for codecov
     - name: Check Codecov dependencies
       id: check-codecov-deps
@@ -153,9 +159,9 @@ runs:
     - name: 📊 Upload coverage to Codecov
       uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
       with:
-        directory: ${{ inputs.working-directory }}
-        root_dir: ${{ inputs.working-directory }}
-        working-directory: ${{ inputs.working-directory }}
+        directory: ${{ steps.working-directory.outputs.workspace-relative-path }}
+        root_dir: ${{ steps.working-directory.outputs.workspace-relative-path }}
+        working-directory: ${{ steps.working-directory.outputs.workspace-relative-path }}
         use_oidc: true
         disable_telem: true
         fail_ci_if_error: false

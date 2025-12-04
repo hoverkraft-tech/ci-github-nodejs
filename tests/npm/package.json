@@ -1,5 +1,6 @@
 {
   "name": "test-for-ci-with-npm",
+  "version": "0.1.0",
   "main": "src/index.js",
   "scripts": {
     "lint": "echo \"lint test\"",

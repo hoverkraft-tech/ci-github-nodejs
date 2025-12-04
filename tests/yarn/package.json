@@ -1,5 +1,6 @@
 {
   "name": "test-for-ci-with-yarn",
+  "version": "0.1.0",
   "scripts": {
     "lint": "echo \"lint test\"",
     "build": "mkdir -p dist && echo \"build test\" > dist/test.txt",

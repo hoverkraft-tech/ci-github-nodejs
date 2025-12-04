@@ -70,11 +70,17 @@ runs:
       # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
       run: mkdir -p ./self-build-action/ && cp -r $GITHUB_ACTION_PATH/../* ./self-build-action/
 
+    - id: working-directory
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@f5847cb398fe65d53794e6aba98ebdfa0801f691 # 0.32.0
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
+
     - id: setup-node
       if: inputs.container != 'true'
       uses: ./self-build-action/setup-node
       with:
-        working-directory: ${{ inputs.working-directory }}
+        working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         dependencies-cache: |
           nx
           gatsby
@@ -86,7 +92,7 @@ runs:
       if: inputs.container == 'true'
       uses: ./self-build-action/get-package-manager
       with:
-        working-directory: ${{ inputs.working-directory }}
+        working-directory: ${{ steps.working-directory.outputs.absolute-path }}
 
     - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       env:
@@ -122,15 +128,10 @@ runs:
       env:
         BUILD_COMMANDS: ${{ inputs.build-commands }}
         RUN_SCRIPT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
-        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
       with:
         script: |
-          const fs = require('node:fs');
           const workingDirectory = process.env.WORKING_DIRECTORY;
-          if (!fs.existsSync(workingDirectory)) {
-            core.setFailed(`The specified working directory does not exist: ${workingDirectory}`);
-            return;
-          }
           core.debug(`Running in working directory: ${workingDirectory}`);
           process.chdir(workingDirectory);
 
