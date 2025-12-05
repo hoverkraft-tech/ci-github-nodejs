@@ -25,6 +25,7 @@ on:
 
           - `commands`: Array of commands to run during the build step.
           - `env`: Object of environment variables to set during the build step.
+          - `artifact`: String or array of strings specifying paths to artifacts to upload after the build.
 
           Example:
           ```json
@@ -35,7 +36,11 @@ on:
             ],
             "env": {
               "NODE_ENV": "production"
-            }
+            },
+            "artifact": [
+              "dist/",
+              "packages/package-a/build/"
+            ]
           }
           ```
         type: string
@@ -154,6 +159,9 @@ on:
       package-name:
         description: "The name of the published package."
         value: ${{ jobs.release.outputs.package-name }}
+      build-artifact-id:
+        description: "ID of the build artifact (if uploaded)."
+        value: ${{ jobs.release.outputs.build-artifact-id }}
       docs-artifact-id:
         description: "ID of the documentation artifact (if uploaded)."
         value: ${{ jobs.release.outputs.docs-artifact-id }}
@@ -170,6 +178,7 @@ jobs:
       registry-scope: ${{ steps.parse-registry.outputs.registry-scope }}
       build-commands: ${{ steps.parse-build.outputs.commands }}
       build-env: ${{ steps.parse-build.outputs.env }}
+      build-artifact: ${{ steps.parse-build.outputs.artifact }}
       docs-command: ${{ steps.parse-docs.outputs.command }}
       docs-output: ${{ steps.parse-docs.outputs.output }}
       docs-artifact: ${{ steps.parse-docs.outputs.artifact }}
@@ -226,9 +235,13 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           BUILD_INPUT: ${{ inputs.build }}
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
         with:
           script: |
+            const path = require('node:path');
+
             const buildInput = process.env.BUILD_INPUT.trim();
+            const workingDirectory = process.env.WORKING_DIRECTORY || '.';
 
             if (!buildInput) {
               core.info('Build step disabled');
@@ -258,6 +271,42 @@ jobs:
               else {
                 commands = build.commands ?? ['build'];
                 env = build.env ?? {};
+
+                if (build.artifact) {
+                  let buildArtifact = build.artifact;
+
+                  if (typeof buildArtifact === 'string' || Array.isArray(buildArtifact)) {
+                    buildArtifact = {
+                      paths: buildArtifact
+                    };
+                  }
+
+                  if (typeof buildArtifact.paths === 'string') {
+                    buildArtifact.paths = buildArtifact.paths.split('\n');
+                  } else if (!Array.isArray(buildArtifact.paths)) {
+                    return core.setFailed('Build artifact paths must be a string or an array of strings');
+                  }
+
+                  buildArtifact.paths = buildArtifact.paths
+                    .map(artifact => artifact.trim())
+                    .filter(Boolean)
+                    .map(artifact => {
+                      // FIXME: Workaround to preserve full path to artifact
+                      const fullpath = artifact.startsWith('/') ? artifact : path.join(workingDirectory, artifact);
+
+                      // Add a wildcard to the first folder of the path
+                      return fullpath.replace(/\/([^/]+)/, '/*$1');
+                    }).join('\n');
+
+                  if (!buildArtifact.paths) {
+                    return core.setFailed('No valid build artifact paths found');
+                  }
+
+                  // Generate a unique name for the artifact
+                  buildArtifact.name = `${process.env.GITHUB_JOB}-build-${process.env.GITHUB_RUN_ID}-${Math.random().toString(36).substring(2, 8)}`;
+
+                  core.setOutput('artifact', JSON.stringify(buildArtifact));
+                }
               }
             }
 
@@ -327,6 +376,7 @@ jobs:
     outputs:
       version: ${{ steps.package-info.outputs.version }}
       package-name: ${{ steps.package-info.outputs.name }}
+      build-artifact-id: ${{ steps.build.outputs.artifact-id }}
       docs-artifact-id: ${{ steps.upload-docs.outputs.artifact-id }}
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@5ac504609f6ef35c5ac94bd8199063aa32104721 # 0.31.3
@@ -383,6 +433,7 @@ jobs:
             core.setOutput('version', version);
 
       - name: Build
+        id: build
         if: needs.prepare.outputs.build-commands != ''
         uses: ./self-workflow/actions/build
         with:
@@ -390,6 +441,7 @@ jobs:
           build-commands: ${{ needs.prepare.outputs.build-commands }}
           build-env: ${{ needs.prepare.outputs.build-env || '{}' }}
           build-secrets: ${{ secrets.build-secrets }}
+          build-artifact: ${{ needs.prepare.outputs.build-artifact }}
 
       - name: Generate documentation
         if: needs.prepare.outputs.docs-command != ''
