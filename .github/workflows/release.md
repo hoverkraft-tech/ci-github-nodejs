@@ -25,7 +25,6 @@
 
 Workflow to release Node.js packages with support for:
 
-- Building the package before publishing
 - Generating documentation (optional)
 - Publishing to various registries (npm, GitHub Packages)
 - Provenance attestation for npm packages
@@ -64,17 +63,10 @@ jobs:
       # For npm: Use an npm access token with publish permissions.
       # For GitHub Packages: Use `GITHUB_TOKEN` or a PAT with `packages:write` permission.
       registry-token: ${{ secrets.NPM_TOKEN }}
-
-      # Secrets to be used during the build step (optional).
-      build-secrets: ""
     with:
       # JSON array of runner(s) to use.
       # Default: `["ubuntu-latest"]`
       runs-on: '["ubuntu-latest"]'
-
-      # Build parameters. Set to empty string to disable.
-      # Default: `build`
-      build: build
 
       # Documentation generation parameters.
       # Set to empty string or `false` to disable.
@@ -120,10 +112,6 @@ jobs:
 | ----------------------- | ---------------------------------------------------------------------------------- | ------------ | ----------- | ------------------- |
 | **`runs-on`**           | JSON array of runner(s) to use.                                                    | **false**    | **string**  | `["ubuntu-latest"]` |
 |                         | See <https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job>. |              |             |                     |
-| **`build`**             | Build parameters. Must be a string or a JSON object.                               | **false**    | **string**  | `build`             |
-|                         | Set to empty string to disable build step.                                         |              |             |                     |
-|                         | For string, provide a list of commands to run during the build step, one per line. |              |             |                     |
-|                         | For JSON object, provide `commands` array, optional `env` object, and `artifact`.  |              |             |                     |
 | **`docs`**              | Documentation generation parameters.                                               | **false**    | **string**  | -                   |
 |                         | Set to empty string or `false` to disable.                                         |              |             |                     |
 |                         | Set to `true` for default command (`docs`).                                        |              |             |                     |
@@ -152,8 +140,6 @@ jobs:
 | **`registry-token`** | Authentication token for the registry.                                             | **true**     |
 |                      | For npm: Use an npm access token with publish permissions.                         |              |
 |                      | For GitHub Packages: Use `GITHUB_TOKEN` or a PAT with `packages:write` permission. |              |
-| **`build-secrets`**  | Secrets to be used during the build step.                                          | **false**    |
-|                      | Must be a multi-line env formatted string.                                         |              |
 
 <!-- secrets:end -->
 
@@ -161,12 +147,11 @@ jobs:
 
 ## Outputs
 
-| **Output**              | **Description**                                 |
-| ----------------------- | ----------------------------------------------- |
-| **`version`**           | The version of the published package.           |
-| **`package-name`**      | The name of the published package.              |
-| **`build-artifact-id`** | ID of the build artifact (if uploaded).         |
-| **`docs-artifact-id`**  | ID of the documentation artifact (if uploaded). |
+| **Output**             | **Description**                                 |
+| ---------------------- | ----------------------------------------------- |
+| **`version`**          | The version of the published package.           |
+| **`package-name`**     | The name of the published package.              |
+| **`docs-artifact-id`** | ID of the documentation artifact (if uploaded). |
 
 <!-- outputs:end -->
 
@@ -348,13 +333,6 @@ jobs:
       registry-token: ${{ secrets.NPM_TOKEN }}
     with:
       working-directory: packages/my-package
-      build: |
-        {
-          "commands": ["build"],
-          "env": {
-            "NODE_ENV": "production"
-          }
-        }
 ```
 
 <!-- examples:end -->
