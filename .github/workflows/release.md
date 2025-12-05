@@ -123,7 +123,7 @@ jobs:
 | **`build`**             | Build parameters. Must be a string or a JSON object.                               | **false**    | **string**  | `build`             |
 |                         | Set to empty string to disable build step.                                         |              |             |                     |
 |                         | For string, provide a list of commands to run during the build step, one per line. |              |             |                     |
-|                         | For JSON object, provide `commands` array and optional `env` object.               |              |             |                     |
+|                         | For JSON object, provide `commands` array, optional `env` object, and `artifact`.  |              |             |                     |
 | **`docs`**              | Documentation generation parameters.                                               | **false**    | **string**  | -                   |
 |                         | Set to empty string or `false` to disable.                                         |              |             |                     |
 |                         | Set to `true` for default command (`docs`).                                        |              |             |                     |
@@ -161,11 +161,12 @@ jobs:
 
 ## Outputs
 
-| **Output**             | **Description**                                 |
-| ---------------------- | ----------------------------------------------- |
-| **`version`**          | The version of the published package.           |
-| **`package-name`**     | The name of the published package.              |
-| **`docs-artifact-id`** | ID of the documentation artifact (if uploaded). |
+| **Output**              | **Description**                                 |
+| ----------------------- | ----------------------------------------------- |
+| **`version`**           | The version of the published package.           |
+| **`package-name`**      | The name of the published package.              |
+| **`build-artifact-id`** | ID of the build artifact (if uploaded).         |
+| **`docs-artifact-id`**  | ID of the documentation artifact (if uploaded). |
 
 <!-- outputs:end -->
 
