@@ -51,7 +51,7 @@ runs:
 
     - name: ♻️ NX cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).nx == true
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
       with:
         path: ${{ inputs.working-directory }}/node_modules/.cache/nx
         key: ${{ runner.os }}-cache-nx-${{ github.sha }}
@@ -60,7 +60,7 @@ runs:
 
     - name: ♻️ Prettier cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).prettier == true
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
       with:
         path: ${{ inputs.working-directory }}/node_modules/.cache/prettier
         key: ${{ runner.os }}-cache-prettier-${{ github.sha }}
@@ -69,7 +69,7 @@ runs:
 
     - name: ♻️ Docusaurus cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).docusaurus == true
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
       with:
         path: |
           ${{ inputs.working-directory }}/.docusaurus
@@ -80,7 +80,7 @@ runs:
 
     - name: ♻️ Vitest cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).vitest == true
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
       with:
         path: ${{ inputs.working-directory }}/node_modules/.vite/vitest
         key: ${{ runner.os }}-cache-vitest-${{ github.sha }}
@@ -89,7 +89,7 @@ runs:
 
     - name: ♻️ Astro cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).astro == true
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
       with:
         path: ${{ inputs.working-directory }}/node_modules/.astro
         key: ${{ runner.os }}-cache-astro-${{ github.sha }}
@@ -98,7 +98,7 @@ runs:
 
     - name: ♻️ Gatsby cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).gatsby == true
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
       with:
         path: |
           ${{ inputs.working-directory }}/.cache
@@ -109,7 +109,7 @@ runs:
 
     - name: ♻️ Storybook cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).storybook == true
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
       with:
         path: ${{ inputs.working-directory }}/node_modules/.cache/storybook
         key: ${{ runner.os }}-cache-storybook-${{ github.sha }}
@@ -196,7 +196,7 @@ runs:
 
     - name: ♻️ Test cache
       if: steps.jest-cache-dir-path.outputs.dir
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
       with:
         path: ${{ steps.jest-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-test-${{ github.sha }}
