@@ -29,7 +29,7 @@ jobs:
     needs: act-without-container
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           artifact-ids: ${{ needs.act-without-container.outputs.build-artifact-id }}
           path: "/"
@@ -63,7 +63,7 @@ jobs:
       packages: write
       issues: read
       pull-requests: read
-    uses: hoverkraft-tech/ci-github-container/.github/workflows/docker-build-images.yml@3256ec78f48fdaa4c9691c87dc7136fa561c456e # 0.30.3
+    uses: hoverkraft-tech/ci-github-container/.github/workflows/docker-build-images.yml@18c35d287eb2f66e00741c88954106b44b812ae0 # 0.30.4
     with:
       sign: false
       images: |
@@ -105,7 +105,7 @@ jobs:
     needs: act-with-container
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           artifact-ids: ${{ needs.act-with-container.outputs.build-artifact-id }}
           path: ${{ runner.temp }}
@@ -153,7 +153,7 @@ jobs:
     needs: act-with-container-advanced
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           artifact-ids: ${{ needs.act-with-container-advanced.outputs.build-artifact-id }}
           path: ${{ runner.temp }}
