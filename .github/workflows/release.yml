@@ -15,6 +15,31 @@ on:
         type: string
         default: '["ubuntu-latest"]'
         required: false
+      build-artifact-id:
+        description: |
+          Build artifact ID from a previous CI job to download before publishing.
+          This artifact typically contains the built package or tarball.
+          If not provided, the workflow will publish from source.
+        type: string
+        required: false
+        default: ""
+      package-tarball:
+        description: |
+          Path to a pre-built package tarball to publish (e.g., `my-package-1.0.0.tgz`).
+          Use this when publishing a specific tarball file instead of running npm publish from source.
+          Supports glob patterns to match tarball files.
+        type: string
+        required: false
+        default: ""
+      access:
+        description: |
+          Package access level for npm publish.
+          - `public` — Publicly accessible package
+          - `restricted` — Scoped package with restricted access
+          Leave empty to use package.json default.
+        type: string
+        required: false
+        default: ""
       docs:
         description: |
           Documentation generation parameters.
@@ -253,6 +278,13 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
           registry-url: ${{ needs.prepare.outputs.registry-url }}
 
+      - name: Download build artifacts
+        if: inputs.build-artifact-id != ''
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          artifact-ids: ${{ inputs.build-artifact-id }}
+          path: /
+
       - id: package-info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
@@ -345,6 +377,8 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.registry-token }}
           PUBLISH_COMMAND: ${{ inputs.publish-command }}
+          PACKAGE_TARBALL: ${{ inputs.package-tarball }}
+          ACCESS: ${{ inputs.access }}
           TAG: ${{ inputs.tag }}
           DRY_RUN: ${{ inputs.dry-run }}
           PROVENANCE: ${{ inputs.provenance }}
@@ -355,6 +389,7 @@ jobs:
           script: |
             const fs = require('node:fs');
             const path = require('node:path');
+            const { glob } = require('glob');
 
             let workingDirectory = process.env.WORKING_DIRECTORY || '.';
             if (!path.isAbsolute(workingDirectory)) {
@@ -366,14 +401,49 @@ jobs:
             }
 
             const publishCommand = process.env.PUBLISH_COMMAND;
+            const packageTarball = process.env.PACKAGE_TARBALL;
+            const access = process.env.ACCESS;
             const tag = process.env.TAG;
             const dryRun = process.env.DRY_RUN === 'true';
             const provenance = process.env.PROVENANCE === 'true';
             const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
             const registryUrl = process.env.REGISTRY_URL;
 
+            // Determine what to publish
+            let publishTarget = null;
+
+            if (packageTarball) {
+              // Publishing a specific tarball file
+              const tarballPattern = path.isAbsolute(packageTarball) 
+                ? packageTarball 
+                : path.join(workingDirectory, packageTarball);
+              
+              const matches = await glob(tarballPattern, { nodir: true });
+              
+              if (matches.length === 0) {
+                return core.setFailed(`No tarball found matching pattern: ${packageTarball}`);
+              }
+              
+              if (matches.length > 1) {
+                core.warning(`Multiple tarballs found: ${matches.join(', ')}. Using first match.`);
+              }
+              
+              publishTarget = matches[0];
+              core.info(`Publishing tarball: ${publishTarget}`);
+            }
+
             // Build publish arguments
             const args = [publishCommand];
+
+            // Add tarball target if specified
+            if (publishTarget) {
+              args.push(publishTarget);
+            }
+
+            // Add access flag
+            if (access) {
+              args.push('--access', access);
+            }
 
             // Add tag
             if (tag) {

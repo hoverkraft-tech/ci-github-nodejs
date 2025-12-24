@@ -25,10 +25,13 @@
 
 Workflow to release Node.js packages with support for:
 
-- Generating documentation (optional)
 - Publishing to various registries (npm, GitHub Packages)
+- Publishing from build artifacts or source code
+- Publishing pre-built package tarballs
+- Generating documentation (optional)
 - Provenance attestation for npm packages
 - Distribution tags for versioning
+- Scoped package access control
 
 ### Permissions
 
@@ -41,6 +44,8 @@ Workflow to release Node.js packages with support for:
 <!-- usage:start -->
 
 ## Usage
+
+### Basic Release from Source
 
 ```yaml
 name: Release
@@ -59,43 +64,77 @@ jobs:
       packages: write
       id-token: write
     secrets:
-      # Authentication token for the registry.
-      # For npm: Use an npm access token with publish permissions.
-      # For GitHub Packages: Use `GITHUB_TOKEN` or a PAT with `packages:write` permission.
+      registry-token: ${{ secrets.NPM_TOKEN }}
+```
+
+### Release with Build Artifacts from CI
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags: ["*"]
+
+permissions: {}
+
+jobs:
+  ci:
+    uses: ./.github/workflows/__shared-ci.yml
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+    secrets: inherit
+
+  release:
+    needs: ci
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    secrets:
       registry-token: ${{ secrets.NPM_TOKEN }}
     with:
-      # JSON array of runner(s) to use.
-      # Default: `["ubuntu-latest"]`
-      runs-on: '["ubuntu-latest"]'
+      # Download build artifacts from CI job
+      build-artifact-id: ${{ needs.ci.outputs.build-artifact-id }}
+      access: public
+```
 
-      # Documentation generation parameters.
-      # Set to empty string or `false` to disable.
-      docs: ""
+### Release Pre-built Tarball
 
-      # Registry configuration.
-      # Use `npm`, `github`, or a URL/JSON object.
-      # Default: `npm`
-      registry: npm
+```yaml
+name: Release
 
-      # Command to run for publishing.
-      # Default: `publish`
-      publish-command: publish
+on:
+  push:
+    tags: ["*"]
 
-      # npm distribution tag.
-      # Default: `latest`
-      tag: latest
+permissions: {}
 
-      # Whether to perform a dry run.
-      # Default: `false`
-      dry-run: false
+jobs:
+  ci:
+    uses: ./.github/workflows/__shared-ci.yml
+    permissions:
+      contents: read
+      id-token: write
+    secrets: inherit
 
-      # Whether to generate provenance attestation.
-      # Default: `true`
+  release:
+    needs: ci
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    secrets:
+      registry-token: ${{ secrets.NPM_TOKEN }}
+    with:
+      build-artifact-id: ${{ needs.ci.outputs.package-tarball-artifact-id }}
+      package-tarball: "*.tgz"
+      access: public
       provenance: true
-
-      # Working directory where the package is located.
-      # Default: `.`
-      working-directory: .
 ```
 
 <!-- usage:end -->
@@ -112,6 +151,12 @@ jobs:
 | ----------------------- | ---------------------------------------------------------------------------------- | ------------ | ----------- | ------------------- |
 | **`runs-on`**           | JSON array of runner(s) to use.                                                    | **false**    | **string**  | `["ubuntu-latest"]` |
 |                         | See <https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job>. |              |             |                     |
+| **`build-artifact-id`** | Build artifact ID from CI to download before publishing.                           | **false**    | **string**  | -                   |
+|                         | Contains built package or tarball from a previous job.                             |              |             |                     |
+| **`package-tarball`**   | Path/pattern to pre-built tarball to publish (e.g., `*.tgz`).                      | **false**    | **string**  | -                   |
+|                         | Use when publishing a specific tarball instead of from source.                     |              |             |                     |
+| **`access`**            | Package access level: `public` or `restricted`.                                    | **false**    | **string**  | -                   |
+|                         | Leave empty to use package.json default.                                           |              |             |                     |
 | **`docs`**              | Documentation generation parameters.                                               | **false**    | **string**  | -                   |
 |                         | Set to empty string or `false` to disable.                                         |              |             |                     |
 |                         | Set to `true` for default command (`docs`).                                        |              |             |                     |
