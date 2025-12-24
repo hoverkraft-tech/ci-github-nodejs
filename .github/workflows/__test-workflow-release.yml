@@ -1,0 +1,37 @@
+name: Internal - Tests for "release" workflow
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  package:
+    name: Arrange package tarball
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
+    steps:
+      - name: Arrange - Checkout sources
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: package
+        name: Arrange - Create package tarball
+        uses: ./actions/package
+        with:
+          working-directory: tests/npm
+
+  release:
+    name: Act - Run "release" workflow
+    needs: package
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    uses: ./.github/workflows/release.yml
+    with:
+      package-tarball-artifact-id: ${{ needs.package.outputs.package-tarball-artifact-id }}
+      dry-run: true
+      provenance: false

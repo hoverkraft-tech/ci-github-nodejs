@@ -61,3 +61,12 @@ jobs:
       issues: read
       security-events: write
     secrets: inherit
+
+  test-workflow-release:
+    name: Test workflow "release"
+    needs: linter
+    uses: ./.github/workflows/__test-workflow-release.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write

@@ -56,7 +56,7 @@ _Actions focused on discovering and preparing the Node.js environment._
 
 ### Release
 
-- [Release](.github/workflows/release.md) — documentation for the reusable Node.js release workflow with support for multiple registries and documentation generation.
+- [Release](.github/workflows/release.md) — documentation for the reusable Node.js release workflow that publishes CI-produced package tarballs.
 
 ## Contributing
 

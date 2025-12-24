@@ -57,8 +57,8 @@ Action to create and upload an npm package tarball from a Node.js project
     # The version is applied without creating a Git tag.
     version: ""
 
-    # Name of the uploaded package tarball artifact
-    # Default: `package-tarball`
+    # Optional name of the uploaded package tarball artifact.
+    # When omitted, a unique `package-tarball-*` name is generated.
     artifact-name: package-tarball
 ```
 
@@ -67,20 +67,20 @@ Action to create and upload an npm package tarball from a Node.js project
 
 ## Inputs
 
-| **Input**                 | **Description**                                                                             | **Required** | **Default**               |
-| ------------------------- | ------------------------------------------------------------------------------------------- | ------------ | ------------------------- |
-| **`working-directory`**   | Working directory where dependencies are installed for packaging.                           | **false**    | `.`                       |
-|                           | Can be absolute or relative to the repository root.                                         |              |                           |
-| **`package-directory`**   | Optional package directory to version and pack.                                             | **false**    | -                         |
-|                           | Can be absolute or relative to `working-directory`.                                         |              |                           |
-|                           | Useful for monorepos where dependencies are installed at the root.                          |              |                           |
-| **`build-artifact-id`**   | Optional build artifact ID to download before packaging.                                    | **false**    | -                         |
-|                           | When provided, the artifact will be downloaded to the workspace.                            |              |                           |
-| **`build-artifact-path`** | Optional path to the build artifact contents relative to the workspace root.                | **false**    | `${{ github.workspace }}` |
-|                           | Used to locate the files to be included in the package when a build artifact is downloaded. |              |                           |
-| **`version`**             | Optional version to apply with `npm version` before packaging.                              | **false**    | -                         |
-|                           | The version is applied without creating a Git tag.                                          |              |                           |
-| **`artifact-name`**       | Name of the uploaded package tarball artifact                                               | **false**    | `package-tarball`         |
+| **Input**                 | **Description**                                                                             | **Required** | **Default**                |
+| ------------------------- | ------------------------------------------------------------------------------------------- | ------------ | -------------------------- |
+| **`working-directory`**   | Working directory where dependencies are installed for packaging.                           | **false**    | `.`                        |
+|                           | Can be absolute or relative to the repository root.                                         |              |                            |
+| **`package-directory`**   | Optional package directory to version and pack.                                             | **false**    | -                          |
+|                           | Can be absolute or relative to `working-directory`.                                         |              |                            |
+|                           | Useful for monorepos where dependencies are installed at the root.                          |              |                            |
+| **`build-artifact-id`**   | Optional build artifact ID to download before packaging.                                    | **false**    | -                          |
+|                           | When provided, the artifact will be downloaded to the workspace.                            |              |                            |
+| **`build-artifact-path`** | Optional path to the build artifact contents relative to the workspace root.                | **false**    | `${{ github.workspace }}`  |
+|                           | Used to locate the files to be included in the package when a build artifact is downloaded. |              |                            |
+| **`version`**             | Optional version to apply with `npm version` before packaging.                              | **false**    | -                          |
+|                           | The version is applied without creating a Git tag.                                          |              |                            |
+| **`artifact-name`**       | Name of the uploaded package tarball artifact                                               | **false**    | Auto-generated unique name |
 
 <!-- inputs:end -->
 <!-- secrets:start -->

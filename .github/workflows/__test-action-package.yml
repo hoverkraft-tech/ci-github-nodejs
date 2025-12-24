@@ -11,21 +11,22 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      package-tarball-artifact-id-npm: ${{ steps.package-tarball-artifact.outputs.package-tarball-artifact-id-npm }}
+      package-tarball-artifact-id-pnpm: ${{ steps.package-tarball-artifact.outputs.package-tarball-artifact-id-pnpm }}
+      package-tarball-artifact-id-pnpm-package-manager: ${{ steps.package-tarball-artifact.outputs.package-tarball-artifact-id-pnpm-package-manager }}
+      package-tarball-artifact-id-yarn: ${{ steps.package-tarball-artifact.outputs.package-tarball-artifact-id-yarn }}
     strategy:
       matrix:
         include:
           - working-directory: tests/npm
             artifact-suffix: npm
-            install-command: npm install --force --legacy-peer-deps --no-audit --no-fund --loglevel=warn
           - working-directory: tests/pnpm
             artifact-suffix: pnpm
-            install-command: pnpm install
           - working-directory: tests/pnpm-package-manager
             artifact-suffix: pnpm-package-manager
-            install-command: pnpm install
           - working-directory: tests/yarn
             artifact-suffix: yarn
-            install-command: yarn add
     steps:
       - name: Arrange - Checkout sources
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -35,7 +36,7 @@ jobs:
         uses: ./actions/package
         with:
           working-directory: ${{ matrix.working-directory }}
-          artifact-name: package-tarball-${{ matrix.artifact-suffix }}
+          artifact-name: package-tarball-${{ github.job }}-${{ matrix.artifact-suffix }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Assert - Check "package" outputs
         env:
@@ -57,6 +58,42 @@ jobs:
             exit 1
           fi
 
+      - id: package-tarball-artifact
+        name: Arrange - Export package tarball artifact ID
+        env:
+          ARTIFACT_SUFFIX: ${{ matrix.artifact-suffix }}
+          PACKAGE_TARBALL_ARTIFACT_ID: ${{ steps.act-package.outputs.package-tarball-artifact-id }}
+        run: echo "package-tarball-artifact-id-${ARTIFACT_SUFFIX}=${PACKAGE_TARBALL_ARTIFACT_ID}" >> "$GITHUB_OUTPUT"
+
+  assert-package-tarball:
+    name: Assert package tarball (${{ matrix.working-directory }})
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - working-directory: tests/npm
+            artifact-suffix: npm
+            install-command: npm install --force --legacy-peer-deps --no-audit --no-fund --loglevel=warn
+            package-tarball-artifact-id: ${{ needs.test.outputs['package-tarball-artifact-id-npm'] }}
+          - working-directory: tests/pnpm
+            artifact-suffix: pnpm
+            install-command: pnpm install
+            package-tarball-artifact-id: ${{ needs.test.outputs['package-tarball-artifact-id-pnpm'] }}
+          - working-directory: tests/pnpm-package-manager
+            artifact-suffix: pnpm-package-manager
+            install-command: pnpm install
+            package-tarball-artifact-id: ${{ needs.test.outputs['package-tarball-artifact-id-pnpm-package-manager'] }}
+          - working-directory: tests/yarn
+            artifact-suffix: yarn
+            install-command: yarn add
+            package-tarball-artifact-id: ${{ needs.test.outputs['package-tarball-artifact-id-yarn'] }}
+    steps:
+      - name: Arrange - Checkout sources
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
       - name: Arrange - Configure Node.js version
         run: echo "lts/*" > .nvmrc
         working-directory: ${{ matrix.working-directory }}
@@ -67,22 +104,44 @@ jobs:
         with:
           working-directory: ${{ matrix.working-directory }}
 
+      - name: Assert - Check package tarball artifact ID
+        env:
+          PACKAGE_TARBALL_ARTIFACT_ID: ${{ matrix.package-tarball-artifact-id }}
+        run: |
+          if [ -z "$PACKAGE_TARBALL_ARTIFACT_ID" ]; then
+            echo "package-tarball-artifact-id output is empty"
+            exit 1
+          fi
+
       - name: Assert - Download package tarball artifact by ID
+        id: download-package-tarball
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          artifact-ids: ${{ steps.act-package.outputs.package-tarball-artifact-id }}
+          artifact-ids: ${{ matrix.package-tarball-artifact-id }}
           path: ${{ runner.temp }}
           skip-decompress: true
+          github-token: ${{ github.token }}
 
       - name: Assert - Check downloaded package tarball artifact
         env:
-          TARBALL_PATH: ${{ steps.act-package.outputs.package-tarball-path }}
+          DOWNLOAD_PATH: ${{ steps.download-package-tarball.outputs.download-path }}
           INSTALL_COMMAND: ${{ matrix.install-command }}
-        working-directory: ${{ runner.temp }}
         run: |
-          tarball_name="$(basename "$TARBALL_PATH")"
+          tarball_path="$DOWNLOAD_PATH"
 
-          if [ ! -f "./$tarball_name" ]; then
+          if [ -d "$tarball_path" ]; then
+            tarball_matches="$(find "$tarball_path" -maxdepth 1 -type f -name '*.tgz')"
+            tarball_count="$(printf '%s\n' "$tarball_matches" | sed '/^$/d' | wc -l)"
+
+            if [ "$tarball_count" -ne 1 ]; then
+              echo "Expected exactly one downloaded package tarball, found $tarball_count"
+              exit 1
+            fi
+
+            tarball_path="$tarball_matches"
+          fi
+
+          if [ ! -f "$tarball_path" ]; then
             echo "Downloaded package tarball artifact does not exist"
             exit 1
           fi
@@ -93,4 +152,4 @@ jobs:
           fi
 
           # Install the tarball to verify it's a valid npm package
-          $INSTALL_COMMAND "./$tarball_name"
+          $INSTALL_COMMAND "$tarball_path"
