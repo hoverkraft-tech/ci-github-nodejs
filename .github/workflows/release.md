@@ -23,15 +23,12 @@
 
 ## Overview
 
-Workflow to release Node.js packages with support for:
+Workflow to publish the exact Node.js package tarball produced and verified by
+CI.
 
-- Publishing to various registries (npm, GitHub Packages)
-- Publishing from build artifacts or source code
-- Publishing pre-built package tarballs
-- Generating documentation (optional)
-- Provenance attestation for npm packages
-- Distribution tags for versioning
-- Scoped package access control
+The workflow downloads a raw `.tgz` artifact by immutable artifact ID, verifies
+that exactly one tarball is present, configures Node.js for the target registry,
+and runs `npm publish` against that tarball.
 
 ### Permissions
 
@@ -45,29 +42,7 @@ Workflow to release Node.js packages with support for:
 
 ## Usage
 
-### Basic Release from Source
-
-```yaml
-name: Release
-
-on:
-  release:
-    types: [published]
-
-permissions: {}
-
-jobs:
-  release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    secrets:
-      registry-token: ${{ secrets.NPM_TOKEN }}
-```
-
-### Release with Build Artifacts from CI
+### Publish a CI Package Tarball
 
 ```yaml
 name: Release
@@ -97,12 +72,51 @@ jobs:
     secrets:
       registry-token: ${{ secrets.NPM_TOKEN }}
     with:
-      # Download build artifacts from CI job
-      build-artifact-id: ${{ needs.ci.outputs.build-artifact-id }}
-      access: public
+      package-tarball-artifact-id: ${{ needs.ci.outputs.package-tarball-artifact-id }}
 ```
 
-### Release Pre-built Tarball
+<!-- usage:end -->
+
+<!-- markdownlint-disable MD013 -->
+
+<!-- inputs:start -->
+
+## Inputs
+
+### Workflow Call Inputs
+
+| **Input**                         | **Description**                                                                    | **Required** | **Type**    | **Default**                  |
+| --------------------------------- | ---------------------------------------------------------------------------------- | ------------ | ----------- | ---------------------------- |
+| **`runs-on`**                     | JSON array of runner(s) to use.                                                    | **false**    | **string**  | `["ubuntu-latest"]`          |
+|                                   | See <https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job>. |              |             |                              |
+| **`package-tarball-artifact-id`** | Artifact ID of the package tarball produced by CI.                                 | **true**     | **string**  | -                            |
+| **`registry-url`**                | Registry URL used by npm publish.                                                  | **false**    | **string**  | `https://registry.npmjs.org` |
+| **`access`**                      | Package access level passed to npm publish.                                        | **false**    | **string**  | `public`                     |
+|                                   | Leave empty to use npm defaults.                                                   |              |             |                              |
+| **`tag`**                         | npm distribution tag for the published package.                                    | **false**    | **string**  | `latest`                     |
+|                                   | Common values: `latest`, `next`, `canary`.                                         |              |             |                              |
+| **`provenance`**                  | Whether to generate npm provenance for npmjs.org publishes.                        | **false**    | **boolean** | `true`                       |
+| **`dry-run`**                     | Whether to run npm publish without publishing the package.                         | **false**    | **boolean** | `false`                      |
+
+<!-- inputs:end -->
+
+<!-- markdownlint-enable MD013 -->
+
+<!-- secrets:start -->
+
+## Secrets
+
+| **Secret**           | **Description**                                           | **Required** |
+| -------------------- | --------------------------------------------------------- | ------------ |
+| **`registry-token`** | Authentication token for token-based registry publishing. | **false**    |
+
+<!-- secrets:end -->
+
+<!-- examples:start -->
+
+## Examples
+
+### Publish Tested Tarball to npm
 
 ```yaml
 name: Release
@@ -116,10 +130,11 @@ permissions: {}
 jobs:
   ci:
     uses: ./.github/workflows/__shared-ci.yml
+    secrets: inherit
     permissions:
       contents: read
       id-token: write
-    secrets: inherit
+      packages: read
 
   release:
     needs: ci
@@ -131,253 +146,35 @@ jobs:
     secrets:
       registry-token: ${{ secrets.NPM_TOKEN }}
     with:
-      build-artifact-id: ${{ needs.ci.outputs.package-tarball-artifact-id }}
-      package-tarball: "*.tgz"
-      access: public
-      provenance: true
+      package-tarball-artifact-id: ${{ needs.ci.outputs.package-tarball-artifact-id }}
 ```
 
-<!-- usage:end -->
-
-<!-- markdownlint-disable MD013 -->
-
-<!-- inputs:start -->
-
-## Inputs
-
-### Workflow Call Inputs
-
-| **Input**               | **Description**                                                                    | **Required** | **Type**    | **Default**         |
-| ----------------------- | ---------------------------------------------------------------------------------- | ------------ | ----------- | ------------------- |
-| **`runs-on`**           | JSON array of runner(s) to use.                                                    | **false**    | **string**  | `["ubuntu-latest"]` |
-|                         | See <https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job>. |              |             |                     |
-| **`build-artifact-id`** | Build artifact ID from CI to download before publishing.                           | **false**    | **string**  | -                   |
-|                         | Contains built package or tarball from a previous job.                             |              |             |                     |
-| **`package-tarball`**   | Path/pattern to pre-built tarball to publish (e.g., `*.tgz`).                      | **false**    | **string**  | -                   |
-|                         | Use when publishing a specific tarball instead of from source.                     |              |             |                     |
-| **`access`**            | Package access level: `public` or `restricted`.                                    | **false**    | **string**  | -                   |
-|                         | Leave empty to use package.json default.                                           |              |             |                     |
-| **`docs`**              | Documentation generation parameters.                                               | **false**    | **string**  | -                   |
-|                         | Set to empty string or `false` to disable.                                         |              |             |                     |
-|                         | Set to `true` for default command (`docs`).                                        |              |             |                     |
-|                         | Accepts JSON object with `command`, `output`, and `artifact` properties.           |              |             |                     |
-| **`registry`**          | Registry configuration for package publishing.                                     | **false**    | **string**  | `npm`               |
-|                         | Supported values: `npm`, `github`, URL, or JSON object with `url` and `scope`.     |              |             |                     |
-| **`publish-command`**   | Command to run for publishing the package.                                         | **false**    | **string**  | `publish`           |
-|                         | Defaults to `publish` which runs `npm publish` or equivalent.                      |              |             |                     |
-| **`tag`**               | npm distribution tag for the published package.                                    | **false**    | **string**  | `latest`            |
-|                         | Common values: `latest`, `next`, `canary`.                                         |              |             |                     |
-| **`dry-run`**           | Whether to perform a dry run (no actual publish).                                  | **false**    | **boolean** | `false`             |
-| **`provenance`**        | Whether to generate provenance attestation for the published package.              | **false**    | **boolean** | `true`              |
-|                         | Requires npm 9.5.0+ and appropriate permissions.                                   |              |             |                     |
-| **`working-directory`** | Working directory where the package is located.                                    | **false**    | **string**  | `.`                 |
-
-<!-- inputs:end -->
-
-<!-- markdownlint-enable MD013 -->
-
-<!-- secrets:start -->
-
-## Secrets
-
-| **Secret**           | **Description**                                                                    | **Required** |
-| -------------------- | ---------------------------------------------------------------------------------- | ------------ |
-| **`registry-token`** | Authentication token for the registry.                                             | **true**     |
-|                      | For npm: Use an npm access token with publish permissions.                         |              |
-|                      | For GitHub Packages: Use `GITHUB_TOKEN` or a PAT with `packages:write` permission. |              |
-
-<!-- secrets:end -->
-
-<!-- outputs:start -->
-
-## Outputs
-
-| **Output**             | **Description**                                 |
-| ---------------------- | ----------------------------------------------- |
-| **`version`**          | The version of the published package.           |
-| **`package-name`**     | The name of the published package.              |
-| **`docs-artifact-id`** | ID of the documentation artifact (if uploaded). |
-
-<!-- outputs:end -->
-
-<!-- examples:start -->
-
-## Examples
-
-### Basic Release to npm
+### Dry Run
 
 ```yaml
-name: Release to npm
-
-on:
-  release:
-    types: [published]
-
-permissions: {}
-
-jobs:
-  release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    secrets:
-      registry-token: ${{ secrets.NPM_TOKEN }}
-```
-
-### Release to GitHub Packages
-
-```yaml
-name: Release to GitHub Packages
-
-on:
-  release:
-    types: [published]
-
-permissions: {}
-
-jobs:
-  release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    secrets:
-      registry-token: ${{ secrets.GITHUB_TOKEN }}
-    with:
-      registry: github
-      provenance: false
-```
-
-### Release with Documentation
-
-```yaml
-name: Release with Documentation
-
-on:
-  release:
-    types: [published]
-
-permissions: {}
-
-jobs:
-  release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    secrets:
-      registry-token: ${{ secrets.NPM_TOKEN }}
-    with:
-      docs: |
-        {
-          "command": "build:docs",
-          "output": "docs-dist",
-          "artifact": true
-        }
-```
-
-### Prerelease with Next Tag
-
-```yaml
-name: Pre-release
-
-on:
-  release:
-    types: [prereleased]
-
-permissions: {}
-
-jobs:
-  release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    secrets:
-      registry-token: ${{ secrets.NPM_TOKEN }}
-    with:
-      tag: next
-```
-
-### Custom Registry
-
-```yaml
-name: Release to Custom Registry
-
-on:
-  release:
-    types: [published]
-
-permissions: {}
-
-jobs:
-  release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    secrets:
-      registry-token: ${{ secrets.CUSTOM_REGISTRY_TOKEN }}
-    with:
-      registry: |
-        {
-          "url": "https://my-registry.example.com",
-          "scope": "@myorg"
-        }
-      provenance: false
-```
-
-### Dry Run for Testing
-
-```yaml
-name: Test Release
+name: Release dry run
 
 on:
   workflow_dispatch:
+    inputs:
+      package-tarball-artifact-id:
+        description: Package tarball artifact ID from a previous CI run
+        required: true
+        type: string
 
 permissions: {}
 
 jobs:
-  test-release:
+  dry-run:
     uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
     permissions:
       contents: read
       packages: write
       id-token: write
-    secrets:
-      registry-token: ${{ secrets.NPM_TOKEN }}
     with:
+      package-tarball-artifact-id: ${{ inputs.package-tarball-artifact-id }}
       dry-run: true
-```
-
-### Monorepo Package Release
-
-```yaml
-name: Release Package
-
-on:
-  release:
-    types: [published]
-
-permissions: {}
-
-jobs:
-  release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    secrets:
-      registry-token: ${{ secrets.NPM_TOKEN }}
-    with:
-      working-directory: packages/my-package
+      provenance: false
 ```
 
 <!-- examples:end -->

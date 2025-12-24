@@ -40,7 +40,7 @@ inputs:
   artifact-name:
     description: "Name of the uploaded package tarball artifact"
     required: false
-    default: "package-tarball"
+    default: ""
 
 outputs:
   package-tarball-path:
@@ -86,9 +86,13 @@ runs:
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
         PACKAGE_DIRECTORY: ${{ inputs.package-directory }}
         RELEASE_VERSION: ${{ inputs.version }}
+        ARTIFACT_NAME_INPUT: ${{ inputs.artifact-name }}
+        GITHUB_RUN_ID: ${{ github.run_id }}
+        GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
         RUNNER_TEMP: ${{ runner.temp }}
       with:
         script: |
+          const { randomUUID } = require('node:crypto');
           const fs = require('node:fs');
           const path = require('node:path');
 
@@ -160,14 +164,39 @@ runs:
             return;
           }
 
-          core.info(`Generated package tarball: ${tarballPath}`);
-          core.setOutput('package-tarball-path', tarballPath);
+          const artifactNameInput = (process.env.ARTIFACT_NAME_INPUT || '').trim();
+          const artifactName = artifactNameInput || `package-tarball-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}-${randomUUID()}`;
+          const tarballExtension = path.extname(tarballPath) || '.tgz';
+          const sanitizedArtifactName = artifactName.replace(/[^a-zA-Z0-9._-]+/g, '-');
+          const uniqueTarballPath = path.join(runnerTemp, `${sanitizedArtifactName}${tarballExtension}`);
+
+          if (path.resolve(tarballPath) !== path.resolve(uniqueTarballPath)) {
+            fs.renameSync(tarballPath, uniqueTarballPath);
+          }
+
+          core.info(`Generated package tarball: ${uniqueTarballPath}`);
+          core.setOutput('package-tarball-path', uniqueTarballPath);
+
+    - id: resolve-artifact-name
+      name: Resolve package tarball artifact name
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        PACKAGE_TARBALL_PATH: ${{ steps.package.outputs.package-tarball-path }}
+      with:
+        script: |
+          const path = require('node:path');
+
+          const packageTarballPath = process.env.PACKAGE_TARBALL_PATH;
+          const artifactName = path.basename(packageTarballPath, path.extname(packageTarballPath));
+
+          core.info(`Package tarball artifact name: ${artifactName}`);
+          core.setOutput('artifact-name', artifactName);
 
     - name: Upload package tarball
       id: upload-package-tarball
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
-        name: ${{ inputs.artifact-name }}
+        name: ${{ steps.resolve-artifact-name.outputs.artifact-name }}
         path: ${{ steps.package.outputs.package-tarball-path }}
         archive: false
         if-no-files-found: error
