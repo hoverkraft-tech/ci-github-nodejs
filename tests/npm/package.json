@@ -10,7 +10,7 @@
   "dependencies": {
     "gatsby": "^5.15.0",
     "jest": "^30.2.0",
-    "nx": "^22.3.1",
+    "nx": "^22.3.3",
     "prettier": "^3.7.4",
     "storybook": "^10.1.10"
   }
