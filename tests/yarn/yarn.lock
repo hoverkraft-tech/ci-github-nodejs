@@ -10594,10 +10594,10 @@ statuses@2.0.1:
   resolved "https://registry.yarnpkg.com/statuses/-/statuses-2.0.1.tgz#55cb000ccf1d48728bd23c685a063998cf1a1b63"
   integrity sha512-RwNA9Z/7PrK06rYLIzFMlaF+l73iwpzsqRIFgbMLbTcLD6cOao82TaWefPXQvB2fOC4AjuYSEndS7N/mTCbkdQ==
 
-storybook@^10.1.10:
-  version "10.1.10"
-  resolved "https://registry.yarnpkg.com/storybook/-/storybook-10.1.10.tgz#9023e063f97cb2c38b4520e03d49336bcbf6661f"
-  integrity sha512-oK0t0jEogiKKfv5Z1ao4Of99+xWw1TMUGuGRYDQS4kp2yyBsJQEgu7NI7OLYsCDI6gzt5p3RPtl1lqdeVLUi8A==
+storybook@^10.1.11:
+  version "10.1.11"
+  resolved "https://registry.yarnpkg.com/storybook/-/storybook-10.1.11.tgz#cdd75835eebad45edc93129f9468a32eb6c1f4bd"
+  integrity sha512-pKP5jXJYM4OjvNklGuHKO53wOCAwfx79KvZyOWHoi9zXUH5WVMFUe/ZfWyxXG/GTcj0maRgHGUjq/0I43r0dDQ==
   dependencies:
     "@storybook/global" "^5.0.0"
     "@storybook/icons" "^2.0.0"
