@@ -99,8 +99,30 @@ runs:
           if (relativeWorkingDirectory.startsWith('../')) {
             // Working directory is outside GITHUB_WORKSPACE
             // Create a symlink inside GITHUB_WORKSPACE to enable caching
-            const symlinkName = '.github-actions-cache';
+            const symlinkName = '.ci-github-nodejs-cache';
             const symlinkPath = path.join(process.env.GITHUB_WORKSPACE, symlinkName);
+            const ensureIgnoreEntry = (filePath, entry) => {
+              const normalizedEntry = entry.trim();
+              if (!normalizedEntry) {
+                return;
+              }
+
+              if (fs.existsSync(filePath)) {
+                const contents = fs.readFileSync(filePath, 'utf8');
+                const lines = contents.split(/\r?\n/);
+
+                if (lines.includes(normalizedEntry)) {
+                  return;
+                }
+
+                const needsNewline = contents.length > 0 && !contents.endsWith('\n');
+                const prefix = needsNewline ? '\n' : '';
+                fs.appendFileSync(filePath, `${prefix}${normalizedEntry}\n`);
+                return;
+              }
+
+              fs.writeFileSync(filePath, `${normalizedEntry}\n`);
+            };
 
             try {
               // Remove existing symlink if it exists
@@ -111,6 +133,12 @@ runs:
               // Create symlink pointing to the working directory
               fs.symlinkSync(workingDirectory, symlinkPath, 'dir');
               core.info(`Created symlink at "${symlinkPath}" pointing to "${workingDirectory}" to enable caching.`);
+
+              const gitignorePath = path.join(process.env.GITHUB_WORKSPACE, '.gitignore');
+              const dockerignorePath = path.join(process.env.GITHUB_WORKSPACE, '.dockerignore');
+              ensureIgnoreEntry(gitignorePath, symlinkName);
+              ensureIgnoreEntry(dockerignorePath, symlinkName);
+
               cacheDependencyPathPrefix = symlinkName;
             } catch (error) {
               core.warning(`Failed to create symlink for caching: ${error.message}. Caching will be disabled.`);
