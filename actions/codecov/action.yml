@@ -50,7 +50,6 @@ runs:
       uses: pkgxdev/setup@f211ee4db3110b42e5a156282372527e7c1ed723 # v4.0.0
       with:
         +: ${{ steps.check-codecov-deps.outputs.missing-deps }}
-        version: ^1 # FIXME: v2 has a bug: https://github.com/pkgxdev/pkgx/issues/1154
 
     - name: Fix unexpanded environment variables
       if: steps.check-codecov-deps.outputs.missing-deps
