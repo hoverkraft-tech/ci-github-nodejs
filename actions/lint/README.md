@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stY2lyY2xlIiBjb2xvcj0iYmx1ZSI+PHBhdGggZD0iTTIyIDExLjA4VjEyYTEwIDEwIDAgMSAxLTUuOTMtOS4xNCI+PC9wYXRoPjxwb2x5bGluZSBwb2ludHM9IjIyIDQgMTIgMTQuMDEgOSAxMS4wMSI+PC9wb2x5bGluZT48L3N2Zz4=) GitHub Action: Lint
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/f0111b126f55f4b842dad3996436655d47c0b27180ea1fe2289ac79d261fad6d/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Lint" />
+  <img src="https://opengraph.githubassets.com/80b7a9ed32baba303ae5ad824cf870d1694aa85e0bdeffd0fcee63544da4d43f/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Lint" />
 </div>
 
 ---
@@ -30,7 +30,7 @@ Action to lint Node.js projects with support for pull request reporting and anno
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@009e0e9d11a45eda39342243a14a4e5c3c6eaef3 # 0.21.1
+- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@c9d9d041ba4ef35695ee469c4782fa6a8bbebbcc # 0.21.2
   with:
     # Working directory where lint commands are executed.
     # Can be absolute or relative to the repository root.
@@ -115,7 +115,7 @@ This project is licensed under the MIT License.
 
 SPDX-License-Identifier: MIT
 
-Copyright © 2025 hoverkraft
+Copyright © 2026 hoverkraft
 
 For more details, see the [license](http://choosealicense.com/licenses/mit/).
 
