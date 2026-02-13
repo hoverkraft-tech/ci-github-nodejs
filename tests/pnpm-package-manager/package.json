@@ -6,11 +6,11 @@
     "test:ci": "echo \"test CI\""
   },
   "dependencies": {
-    "gatsby": "^5.16.0",
+    "gatsby": "^5.16.1",
     "jest": "^30.2.0",
-    "nx": "^22.4.5",
+    "nx": "^22.5.0",
     "prettier": "^3.8.1",
-    "storybook": "^10.2.7"
+    "storybook": "^10.2.8"
   },
   "packageManager": "pnpm@10.8.0"
 }
