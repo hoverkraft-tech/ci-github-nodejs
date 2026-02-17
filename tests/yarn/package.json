@@ -8,8 +8,8 @@
   "dependencies": {
     "gatsby": "^5.16.1",
     "jest": "^30.2.0",
-    "nx": "^22.5.0",
+    "nx": "^22.5.1",
     "prettier": "^3.8.1",
-    "storybook": "^10.2.8"
+    "storybook": "^10.2.9"
   }
 }
