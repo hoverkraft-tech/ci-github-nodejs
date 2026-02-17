@@ -1,0 +1,337 @@
+# Workflow to release Node.js packages:
+#
+# - Generate documentation (optional)
+# - Publish to registry (npm, GitHub Packages)
+
+name: Node.js Release
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: |
+          JSON array of runner(s) to use.
+          See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job.
+        type: string
+        default: '["ubuntu-latest"]'
+        required: false
+      working-directory:
+        description: "Working directory where the dependencies are installed."
+        type: string
+        required: false
+        default: "."
+      build-artifact-id:
+        description: |
+          Build artifact ID from a previous CI job to download before publishing.
+          This artifact typically contains the built package or tarball.
+          If not provided, the workflow will publish from source.
+        type: string
+        required: false
+        default: ""
+      registry:
+        description: |
+          Registry configuration for package publishing.
+          Accepts a string for the registry URL or a JSON object for advanced options.
+
+          Supported registries:
+          - `npm` or `https://registry.npmjs.org` — npm public registry (default)
+          - `github` or `https://npm.pkg.github.com` — GitHub Packages
+
+          JSON object format:
+          - `url`: Registry URL
+          - `scope`: Package scope (e.g., `@myorg`). Defaults to repository owner for GitHub Packages.
+
+          Example:
+          ```json
+          {
+            "url": "https://npm.pkg.github.com",
+            "scope": "@myorg"
+          }
+          ```
+        type: string
+        required: false
+        default: "npm"
+      tag:
+        description: |
+          npm distribution tag for the published package.
+          Common values:
+          - `latest` — Default tag for stable releases
+          - `next` — Pre-release or beta versions
+          - `canary` — Canary/nightly builds
+
+          See https://docs.npmjs.com/adding-dist-tags-to-packages.
+        type: string
+        required: false
+        default: "latest"
+
+permissions: {}
+
+jobs:
+  prepare:
+    name: 📦 Prepare configuration
+    runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
+    permissions: {}
+    outputs:
+      registry-url: ${{ steps.parse-registry.outputs.registry-url }}
+      registry-scope: ${{ steps.parse-registry.outputs.registry-scope }}
+      docs-command: ${{ steps.parse-docs.outputs.command }}
+      docs-output: ${{ steps.parse-docs.outputs.output }}
+      docs-artifact: ${{ steps.parse-docs.outputs.artifact }}
+    steps:
+      - id: parse-registry
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          REGISTRY_INPUT: ${{ inputs.registry }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        with:
+          script: |
+            const registryInput = process.env.REGISTRY_INPUT.trim();
+            const repoOwner = process.env.REPO_OWNER;
+
+            let registryUrl = 'https://registry.npmjs.org';
+            let registryScope = '';
+
+            // Handle shorthand values
+            if (registryInput === 'npm' || registryInput === '') {
+              registryUrl = 'https://registry.npmjs.org';
+            } else if (registryInput === 'github') {
+              registryUrl = 'https://npm.pkg.github.com';
+              registryScope = `@${repoOwner}`;
+            } else if (registryInput.startsWith('https://') || registryInput.startsWith('http://')) {
+              registryUrl = registryInput;
+              // Auto-detect GitHub Packages scope
+              if (registryInput.includes('npm.pkg.github.com')) {
+                registryScope = `@${repoOwner}`;
+              }
+            } else if (registryInput.startsWith('{')) {
+              // Parse JSON object
+              try {
+                const config = JSON.parse(registryInput);
+                registryUrl = config.url || 'https://registry.npmjs.org';
+                registryScope = config.scope || '';
+                // Auto-detect GitHub Packages scope if not specified
+                if (registryUrl.includes('npm.pkg.github.com') && !registryScope) {
+                  registryScope = `@${repoOwner}`;
+                }
+              } catch (error) {
+                return core.setFailed(`Failed to parse registry input as JSON: ${error.message}`);
+              }
+            } else {
+              return core.setFailed(`Invalid registry input: ${registryInput}`);
+            }
+
+            core.info(`Registry URL: ${registryUrl}`);
+            core.info(`Registry scope: ${registryScope || '(none)'}`);
+
+            core.setOutput('registry-url', registryUrl);
+            core.setOutput('registry-scope', registryScope);
+
+  release:
+    name: 🚀 Release
+    runs-on: ${{ inputs.runs-on && fromJson(inputs.runs-on) || 'ubuntu-latest' }}
+    needs:
+      - prepare
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # Required for provenance
+    steps:
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@5ac504609f6ef35c5ac94bd8199063aa32104721 # 0.31.3
+
+      - id: local-workflow-actions
+        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@5ac504609f6ef35c5ac94bd8199063aa32104721 # 0.31.3
+        with:
+          actions-path: actions
+
+      - id: setup-node
+        uses: ./self-workflow/actions/setup-node
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          registry-url: ${{ needs.prepare.outputs.registry-url }}
+
+      - name: Download build artifacts
+        if: inputs.build-artifact-id != ''
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: ${{ inputs.build-artifact-id }}
+          path: ${{ github.workspace }}
+
+      - id: package-info
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+
+            let workingDirectory = process.env.WORKING_DIRECTORY || '.';
+            if (!path.isAbsolute(workingDirectory)) {
+              workingDirectory = path.join(process.env.GITHUB_WORKSPACE, workingDirectory);
+            }
+
+            const packageJsonPath = path.join(workingDirectory, 'package.json');
+            if (!fs.existsSync(packageJsonPath)) {
+              return core.setFailed(`package.json not found at ${packageJsonPath}`);
+            }
+
+            let packageJson;
+            try {
+              packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+            } catch (error) {
+              return core.setFailed(`Failed to parse package.json: ${error.message}`);
+            }
+
+            const name = packageJson.name;
+            const version = packageJson.version;
+
+            if (!name) {
+              return core.setFailed('Package name is not defined in package.json');
+            }
+            if (!version) {
+              return core.setFailed('Package version is not defined in package.json');
+            }
+
+            core.info(`Package: ${name}@${version}`);
+            core.setOutput('name', name);
+            core.setOutput('version', version);
+
+      - name: Publish package
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.registry-token }}
+          PUBLISH_COMMAND: ${{ inputs.publish-command }}
+          PACKAGE_TARBALL: ${{ inputs.package-tarball }}
+          ACCESS: ${{ inputs.access }}
+          TAG: ${{ inputs.tag }}
+          DRY_RUN: ${{ inputs.dry-run }}
+          PROVENANCE: ${{ inputs.provenance }}
+          RUN_SCRIPT_COMMAND: ${{ steps.setup-node.outputs.run-script-command }}
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          REGISTRY_URL: ${{ needs.prepare.outputs.registry-url }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+
+            let workingDirectory = process.env.WORKING_DIRECTORY || '.';
+            if (!path.isAbsolute(workingDirectory)) {
+              workingDirectory = path.join(process.env.GITHUB_WORKSPACE, workingDirectory);
+            }
+
+            if (!fs.existsSync(workingDirectory)) {
+              return core.setFailed(`Working directory does not exist: ${workingDirectory}`);
+            }
+
+            const publishCommand = process.env.PUBLISH_COMMAND;
+            const packageTarball = process.env.PACKAGE_TARBALL;
+            const access = process.env.ACCESS;
+            const tag = process.env.TAG;
+            const dryRun = process.env.DRY_RUN === 'true';
+            const provenance = process.env.PROVENANCE === 'true';
+            const runScriptCommand = process.env.RUN_SCRIPT_COMMAND;
+            const registryUrl = process.env.REGISTRY_URL;
+
+            // Simple glob matching function
+            function matchGlob(pattern, filename) {
+              const regexPattern = pattern
+                .replace(/\./g, '\\.')
+                .replace(/\*/g, '.*')
+                .replace(/\?/g, '.');
+              return new RegExp(`^${regexPattern}$`).test(filename);
+            }
+
+            // Determine what to publish
+            let publishTarget = null;
+
+            if (packageTarball) {
+              // Publishing a specific tarball file
+              let searchDir = workingDirectory;
+              let filePattern = packageTarball;
+
+              if (path.isAbsolute(packageTarball)) {
+                searchDir = path.dirname(packageTarball);
+                filePattern = path.basename(packageTarball);
+              } else if (packageTarball.includes('/')) {
+                searchDir = path.join(workingDirectory, path.dirname(packageTarball));
+                filePattern = path.basename(packageTarball);
+              }
+
+              if (!fs.existsSync(searchDir)) {
+                return core.setFailed(`Search directory does not exist: ${searchDir}`);
+              }
+
+              // Find matching files
+              const allFiles = fs.readdirSync(searchDir);
+              const matches = allFiles
+                .filter(file => matchGlob(filePattern, file))
+                .map(file => path.join(searchDir, file))
+                .filter(file => fs.statSync(file).isFile());
+
+              if (matches.length === 0) {
+                return core.setFailed(`No tarball found matching pattern: ${packageTarball} in ${searchDir}`);
+              }
+
+              if (matches.length > 1) {
+                core.warning(`Multiple tarballs found: ${matches.join(', ')}. Using first match.`);
+              }
+
+              publishTarget = matches[0];
+              core.info(`Publishing tarball: ${publishTarget}`);
+            }
+
+            // Build publish arguments
+            const args = [publishCommand];
+
+            // Add tarball target if specified
+            if (publishTarget) {
+              args.push(publishTarget);
+            }
+
+            // Add access flag
+            if (access) {
+              args.push('--access', access);
+            }
+
+            // Add tag
+            if (tag) {
+              args.push('--tag', tag);
+            }
+
+            // Add dry run flag
+            if (dryRun) {
+              args.push('--dry-run');
+              core.info('Dry run mode enabled - package will not be published');
+            }
+
+            // Add provenance flag (npm only, requires npm 9.5.0+)
+            if (provenance && registryUrl.includes('registry.npmjs.org')) {
+              args.push('--provenance');
+              core.info('Provenance attestation enabled');
+            }
+
+            core.info(`Publishing with command: ${runScriptCommand} ${args.join(' ')}`);
+
+            try {
+              const exitCode = await exec.exec(runScriptCommand, args, {
+                cwd: workingDirectory,
+                ignoreReturnCode: true
+              });
+
+              if (exitCode !== 0) {
+                return core.setFailed(`Package publish failed with exit code ${exitCode}`);
+              }
+
+              core.info('Package published successfully!');
+            } catch (error) {
+              return core.setFailed(`Package publish failed: ${error.message}`);
+            }
+
+      # jscpd:ignore-start
+      - uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@5ac504609f6ef35c5ac94bd8199063aa32104721 # 0.31.3
+        if: always() && steps.local-workflow-actions.outputs.repository
+        with:
+          actions-path: actions
+          repository: ${{ steps.local-workflow-actions.outputs.repository }}
+          ref: ${{ steps.local-workflow-actions.outputs.ref }}
+      # jscpd:ignore-end
