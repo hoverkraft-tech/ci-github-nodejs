@@ -57,6 +57,7 @@ jobs:
         {"coverage": "github"}
 
   arrange-with-container:
+    name: Arrange - Build container image for CI workflow
     permissions:
       id-token: write
       contents: read
