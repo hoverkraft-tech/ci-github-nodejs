@@ -30,22 +30,25 @@ jobs:
             package-manager: yarn
             lock-file: yarn.lock
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Arrange - Checkout sources
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - id: setup-node
+      - name: Arrange - Setup Node.js runtime
+        id: arrange-setup-node
         uses: ./actions/setup-node
         with:
           working-directory: ${{ matrix.working-directory }}
 
-      - name: Check that package manager is the expected one
-        id: check-package-manager
+      - name: Arrange - Verify expected package manager
+        id: arrange-check-package-manager
         run: |
-          if [[ "${{ steps.setup-node.outputs.run-script-command }}" != "${{ matrix.package-manager }}"* ]]; then
+          if [[ "${{ steps.arrange-setup-node.outputs.run-script-command }}" != "${{ matrix.package-manager }}"* ]]; then
             echo "Package manager is not ${{ matrix.package-manager }}"
             exit 1
           fi
 
-      - id: has-installed-dependencies
+      - name: Act - Run "has-installed-dependencies" action
+        id: act-has-installed-dependencies
         uses: ./actions/has-installed-dependencies
         with:
           working-directory: ${{ matrix.working-directory }}
@@ -57,13 +60,15 @@ jobs:
             storybook
             unknown
 
-      - name: Check "has-installed-dependencies" outputs
+      - name: Assert - Check "has-installed-dependencies" outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          INSTALLED_DEPENDENCIES: ${{ steps.act-has-installed-dependencies.outputs.installed-dependencies }}
         with:
           script: |
             const assert = require("assert");
 
-            const installedDependenciesOutput = `${{ steps.has-installed-dependencies.outputs.installed-dependencies }}`;
+            const installedDependenciesOutput = process.env.INSTALLED_DEPENDENCIES;
             assert(installedDependenciesOutput.length, `"installed-dependencies" output is empty`);
 
             // Check if is valid JSON

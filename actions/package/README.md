@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItcGFja2FnZSIgY29sb3I9ImJsdWUiPjxsaW5lIHgxPSIxNi41IiB5MT0iOS40IiB4Mj0iNy41IiB5Mj0iNC4yMSI+PC9saW5lPjxwYXRoIGQ9Ik0yMSAxNlY4YTIgMiAwIDAgMC0xLTEuNzNsLTctNGEyIDIgMCAwIDAtMiAwbC03IDRBMiAyIDAgMCAwIDMgOHY4YTIgMiAwIDAgMCAxIDEuNzNsNyA0YTIgMiAwIDAgMCAyIDBsNy00QTIgMiAwIDAgMCAyMSAxNnoiPjwvcGF0aD48cG9seWxpbmUgcG9pbnRzPSIzLjI3IDYuOTYgMTIgMTIuMDEgMjAuNzMgNi45NiI+PC9wb2x5bGluZT48bGluZSB4MT0iMTIiIHkxPSIyMi4wOCIgeDI9IjEyIiB5Mj0iMTIiPjwvbGluZT48L3N2Zz4=) GitHub Action: Package
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/07d39741f0be451a378f8b498a7b573d5949e0ae7da27c750abebd8d586a5331/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Package" />
+  <img src="https://opengraph.githubassets.com/d1a1e1a571ea2f219133f714e773a06b07d3efc23fa42a8746c3f02c80af02cf/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Package" />
 </div>
 
 ---
@@ -30,7 +30,7 @@ Action to create and upload an npm package tarball from a Node.js project
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/package@775ce0902c528062cc94141dd7d13261083b752a # 0.22.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/package@edadd27d0f6a1b2dd558aec095acb6496aa1916b # main
   with:
     # Working directory where dependencies are installed for packaging.
     # Can be absolute or relative to the repository root.
@@ -67,20 +67,20 @@ Action to create and upload an npm package tarball from a Node.js project
 
 ## Inputs
 
-| **Input**                 | **Description**                                                                             | **Required** | **Default**               |
-| ------------------------- | ------------------------------------------------------------------------------------------- | ------------ | ------------------------- |
-| **`working-directory`**   | Working directory where dependencies are installed for packaging.                           | **false**    | `.`                       |
-|                           | Can be absolute or relative to the repository root.                                         |              |                           |
-| **`package-directory`**   | Optional package directory to version and pack.                                             | **false**    | -                         |
-|                           | Can be absolute or relative to `working-directory`.                                         |              |                           |
-|                           | Useful for monorepos where dependencies are installed at the root.                          |              |                           |
-| **`build-artifact-id`**   | Optional build artifact ID to download before packaging.                                    | **false**    | -                         |
-|                           | When provided, the artifact will be downloaded to the workspace.                            |              |                           |
-| **`build-artifact-path`** | Optional path to the build artifact contents relative to the workspace root.                | **false**    | `${{ github.workspace }}` |
-|                           | Used to locate the files to be included in the package when a build artifact is downloaded. |              |                           |
-| **`version`**             | Optional version to apply with `npm version` before packaging.                              | **false**    | -                         |
-|                           | The version is applied without creating a Git tag.                                          |              |                           |
-| **`artifact-name`**       | Name of the uploaded package tarball artifact                                               | **false**    | `package-tarball`         |
+| **Input**                 | **Description**                                                                             | **Required** | **Default**                 |
+| ------------------------- | ------------------------------------------------------------------------------------------- | ------------ | --------------------------- |
+| **`working-directory`**   | Working directory where dependencies are installed for packaging.                           | **false**    | `.`                         |
+|                           | Can be absolute or relative to the repository root.                                         |              |                             |
+| **`package-directory`**   | Optional package directory to version and pack.                                             | **false**    | -                           |
+|                           | Can be absolute or relative to `working-directory`.                                         |              |                             |
+|                           | Useful for monorepos where dependencies are installed at the root.                          |              |                             |
+| **`build-artifact-id`**   | Optional build artifact ID to download before packaging.                                    | **false**    | -                           |
+|                           | When provided, the artifact will be downloaded to the workspace.                            |              |                             |
+| **`build-artifact-path`** | Optional path to the build artifact contents relative to the workspace root.                | **false**    | `$\{\{ github.workspace }}` |
+|                           | Used to locate the files to be included in the package when a build artifact is downloaded. |              |                             |
+| **`version`**             | Optional version to apply with `npm version` before packaging.                              | **false**    | -                           |
+|                           | The version is applied without creating a Git tag.                                          |              |                             |
+| **`artifact-name`**       | Name of the uploaded package tarball artifact                                               | **false**    | `package-tarball`           |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
@@ -89,13 +89,37 @@ Action to create and upload an npm package tarball from a Node.js project
 
 ## Outputs
 
-| **Output**                        | **Description**                                |
-| --------------------------------- | ---------------------------------------------- |
-| **`package-tarball-path`**        | Absolute path to the generated package tarball |
-| **`package-tarball-artifact-id`** | Artifact ID of the uploaded package tarball    |
+| **Output**                        | **Description**                                                                   |
+| --------------------------------- | --------------------------------------------------------------------------------- |
+| **`package-tarball-path`**        | Absolute path to the generated package tarball                                    |
+| **`package-tarball-artifact-id`** | Artifact ID of the uploaded package tarball (download with skip-decompress: true) |
 
 <!-- outputs:end -->
 <!-- examples:start -->
+
+## Examples
+
+```yaml
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    outputs:
+      package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
+    steps:
+      - id: package
+        uses: hoverkraft-tech/ci-github-nodejs/actions/package@edadd27d0f6a1b2dd558aec095acb6496aa1916b # main
+
+  consume:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download package tarball by artifact ID
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          artifact-ids: ${{ needs.package.outputs.package-tarball-artifact-id }}
+          skip-decompress: true
+```
+
 <!-- examples:end -->
 <!-- contributing:start -->
 

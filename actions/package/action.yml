@@ -47,7 +47,7 @@ outputs:
     description: "Absolute path to the generated package tarball"
     value: ${{ steps.package.outputs.package-tarball-path }}
   package-tarball-artifact-id:
-    description: "Artifact ID of the uploaded package tarball"
+    description: "Artifact ID of the uploaded package tarball (download with skip-decompress: true)"
     value: ${{ steps.upload-package-tarball.outputs.artifact-id }}
 
 runs:
@@ -169,6 +169,7 @@ runs:
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ steps.package.outputs.package-tarball-path }}
+        archive: false
         if-no-files-found: error
 
     # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684

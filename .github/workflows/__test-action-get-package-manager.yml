@@ -42,31 +42,33 @@ jobs:
             install-command: yarn install --frozen-lockfile
             run-script-command: yarn
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Arrange - Checkout sources
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - id: get-package-manager
+      - name: Act - Run "get-package-manager" action
+        id: act-get-package-manager
         uses: ./actions/get-package-manager
         with:
           working-directory: ${{ matrix.working-directory }}
 
-      - name: Check "get-package-manager" outputs
+      - name: Assert - Check "get-package-manager" outputs
         run: |
-          if [ "${{ steps.get-package-manager.outputs.package-manager }}" != '${{ matrix.package-manager }}' ]; then
+          if [ "${{ steps.act-get-package-manager.outputs.package-manager }}" != '${{ matrix.package-manager }}' ]; then
             echo "get-package-manager outputs result is not valid"
             exit 1
           fi
 
-          if [ "${{ steps.get-package-manager.outputs.cache-dependency-path }}" != '${{ matrix.cache-dependency-path }}' ]; then
+          if [ "${{ steps.act-get-package-manager.outputs.cache-dependency-path }}" != '${{ matrix.cache-dependency-path }}' ]; then
             echo "get-package-manager outputs cache-dependency-path is not valid"
             exit 1
           fi
 
-          if [ "${{ steps.get-package-manager.outputs.install-command }}" != '${{ matrix.install-command }}' ]; then
+          if [ "${{ steps.act-get-package-manager.outputs.install-command }}" != '${{ matrix.install-command }}' ]; then
             echo "get-package-manager outputs install-command is not valid"
             exit 1
           fi
 
-          if [ "${{ steps.get-package-manager.outputs.run-script-command }}" != '${{ matrix.run-script-command }}' ]; then
+          if [ "${{ steps.act-get-package-manager.outputs.run-script-command }}" != '${{ matrix.run-script-command }}' ]; then
             echo "get-package-manager outputs run-script-command is not valid"
             exit 1
           fi

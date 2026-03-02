@@ -15,38 +15,36 @@ jobs:
       matrix:
         include:
           - working-directory: tests/npm
-            package-manager: npm
-            lock-file: package-lock.json
             run-script-command: npm run
 
           - working-directory: tests/pnpm
-            package-manager: pnpm
-            lock-file: pnpm-lock.yaml
             run-script-command: pnpm
 
           - working-directory: tests/pnpm-package-manager
-            package-manager: pnpm
-            lock-file: pnpm-lock.yaml
             run-script-command: pnpm
 
           - working-directory: tests/yarn
-            package-manager: yarn
-            lock-file: yarn.lock
             run-script-command: yarn
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Arrange - Checkout sources
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - run: echo "lts/*" > .nvmrc
+      - name: Arrange - Configure Node.js version
+        run: echo "lts/*" > .nvmrc
         working-directory: ${{ matrix.working-directory }}
 
-      - id: setup-node
+      - name: Act - Run "setup-node" action
+        id: act-setup-node
         uses: ./actions/setup-node
         with:
           working-directory: ${{ matrix.working-directory }}
 
-      - name: Check "setup-node" outputs
+      - name: Assert - Check "setup-node" outputs
+        env:
+          RUN_SCRIPT_COMMAND: ${{ steps.act-setup-node.outputs.run-script-command }}
+          EXPECTED_RUN_SCRIPT_COMMAND: ${{ matrix.run-script-command }}
         run: |
-          if [ "${{ steps.setup-node.outputs.run-script-command }}" != "${{ matrix.run-script-command }}" ]; then
-            echo "get-package-manager outputs run-script-command is not valid"
+          if [ "$RUN_SCRIPT_COMMAND" != "$EXPECTED_RUN_SCRIPT_COMMAND" ]; then
+            echo "setup-node outputs run-script-command is not valid"
             exit 1
           fi

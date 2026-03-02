@@ -16,34 +16,76 @@ jobs:
         include:
           - working-directory: tests/npm
             artifact-suffix: npm
+            install-command: npm install --force --legacy-peer-deps --no-audit --no-fund --loglevel=warn
           - working-directory: tests/pnpm
             artifact-suffix: pnpm
+            install-command: pnpm install
           - working-directory: tests/pnpm-package-manager
             artifact-suffix: pnpm-package-manager
+            install-command: pnpm install
           - working-directory: tests/yarn
             artifact-suffix: yarn
+            install-command: yarn add
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Arrange - Checkout sources
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - id: package
+      - name: Act - Run "package" action
+        id: act-package
         uses: ./actions/package
         with:
           working-directory: ${{ matrix.working-directory }}
           artifact-name: package-tarball-${{ matrix.artifact-suffix }}
 
-      - name: Check "package" outputs
+      - name: Assert - Check "package" outputs
+        env:
+          PACKAGE_TARBALL_PATH: ${{ steps.act-package.outputs.package-tarball-path }}
+          PACKAGE_TARBALL_ARTIFACT_ID: ${{ steps.act-package.outputs.package-tarball-artifact-id }}
         run: |
-          if [ -z "${{ steps.package.outputs.package-tarball-path }}" ]; then
+          if [ -z "$PACKAGE_TARBALL_PATH" ]; then
             echo "package-tarball-path output is empty"
             exit 1
           fi
 
-          if [ ! -f "${{ steps.package.outputs.package-tarball-path }}" ]; then
+          if [ ! -f "$PACKAGE_TARBALL_PATH" ]; then
             echo "Generated package tarball does not exist"
             exit 1
           fi
 
-          if [ -z "${{ steps.package.outputs.package-tarball-artifact-id }}" ]; then
+          if [ -z "$PACKAGE_TARBALL_ARTIFACT_ID" ]; then
             echo "package-tarball-artifact-id output is empty"
             exit 1
           fi
+
+      - name: Arrange - Configure Node.js version
+        run: echo "lts/*" > .nvmrc
+        working-directory: ${{ matrix.working-directory }}
+
+      - name: Arrange - Setup Node.js runtime
+        id: arrange-setup-node
+        uses: ./actions/setup-node
+        with:
+          working-directory: ${{ matrix.working-directory }}
+
+      - name: Assert - Download package tarball artifact by ID
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          artifact-ids: ${{ steps.act-package.outputs.package-tarball-artifact-id }}
+          path: ${{ runner.temp }}
+          skip-decompress: true
+
+      - name: Assert - Check downloaded package tarball artifact
+        env:
+          TARBALL_PATH: ${{ steps.act-package.outputs.package-tarball-path }}
+          INSTALL_COMMAND: ${{ matrix.install-command }}
+        working-directory: ${{ runner.temp }}
+        run: |
+          tarball_name="$(basename "$TARBALL_PATH")"
+
+          if [ ! -f "./$tarball_name" ]; then
+            echo "Downloaded package tarball artifact does not exist"
+            exit 1
+          fi
+
+          # Install the tarball to verify it's a valid npm package
+          $INSTALL_COMMAND "./$tarball_name"
