@@ -48,6 +48,8 @@ runs:
       uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       env:
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
+        DEPENDENCIES: ${{ inputs.dependencies }}
+        PACKAGE_MANAGER: ${{ steps.get-package-manager.outputs.package-manager }}
       with:
         # jscpd:ignore-start
         script: |
@@ -61,7 +63,7 @@ runs:
             docusaurus: /@docusaurus\/[a-z0-9\-]+/,
           };
 
-          const dependencies = `${{ inputs.dependencies }}`.split('\n').map(x => x.trim()).filter(x => x !== '');
+          const dependencies = process.env.DEPENDENCIES.split('\n').map(x => x.trim()).filter(x => x !== '');
 
           const hasDependencies = Object.fromEntries(dependencies.map(dependency => [dependency, false]));
 
@@ -111,25 +113,39 @@ runs:
           };
 
           const parseDependencies = async (command) => {
-            const { stdout } = await exec.getExecOutput(command, undefined, {
+            const { exitCode, stdout, stderr } = await exec.getExecOutput(command, undefined, {
               cwd: workingDirectory,
               silent: true,
+              ignoreReturnCode: true,
             });
+
+            if (exitCode !== 0) {
+              throw new Error(
+                `Failed to list dependencies with command "${command}" (exit code: ${exitCode}).\n${stderr || 'No stderr output.'}`
+              );
+            }
 
             if (stdout === '') {
               return;
             }
 
-            const allInstalledDependencies = JSON.parse(stdout);
+            let allInstalledDependencies;
+            try {
+              allInstalledDependencies = JSON.parse(stdout);
+            } catch (error) {
+              throw new Error(
+                `Dependency listing command "${command}" did not return valid JSON: ${error.message}`
+              );
+            }
 
             return allInstalledDependencies;
           }
 
           let allInstalledDependencies, parser;
-          switch (`${{ steps.get-package-manager.outputs.package-manager }}`) {
+          switch (process.env.PACKAGE_MANAGER) {
             case 'npm':
               allInstalledDependencies = await parseDependencies(
-                `${{ steps.get-package-manager.outputs.package-manager }} list --depth=1 --json --no-progress --pattern="${dependencies.join('|')}" --non-interactive`
+                `${process.env.PACKAGE_MANAGER} list --depth=1 --json --no-progress --pattern="${dependencies.join('|')}" --non-interactive`
               );
               allInstalledDependencies = allInstalledDependencies?.dependencies;
               parser = parseNpmDependencies;
@@ -137,7 +153,7 @@ runs:
 
             case 'pnpm':
               allInstalledDependencies = await parseDependencies(
-                `${{ steps.get-package-manager.outputs.package-manager }} list --depth=1 --json --no-color`
+                `${process.env.PACKAGE_MANAGER} list --depth=1 --json --no-color`
               );
               (allInstalledDependencies || []).reduce((accumulator, currentValue) => {
                 return { ...accumulator, ...(currentValue?.dependencies || {}) };
@@ -147,13 +163,13 @@ runs:
 
             case 'yarn':
               allInstalledDependencies = await parseDependencies(
-                `${{ steps.get-package-manager.outputs.package-manager }} list --depth=1 --json --no-progress --pattern="${dependencies.join('|')}" --non-interactive`
+                `${process.env.PACKAGE_MANAGER} list --depth=1 --json --no-progress --pattern="${dependencies.join('|')}" --non-interactive`
               );
               parser = parseYarnDependencies;
               break;
 
             default:
-              throw new Error(`Unsupported package manager: ${{ steps.get-package-manager.outputs.package-manager }}`);
+              throw new Error(`Unsupported package manager: ${process.env.PACKAGE_MANAGER}`);
           }
 
           if (allInstalledDependencies) {
