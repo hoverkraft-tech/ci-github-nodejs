@@ -53,7 +53,7 @@ runs:
 
     - name: Install missing Codecov dependencies
       if: steps.check-codecov-deps.outputs.missing-deps
-      uses: pkgxdev/setup@f211ee4db3110b42e5a156282372527e7c1ed723 # v4.0.0
+      uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7 # v5.0.0
       with:
         +: ${{ steps.check-codecov-deps.outputs.missing-deps }}
 
@@ -157,7 +157,7 @@ runs:
           }
 
     - name: 📊 Upload coverage to Codecov
-      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+      uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5.5.3
       with:
         directory: ${{ steps.working-directory.outputs.workspace-relative-path }}
         root_dir: ${{ steps.working-directory.outputs.workspace-relative-path }}
