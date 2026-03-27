@@ -71,7 +71,7 @@ runs:
       run: mkdir -p ./self-build-action/ && cp -r $GITHUB_ACTION_PATH/../* ./self-build-action/
 
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@f5847cb398fe65d53794e6aba98ebdfa0801f691 # 0.32.0
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@4b53189212d5810f710bed89711002626977215b # 0.33.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
