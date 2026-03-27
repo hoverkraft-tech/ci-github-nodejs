@@ -24,7 +24,7 @@ runs:
   using: "composite"
   steps:
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@f5847cb398fe65d53794e6aba98ebdfa0801f691 # 0.32.0
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@4b53189212d5810f710bed89711002626977215b # 0.33.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: "false"
@@ -157,7 +157,7 @@ runs:
           }
 
     - name: 📊 Upload coverage to Codecov
-      uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5.5.3
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
       with:
         directory: ${{ steps.working-directory.outputs.workspace-relative-path }}
         root_dir: ${{ steps.working-directory.outputs.workspace-relative-path }}
