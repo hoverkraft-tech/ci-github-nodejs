@@ -44,19 +44,19 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - shell: bash
-      # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
-      run: mkdir -p ./self-lint-action/ && cp -r $GITHUB_ACTION_PATH/../* ./self-lint-action/
+    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+      with:
+        source-path: ${{ github.action_path }}/..
 
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@4b53189212d5810f710bed89711002626977215b # 0.33.0
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
 
     - id: setup-node
       if: inputs.container != 'true'
-      uses: ./self-lint-action/setup-node
+      uses: ./../self-actions/setup-node
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         dependencies-cache: |
@@ -65,12 +65,12 @@ runs:
 
     - id: get-package-manager
       if: inputs.container == 'true'
-      uses: ./self-lint-action/get-package-manager
+      uses: ./../self-actions/get-package-manager
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
 
     - id: run-lint
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         RUN_LINT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
@@ -104,15 +104,10 @@ runs:
 
     - name: 📊 Parse lint reports
       if: always()
-      uses: hoverkraft-tech/ci-github-common/actions/parse-ci-reports@4b53189212d5810f710bed89711002626977215b # 0.33.0
+      uses: hoverkraft-tech/ci-github-common/actions/parse-ci-reports@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         report-paths: ${{ inputs.report-file || 'auto:lint' }}
         path-mapping: ${{ inputs.path-mapping }}
         report-name: "Lint Results"
         output-format: "annotations,summary"
-
-    # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
-    - shell: bash
-      if: always()
-      run: rm -fr ./self-lint-action
