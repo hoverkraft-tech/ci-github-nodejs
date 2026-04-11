@@ -87,5 +87,10 @@ jobs:
             exit 1
           fi
 
+          # Disable strict dep builds check for pnpm v11+ (strictDepBuilds defaults to true)
+          if [[ "$INSTALL_COMMAND" == pnpm* ]]; then
+            echo 'strictDepBuilds: false' > pnpm-workspace.yaml
+          fi
+
           # Install the tarball to verify it's a valid npm package
           $INSTALL_COMMAND "./$tarball_name"

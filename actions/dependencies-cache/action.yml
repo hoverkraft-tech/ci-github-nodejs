@@ -32,26 +32,26 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - shell: bash
-      # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
-      run: mkdir -p ./self-dependencies-cache-action/ && cp -r $GITHUB_ACTION_PATH/../* ./self-dependencies-cache-action/
+    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+      with:
+        source-path: ${{ github.action_path }}/..
 
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@4b53189212d5810f710bed89711002626977215b # 0.33.0
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: "false"
 
     - id: has-installed-dependencies
       if: inputs.dependencies != ''
-      uses: ./self-dependencies-cache-action/has-installed-dependencies
+      uses: ./../self-actions/has-installed-dependencies
       with:
         dependencies: ${{ inputs.dependencies }}
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
 
     - id: get-package-manager
       if: inputs.package-manager == ''
-      uses: ./self-dependencies-cache-action/get-package-manager
+      uses: ./../self-actions/get-package-manager
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
 
@@ -125,7 +125,7 @@ runs:
     - name: ♻️ Get Jest cache dir
       id: jest-cache-dir-path
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).jest == true
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
         PACKAGE_MANAGER: ${{ steps.get-package-manager.outputs.package-manager }}
@@ -197,9 +197,3 @@ runs:
         key: ${{ runner.os }}-test-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-test-
-
-    # FIXME: workaround until will be merged: https://github.com/actions/runner/pull/1684
-    - shell: bash
-      if: always()
-      run: |
-        rm -fr ./self-dependencies-cache-action

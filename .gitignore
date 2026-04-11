@@ -1,4 +1,7 @@
 /node_modules
 /tests/*/node_modules
+/tests/*/pnpm-workspace.yaml
 /tests/*/coverage
+/tests/yarn/package-lock.json
 /dist
+.pnpm-store
