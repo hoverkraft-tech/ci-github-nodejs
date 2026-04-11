@@ -24,7 +24,7 @@ runs:
   using: "composite"
   steps:
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@4b53189212d5810f710bed89711002626977215b # 0.33.0
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@03a5a2a3626b03434b19b79cdd2e141bea410bae # 0.34.1
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: "false"
@@ -32,7 +32,7 @@ runs:
     # Check and install dependencies for codecov
     - name: Check Codecov dependencies
       id: check-codecov-deps
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       with:
         script: |
           // Check which dependencies are missing
@@ -59,7 +59,7 @@ runs:
 
     - name: Fix unexpanded environment variables
       if: steps.check-codecov-deps.outputs.missing-deps
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       with:
         script: |
           const templatePattern = /\$\{([^}:]+)(?::-([^}]*))?\}/g;
