@@ -11,11 +11,10 @@ jobs:
     uses: ./.github/workflows/continuous-integration.yml
     permissions:
       contents: read
+      id-token: write
       packages: read
       pull-requests: write
       security-events: write
-      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      id-token: write
     with:
       working-directory: tests/npm
       build: |
@@ -42,11 +41,10 @@ jobs:
     uses: ./.github/workflows/continuous-integration.yml
     permissions:
       contents: read
+      id-token: write
       packages: read
       pull-requests: write
       security-events: write
-      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      id-token: write
     with:
       working-directory: tests/npm
       build: |
@@ -59,12 +57,12 @@ jobs:
   arrange-with-container:
     name: Arrange - Build container image for CI workflow
     permissions:
-      id-token: write
       contents: read
-      packages: write
+      id-token: write
       issues: read
+      packages: write
       pull-requests: read
-    uses: hoverkraft-tech/ci-github-container/.github/workflows/docker-build-images.yml@e4bf7a12228a2a4b5993d2d36b99b4dd0ec80bf5 # 0.32.1
+    uses: hoverkraft-tech/ci-github-container/.github/workflows/docker-build-images.yml@e68cac9a52f0a24cd3800fc723dc4899f647e42b # 0.33.0
     with:
       sign: false
       images: |
@@ -85,11 +83,10 @@ jobs:
     needs: arrange-with-container
     permissions:
       contents: read
+      id-token: write
       packages: read
       pull-requests: write
       security-events: write
-      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      id-token: write
     with:
       container: ${{ fromJSON(needs.arrange-with-container.outputs.built-images).ci-npm.images[0] }}
       working-directory: /usr/src/app/
@@ -120,11 +117,10 @@ jobs:
     needs: arrange-with-container
     permissions:
       contents: read
+      id-token: write
       packages: read
       pull-requests: write
       security-events: write
-      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      id-token: write
     with:
       container: |
         {

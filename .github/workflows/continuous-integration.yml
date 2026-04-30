@@ -293,11 +293,11 @@ jobs:
       security-events: write
     runs-on: *ci-runner
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
-      - uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
+      - uses: github/codeql-action/init@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+      - uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
 
   dependency-review:
     name: 🛡️ Dependency Review
@@ -306,7 +306,7 @@ jobs:
       contents: read
     runs-on: *ci-runner
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
       - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
 
   setup:
@@ -317,8 +317,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-      # FIXME: This is a workaround for having workflow ref. See https://github.com/orgs/community/discussions/38659
-      id-token: write
     container: &ci-container
       image: ${{ needs.prepare.outputs.container-image || '' }}
       env: ${{ fromJSON(needs.prepare.outputs.container-env || '{}') }}
@@ -334,10 +332,10 @@ jobs:
     steps:
       - name: Checkout repository
         if: inputs.container == ''
-        uses: hoverkraft-tech/ci-github-common/actions/checkout@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+        uses: hoverkraft-tech/ci-github-common/actions/checkout@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
 
       - id: working-directory
-        uses: hoverkraft-tech/ci-github-common/actions/working-directory@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+        uses: hoverkraft-tech/ci-github-common/actions/working-directory@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
         with:
           working-directory: ${{ inputs.working-directory }}
           enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
@@ -442,13 +440,12 @@ jobs:
     permissions:
       contents: read
       packages: read
-      id-token: write # Needed for getting local workflow actions
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
         if: inputs.container == ''
 
       - id: local-workflow-actions
-        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
         with:
           actions-path: actions
 
@@ -475,22 +472,13 @@ jobs:
             core.setOutput('report-file', lintOptions['report-file'] || '');
 
       - name: Run lint
-        uses: ./self-workflow/actions/lint
+        uses: ./../self-workflow/actions/lint
         with:
           working-directory: ${{ needs.setup.outputs.working-directory }}
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           command: ${{ steps.preparel-lint-options.outputs.command }}
           report-file: ${{ steps.preparel-lint-options.outputs.report-file }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
-
-      # jscpd:ignore-start
-      - uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
-        if: always() && steps.local-workflow-actions.outputs.repository
-        with:
-          actions-path: actions
-          repository: ${{ steps.local-workflow-actions.outputs.repository }}
-          ref: ${{ steps.local-workflow-actions.outputs.ref }}
-      # jscpd:ignore-end
 
   build:
     if: inputs.checks == true
@@ -503,21 +491,20 @@ jobs:
     permissions:
       contents: read
       packages: read
-      id-token: write # Needed for getting local workflow actions
     outputs:
       artifact-id: ${{ steps.build.outputs.artifact-id }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
         if: needs.setup.outputs.build-commands && inputs.container == ''
 
       - id: local-workflow-actions
-        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
         with:
           actions-path: actions
 
       - id: build
         if: needs.setup.outputs.build-commands
-        uses: ./self-workflow/actions/build
+        uses: ./../self-workflow/actions/build
         with:
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           working-directory: ${{ needs.setup.outputs.working-directory }}
@@ -525,15 +512,6 @@ jobs:
           build-commands: ${{ needs.setup.outputs.build-commands }}
           build-env: ${{ needs.setup.outputs.build-env }}
           build-artifact: ${{ needs.setup.outputs.build-artifact }}
-
-      # jscpd:ignore-start
-      - uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
-        if: always() && steps.local-workflow-actions.outputs.repository
-        with:
-          actions-path: actions
-          repository: ${{ steps.local-workflow-actions.outputs.repository }}
-          ref: ${{ steps.local-workflow-actions.outputs.ref }}
-      # jscpd:ignore-end
 
   test:
     if: inputs.checks == true && inputs.test
@@ -546,11 +524,11 @@ jobs:
       - build
     permissions:
       contents: read
-      pull-requests: write
+      id-token: write # Required for Codecov uploads with OIDC authentication
       packages: read
-      id-token: write # Needed for getting local workflow actions
+      pull-requests: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
         if: inputs.container == ''
 
       - if: needs.build.outputs.artifact-id && inputs.container == ''
@@ -560,7 +538,7 @@ jobs:
           path: "/"
 
       - id: local-workflow-actions
-        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
         with:
           actions-path: actions
 
@@ -591,7 +569,7 @@ jobs:
             core.setOutput('command', testOptions.command || 'test:ci');
 
       - name: Run tests
-        uses: ./self-workflow/actions/test
+        uses: ./../self-workflow/actions/test
         with:
           working-directory: ${{ needs.setup.outputs.working-directory }}
           container: ${{ inputs.container != '' && 'true' || 'false' }}
@@ -600,12 +578,3 @@ jobs:
           report-file: ${{ steps.prepare-test-options.outputs.report-file }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
           github-token: ${{ secrets.github-token || github.token }}
-
-      # jscpd:ignore-start
-      - uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
-        if: always() && steps.local-workflow-actions.outputs.repository
-        with:
-          actions-path: actions
-          repository: ${{ steps.local-workflow-actions.outputs.repository }}
-          ref: ${{ steps.local-workflow-actions.outputs.ref }}
-      # jscpd:ignore-end
