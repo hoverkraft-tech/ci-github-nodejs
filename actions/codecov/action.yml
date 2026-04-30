@@ -7,6 +7,13 @@ description: |
   - **Cleanup**: Uninstalls dependencies after Codecov upload is complete
   - **OIDC support**: Uses OIDC authentication with Codecov for secure uploads
 
+  Note that this action must have write permission for id-token for this to work:
+
+  ```yml
+  permissions:
+    id-token: write
+  ```
+
 author: hoverkraft
 branding:
   icon: upload-cloud
@@ -24,7 +31,7 @@ runs:
   using: "composite"
   steps:
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: "false"
