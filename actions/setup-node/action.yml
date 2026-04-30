@@ -30,12 +30,12 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
       with:
         source-path: ${{ github.action_path }}/..
 
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@71b85947453f32b5d147ff3ab37351439a92d840 # 0.34.2
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@4c9d51717dc04d823dac2dc9ac2857e7b3069454 # 0.35.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: "false"
@@ -120,14 +120,14 @@ runs:
           core.debug('packageManager field missing; defaulting pnpm version to latest');
           core.setOutput('pnpm-version', 'latest');
 
-    - uses: pnpm/action-setup@08c4be7e2e672a47d11bd04269e27e5f3e8529cb # v6.0.0
+    - uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e # v6.0.3
       if: steps.get-package-manager.outputs.package-manager == 'pnpm'
       with:
         version: ${{ steps.get-pnpm-version.outputs.pnpm-version }}
         package_json_file: ${{ steps.working-directory.outputs.workspace-relative-path }}/package.json
         run_install: false
 
-    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+    - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
       with:
         node-version-file: ${{ steps.get-node-version-file.outputs.node-version-file }}
         cache: ${{ steps.get-package-manager.outputs.cache-dependency-path != '' && steps.get-package-manager.outputs.package-manager || '' }}
