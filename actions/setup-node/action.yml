@@ -120,7 +120,7 @@ runs:
           core.debug('packageManager field missing; defaulting pnpm version to latest');
           core.setOutput('pnpm-version', 'latest');
 
-    - uses: pnpm/action-setup@8912a9102ac27614460f54aedde9e1e7f9aec20d # v6.0.5
+    - uses: pnpm/action-setup@739bfe42ca9233c5e6aca07c1a25a9d34aca49b0 # v6.0.7
       if: steps.get-package-manager.outputs.package-manager == 'pnpm'
       with:
         version: ${{ steps.get-pnpm-version.outputs.pnpm-version }}
