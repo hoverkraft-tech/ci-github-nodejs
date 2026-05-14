@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Release
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/0e54b99e7f052e2a353659bcb048b76224cb355f919e9772252049df8eec3976/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
+  <img src="https://opengraph.githubassets.com/5d627588970f22174162eefe5c3159eb3bdc271c25b77ec0286fa7fb33c9a2f9/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
 </div>
 
 ---
@@ -23,17 +23,12 @@
 
 ## Overview
 
-Workflow to publish the exact Node.js package tarball produced and verified by
-CI.
-
-The workflow downloads a raw `.tgz` artifact by immutable artifact ID, verifies
-that exactly one tarball is present, configures Node.js for the target registry,
-and runs `npm publish` against that tarball.
+Workflow to release Node.js packages from a package tarball produced by CI.
 
 ### Permissions
 
 - **`contents`**: `read`
-- **`id-token`**: `write` (required for provenance)
+- **`id-token`**: `write`
 - **`packages`**: `write`
 
 <!-- overview:end -->
@@ -42,37 +37,60 @@ and runs `npm publish` against that tarball.
 
 ## Usage
 
-### Publish a CI Package Tarball
-
 ```yaml
-name: Release
-
+name: Node.js Release
 on:
   push:
-    tags: ["*"]
-
+    branches:
+      - main
 permissions: {}
-
 jobs:
-  ci:
-    uses: ./.github/workflows/__shared-ci.yml
-    permissions:
-      contents: read
-      id-token: write
-      packages: read
-    secrets: inherit
-
   release:
-    needs: ci
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@47891dc49a31209a88949e081d97a010f8cd20c4 # 0.23.2
+    permissions: {}
     secrets:
-      registry-token: ${{ secrets.NPM_TOKEN }}
+      # GitHub token to use for authentication.
+      # Defaults to `GITHUB_TOKEN` if not provided.
+      github-token: ""
+
+      # Authentication token for the package registry.
+      registry-token: ""
     with:
-      package-tarball-artifact-id: ${{ needs.ci.outputs.package-tarball-artifact-id }}
+      # JSON array of runner(s) to use.
+      # See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job.
+      #
+      # Default: `["ubuntu-latest"]`
+      runs-on: '["ubuntu-latest"]'
+
+      # Artifact ID of the package tarball produced by CI.
+      # This input is required.
+      package-tarball-artifact-id: ""
+
+      # Registry URL used by npm publish.
+      # Default: `https://registry.npmjs.org`
+      registry-url: https://registry.npmjs.org
+
+      # Package access level passed to npm publish. Leave empty to use npm defaults.
+      # Default: `public`
+      access: public
+
+      # npm distribution tag for the published package.
+      # Common values:
+      # - `latest` — Default tag for stable releases
+      # - `next` — Pre-release or beta versions
+      # - `canary` — Canary/nightly builds
+      #
+      # See https://docs.npmjs.com/adding-dist-tags-to-packages.
+      #
+      # Default: `latest`
+      tag: latest
+
+      # Whether to generate npm provenance for npmjs.org publishes.
+      # Default: `true`
+      provenance: true
+
+      # Whether to run npm publish without publishing the package.
+      dry-run: false
 ```
 
 <!-- usage:end -->
@@ -91,10 +109,14 @@ jobs:
 |                                   | See <https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job>. |              |             |                              |
 | **`package-tarball-artifact-id`** | Artifact ID of the package tarball produced by CI.                                 | **true**     | **string**  | -                            |
 | **`registry-url`**                | Registry URL used by npm publish.                                                  | **false**    | **string**  | `https://registry.npmjs.org` |
-| **`access`**                      | Package access level passed to npm publish.                                        | **false**    | **string**  | `public`                     |
-|                                   | Leave empty to use npm defaults.                                                   |              |             |                              |
+| **`access`**                      | Package access level passed to npm publish. Leave empty to use npm defaults.       | **false**    | **string**  | `public`                     |
 | **`tag`**                         | npm distribution tag for the published package.                                    | **false**    | **string**  | `latest`                     |
-|                                   | Common values: `latest`, `next`, `canary`.                                         |              |             |                              |
+|                                   | Common values:                                                                     |              |             |                              |
+|                                   | - `latest` — Default tag for stable releases                                     |              |             |                              |
+|                                   | - `next` — Pre-release or beta versions                                          |              |             |                              |
+|                                   | - `canary` — Canary/nightly builds                                               |              |             |                              |
+|                                   |                                                                                    |              |             |                              |
+|                                   | See <https://docs.npmjs.com/adding-dist-tags-to-packages>.                         |              |             |                              |
 | **`provenance`**                  | Whether to generate npm provenance for npmjs.org publishes.                        | **false**    | **boolean** | `true`                       |
 | **`dry-run`**                     | Whether to run npm publish without publishing the package.                         | **false**    | **boolean** | `false`                      |
 
@@ -106,9 +128,11 @@ jobs:
 
 ## Secrets
 
-| **Secret**           | **Description**                                           | **Required** |
-| -------------------- | --------------------------------------------------------- | ------------ |
-| **`registry-token`** | Authentication token for token-based registry publishing. | **false**    |
+| **Secret**           | **Description**                                | **Required** |
+| -------------------- | ---------------------------------------------- | ------------ |
+| **`github-token`**   | GitHub token to use for authentication.        | **false**    |
+|                      | Defaults to `GITHUB_TOKEN` if not provided.    |              |
+| **`registry-token`** | Authentication token for the package registry. | **false**    |
 
 <!-- secrets:end -->
 
@@ -138,7 +162,7 @@ jobs:
 
   release:
     needs: ci
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@47891dc49a31209a88949e081d97a010f8cd20c4 # 0.23.2
     permissions:
       contents: read
       packages: write
@@ -166,7 +190,7 @@ permissions: {}
 
 jobs:
   dry-run:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@main
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@47891dc49a31209a88949e081d97a010f8cd20c4 # 0.23.2
     permissions:
       contents: read
       packages: write
@@ -198,8 +222,17 @@ This project is licensed under the MIT License.
 
 SPDX-License-Identifier: MIT
 
-Copyright © 2025 hoverkraft-tech
+Copyright © 2026 hoverkraft-tech
 
 For more details, see the [license](http://choosealicense.com/licenses/mit/).
 
 <!-- license:end -->
+<!-- outputs:start -->
+<!-- outputs:end -->
+<!-- generated:start -->
+
+---
+
+This documentation was automatically generated by [CI Dokumentor](https://github.com/hoverkraft-tech/ci-dokumentor).
+
+<!-- generated:end -->
