@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Release
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/5d627588970f22174162eefe5c3159eb3bdc271c25b77ec0286fa7fb33c9a2f9/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
+  <img src="https://opengraph.githubassets.com/64be3a16895705ee5048b06c8850eeece9322d7a637127269eb768810b96a0ac/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
 </div>
 
 ---
@@ -112,9 +112,9 @@ jobs:
 | **`access`**                      | Package access level passed to npm publish. Leave empty to use npm defaults.       | **false**    | **string**  | `public`                     |
 | **`tag`**                         | npm distribution tag for the published package.                                    | **false**    | **string**  | `latest`                     |
 |                                   | Common values:                                                                     |              |             |                              |
-|                                   | - `latest` — Default tag for stable releases                                       |              |             |                              |
-|                                   | - `next` — prerelease or beta versions                                             |              |             |                              |
-|                                   | - `canary` — Canary/nightly builds                                                 |              |             |                              |
+|                                   | - `latest` — Default tag for stable releases                                     |              |             |                              |
+|                                   | - `next` — prerelease or beta versions                                           |              |             |                              |
+|                                   | - `canary` — Canary/nightly builds                                               |              |             |                              |
 |                                   |                                                                                    |              |             |                              |
 |                                   | See <https://docs.npmjs.com/adding-dist-tags-to-packages>.                         |              |             |                              |
 | **`provenance`**                  | Whether to generate npm provenance for npmjs.org publishes.                        | **false**    | **boolean** | `true`                       |
