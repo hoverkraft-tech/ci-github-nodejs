@@ -112,9 +112,9 @@ jobs:
 | **`access`**                      | Package access level passed to npm publish. Leave empty to use npm defaults.       | **false**    | **string**  | `public`                     |
 | **`tag`**                         | npm distribution tag for the published package.                                    | **false**    | **string**  | `latest`                     |
 |                                   | Common values:                                                                     |              |             |                              |
-|                                   | - `latest` — Default tag for stable releases                                     |              |             |                              |
-|                                   | - `next` — prerelease or beta versions                                           |              |             |                              |
-|                                   | - `canary` — Canary/nightly builds                                               |              |             |                              |
+|                                   | - `latest` - Default tag for stable releases                                       |              |             |                              |
+|                                   | - `next` - Prerelease or beta versions                                             |              |             |                              |
+|                                   | - `canary` - Canary/nightly builds                                                 |              |             |                              |
 |                                   |                                                                                    |              |             |                              |
 |                                   | See <https://docs.npmjs.com/adding-dist-tags-to-packages>.                         |              |             |                              |
 | **`provenance`**                  | Whether to generate npm provenance for npmjs.org publishes.                        | **false**    | **boolean** | `true`                       |
@@ -135,6 +135,9 @@ jobs:
 | **`registry-token`** | Authentication token for the package registry. | **false**    |
 
 <!-- secrets:end -->
+
+<!-- outputs:start -->
+<!-- outputs:end -->
 
 <!-- examples:start -->
 
@@ -227,8 +230,6 @@ Copyright © 2026 hoverkraft-tech
 For more details, see the [license](http://choosealicense.com/licenses/mit/).
 
 <!-- license:end -->
-<!-- outputs:start -->
-<!-- outputs:end -->
 <!-- generated:start -->
 
 ---
