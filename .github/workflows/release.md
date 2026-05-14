@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Release
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/9c8929c94966c12376f44be8244f2644ab06a7edbd6c23fef13493d4565c4c61/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
+  <img src="https://opengraph.githubassets.com/c534c68c710cfc7e1d23e122caa18746289d5bddc0e2259982bcd0082e4dd53f/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
 </div>
 
 ---
@@ -46,7 +46,7 @@ on:
 permissions: {}
 jobs:
   release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@47891dc49a31209a88949e081d97a010f8cd20c4 # 0.23.2
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@a10d5e32daef8e060c49fe617833fb0d53476f22 # 0.24.0
     permissions:
       contents: read
       id-token: write
@@ -168,7 +168,7 @@ jobs:
 
   release:
     needs: ci
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@47891dc49a31209a88949e081d97a010f8cd20c4 # 0.23.2
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@a10d5e32daef8e060c49fe617833fb0d53476f22 # 0.24.0
     permissions:
       contents: read
       packages: write
@@ -196,7 +196,7 @@ permissions: {}
 
 jobs:
   dry-run:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@47891dc49a31209a88949e081d97a010f8cd20c4 # 0.23.2
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@a10d5e32daef8e060c49fe617833fb0d53476f22 # 0.24.0
     permissions:
       contents: read
       packages: write
