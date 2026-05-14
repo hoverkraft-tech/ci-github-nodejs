@@ -31,7 +31,7 @@ on:
           npm distribution tag for the published package.
           Common values:
           - `latest` — Default tag for stable releases
-          - `next` — Pre-release or beta versions
+          - `next` — prerelease or beta versions
           - `canary` — Canary/nightly builds
 
           See https://docs.npmjs.com/adding-dist-tags-to-packages.

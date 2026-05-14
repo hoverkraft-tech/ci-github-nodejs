@@ -77,7 +77,7 @@ jobs:
       # npm distribution tag for the published package.
       # Common values:
       # - `latest` — Default tag for stable releases
-      # - `next` — Pre-release or beta versions
+      # - `next` — prerelease or beta versions
       # - `canary` — Canary/nightly builds
       #
       # See https://docs.npmjs.com/adding-dist-tags-to-packages.
@@ -112,9 +112,9 @@ jobs:
 | **`access`**                      | Package access level passed to npm publish. Leave empty to use npm defaults.       | **false**    | **string**  | `public`                     |
 | **`tag`**                         | npm distribution tag for the published package.                                    | **false**    | **string**  | `latest`                     |
 |                                   | Common values:                                                                     |              |             |                              |
-|                                   | - `latest` — Default tag for stable releases                                     |              |             |                              |
-|                                   | - `next` — Pre-release or beta versions                                          |              |             |                              |
-|                                   | - `canary` — Canary/nightly builds                                               |              |             |                              |
+|                                   | - `latest` — Default tag for stable releases                                       |              |             |                              |
+|                                   | - `next` — prerelease or beta versions                                             |              |             |                              |
+|                                   | - `canary` — Canary/nightly builds                                                 |              |             |                              |
 |                                   |                                                                                    |              |             |                              |
 |                                   | See <https://docs.npmjs.com/adding-dist-tags-to-packages>.                         |              |             |                              |
 | **`provenance`**                  | Whether to generate npm provenance for npmjs.org publishes.                        | **false**    | **boolean** | `true`                       |
