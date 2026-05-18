@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Release
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/c534c68c710cfc7e1d23e122caa18746289d5bddc0e2259982bcd0082e4dd53f/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
+  <img src="https://opengraph.githubassets.com/2c1962a2ad1825873a40535c101ae27231c1531f2a43494247013447176c1536/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
 </div>
 
 ---
@@ -84,8 +84,6 @@ jobs:
       # as the npm dist-tag unless it looks like a version tag such as `v1.2.3`.
       #
       # See https://docs.npmjs.com/adding-dist-tags-to-packages.
-      #
-      # Default: `""`
       tag: ""
 
       # Whether to generate npm provenance for npmjs.org publishes.
@@ -113,14 +111,14 @@ jobs:
 | **`package-tarball-artifact-id`** | Artifact ID of the package tarball produced by CI.                                 | **true**     | **string**  | -                            |
 | **`registry-url`**                | Registry URL used by npm publish.                                                  | **false**    | **string**  | `https://registry.npmjs.org` |
 | **`access`**                      | Package access level passed to npm publish. Leave empty to use npm defaults.       | **false**    | **string**  | `public`                     |
-| **`tag`**                         | npm distribution tag for the published package. Leave empty to use npm defaults.   | **false**    | **string**  | `""`                         |
+| **`tag`**                         | npm distribution tag for the published package. Leave empty to use npm defaults.   | **false**    | **string**  | -                            |
 |                                   | Common values:                                                                     |              |             |                              |
 |                                   | - `latest` - Default tag for stable releases                                       |              |             |                              |
 |                                   | - `next` - Prerelease or beta versions                                             |              |             |                              |
 |                                   | - `canary` - Canary/nightly builds                                                 |              |             |                              |
 |                                   |                                                                                    |              |             |                              |
-|                                   | If omitted for a pushed Git tag, the workflow tries to reuse the Git tag as the    |              |             |                              |
-|                                   | npm dist-tag unless it looks like a version tag such as `v1.2.3`.                  |              |             |                              |
+|                                   | If omitted for a pushed Git tag, the workflow tries to reuse the Git tag           |              |             |                              |
+|                                   | as the npm dist-tag unless it looks like a version tag such as `v1.2.3`.           |              |             |                              |
 |                                   |                                                                                    |              |             |                              |
 |                                   | See <https://docs.npmjs.com/adding-dist-tags-to-packages>.                         |              |             |                              |
 | **`provenance`**                  | Whether to generate npm provenance for npmjs.org publishes.                        | **false**    | **boolean** | `true`                       |
