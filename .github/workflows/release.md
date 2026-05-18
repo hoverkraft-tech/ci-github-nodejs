@@ -52,12 +52,9 @@ jobs:
       id-token: write
       packages: write
     secrets:
-      # GitHub token to use for authentication.
+      # GitHub token to use when downloading the package tarball artifact.
       # Defaults to `GITHUB_TOKEN` if not provided.
       github-token: ""
-
-      # Authentication token for the package registry.
-      registry-token: ""
     with:
       # JSON array of runner(s) to use.
       # See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job.
@@ -77,16 +74,19 @@ jobs:
       # Default: `public`
       access: public
 
-      # npm distribution tag for the published package.
+      # npm distribution tag for the published package. Leave empty to use npm defaults.
       # Common values:
       # - `latest` - Default tag for stable releases
       # - `next` - Prerelease or beta versions
       # - `canary` - Canary/nightly builds
       #
+      # If omitted for a pushed Git tag, the workflow tries to reuse the Git tag
+      # as the npm dist-tag unless it looks like a version tag such as `v1.2.3`.
+      #
       # See https://docs.npmjs.com/adding-dist-tags-to-packages.
       #
-      # Default: `latest`
-      tag: latest
+      # Default: `""`
+      tag: ""
 
       # Whether to generate npm provenance for npmjs.org publishes.
       # Default: `true`
@@ -113,11 +113,14 @@ jobs:
 | **`package-tarball-artifact-id`** | Artifact ID of the package tarball produced by CI.                                 | **true**     | **string**  | -                            |
 | **`registry-url`**                | Registry URL used by npm publish.                                                  | **false**    | **string**  | `https://registry.npmjs.org` |
 | **`access`**                      | Package access level passed to npm publish. Leave empty to use npm defaults.       | **false**    | **string**  | `public`                     |
-| **`tag`**                         | npm distribution tag for the published package.                                    | **false**    | **string**  | `latest`                     |
+| **`tag`**                         | npm distribution tag for the published package. Leave empty to use npm defaults.   | **false**    | **string**  | `""`                         |
 |                                   | Common values:                                                                     |              |             |                              |
 |                                   | - `latest` - Default tag for stable releases                                       |              |             |                              |
 |                                   | - `next` - Prerelease or beta versions                                             |              |             |                              |
 |                                   | - `canary` - Canary/nightly builds                                                 |              |             |                              |
+|                                   |                                                                                    |              |             |                              |
+|                                   | If omitted for a pushed Git tag, the workflow tries to reuse the Git tag as the    |              |             |                              |
+|                                   | npm dist-tag unless it looks like a version tag such as `v1.2.3`.                  |              |             |                              |
 |                                   |                                                                                    |              |             |                              |
 |                                   | See <https://docs.npmjs.com/adding-dist-tags-to-packages>.                         |              |             |                              |
 | **`provenance`**                  | Whether to generate npm provenance for npmjs.org publishes.                        | **false**    | **boolean** | `true`                       |
@@ -131,11 +134,10 @@ jobs:
 
 ## Secrets
 
-| **Secret**           | **Description**                                | **Required** |
-| -------------------- | ---------------------------------------------- | ------------ |
-| **`github-token`**   | GitHub token to use for authentication.        | **false**    |
-|                      | Defaults to `GITHUB_TOKEN` if not provided.    |              |
-| **`registry-token`** | Authentication token for the package registry. | **false**    |
+| **Secret**         | **Description**                                                    | **Required** |
+| ------------------ | ------------------------------------------------------------------ | ------------ |
+| **`github-token`** | GitHub token to use when downloading the package tarball artifact. | **false**    |
+|                    | Defaults to `GITHUB_TOKEN` if not provided.                        |              |
 
 <!-- secrets:end -->
 
@@ -173,8 +175,6 @@ jobs:
       contents: read
       packages: write
       id-token: write
-    secrets:
-      registry-token: ${{ secrets.NPM_TOKEN }}
     with:
       package-tarball-artifact-id: ${{ needs.ci.outputs.package-tarball-artifact-id }}
 ```
