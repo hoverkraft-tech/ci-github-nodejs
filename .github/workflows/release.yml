@@ -28,16 +28,19 @@ on:
         default: "public"
       tag:
         description: |
-          npm distribution tag for the published package.
+          npm distribution tag for the published package. Leave empty to use npm defaults.
           Common values:
           - `latest` - Default tag for stable releases
           - `next` - Prerelease or beta versions
           - `canary` - Canary/nightly builds
 
+          If omitted for a pushed Git tag, the workflow tries to reuse the Git tag
+          as the npm dist-tag unless it looks like a version tag such as `v1.2.3`.
+
           See https://docs.npmjs.com/adding-dist-tags-to-packages.
         type: string
         required: false
-        default: "latest"
+        default: ""
       provenance:
         description: "Whether to generate npm provenance for npmjs.org publishes."
         type: boolean
@@ -51,11 +54,8 @@ on:
     secrets:
       github-token:
         description: |
-          GitHub token to use for authentication.
+          GitHub token to use when downloading the package tarball artifact.
           Defaults to `GITHUB_TOKEN` if not provided.
-        required: false
-      registry-token:
-        description: "Authentication token for the package registry."
         required: false
 
 permissions: {}
@@ -131,10 +131,14 @@ jobs:
       - name: Publish package
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.registry-token }}
           PACKAGE_TARBALL_PATH: ${{ steps.package-tarball.outputs.path }}
           ACCESS: ${{ inputs.access }}
           TAG: ${{ inputs.tag }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_REF: ${{ github.event.ref }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REF_TYPE: ${{ github.ref_type }}
           PROVENANCE: ${{ inputs.provenance }}
           DRY_RUN: ${{ inputs.dry-run }}
           REGISTRY_URL: ${{ inputs.registry-url }}
@@ -144,10 +148,30 @@ jobs:
 
             const packageTarballPath = process.env.PACKAGE_TARBALL_PATH;
             const access = process.env.ACCESS.trim();
-            const tag = process.env.TAG.trim();
+            const inputTag = process.env.TAG.trim();
+            const eventName = process.env.GITHUB_EVENT_NAME ?? '';
+            const eventRef = process.env.GITHUB_EVENT_REF ?? '';
+            const gitRef = process.env.GITHUB_REF ?? '';
+            const gitRefName = process.env.GITHUB_REF_NAME ?? '';
+            const gitRefType = process.env.GITHUB_REF_TYPE ?? '';
             const registryUrl = process.env.REGISTRY_URL;
             const dryRun = process.env.DRY_RUN === 'true';
             const provenance = process.env.PROVENANCE === 'true';
+
+            let tag = inputTag;
+
+            if (!tag) {
+              const isPushTagEvent = eventName === 'push' && gitRefType === 'tag' && gitRef.startsWith('refs/tags/');
+              const hasPushTagRef = eventRef.startsWith('refs/tags/');
+              const canReuseGitTag = gitRefName && !/^(?:v)?\d/.test(gitRefName);
+
+              if ((isPushTagEvent || hasPushTagRef) && canReuseGitTag) {
+                tag = gitRefName;
+                core.info(`No npm dist-tag input provided. Using Git tag "${tag}" as npm dist-tag.`);
+              } else if ((isPushTagEvent || hasPushTagRef) && gitRefName) {
+                core.info(`No npm dist-tag input provided. Git tag "${gitRefName}" looks like a version tag, so npm will use its default dist-tag.`);
+              }
+            }
 
             const args = ['publish', packageTarballPath];
 
