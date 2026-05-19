@@ -34,9 +34,6 @@ on:
           - `next` - Prerelease or beta versions
           - `canary` - Canary/nightly builds
 
-          If omitted for a pushed Git tag, the workflow tries to reuse the Git tag
-          as the npm dist-tag unless it looks like a version tag such as `v1.2.3`.
-
           See https://docs.npmjs.com/adding-dist-tags-to-packages.
         type: string
         required: false
@@ -67,12 +64,13 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write # Required for provenance
+      id-token: write # Required for provenance generation and publishing to registries that require authentication with an OIDC token
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           registry-url: ${{ inputs.registry-url }}
+          node-version: "lts/*"
 
       - name: Download package tarball
         id: download-package-tarball
@@ -134,11 +132,6 @@ jobs:
           PACKAGE_TARBALL_PATH: ${{ steps.package-tarball.outputs.path }}
           ACCESS: ${{ inputs.access }}
           TAG: ${{ inputs.tag }}
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
-          GITHUB_EVENT_REF: ${{ github.event.ref }}
-          GITHUB_REF: ${{ github.ref }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-          GITHUB_REF_TYPE: ${{ github.ref_type }}
           PROVENANCE: ${{ inputs.provenance }}
           DRY_RUN: ${{ inputs.dry-run }}
           REGISTRY_URL: ${{ inputs.registry-url }}
@@ -147,31 +140,11 @@ jobs:
             const path = require('node:path');
 
             const packageTarballPath = process.env.PACKAGE_TARBALL_PATH;
-            const access = process.env.ACCESS.trim();
-            const inputTag = process.env.TAG.trim();
-            const eventName = process.env.GITHUB_EVENT_NAME ?? '';
-            const eventRef = process.env.GITHUB_EVENT_REF ?? '';
-            const gitRef = process.env.GITHUB_REF ?? '';
-            const gitRefName = process.env.GITHUB_REF_NAME ?? '';
-            const gitRefType = process.env.GITHUB_REF_TYPE ?? '';
-            const registryUrl = process.env.REGISTRY_URL;
+            const access = process.env.ACCESS?.trim();
+            const tag = process.env.TAG?.trim();
+            const registryUrl = process.env.REGISTRY_URL ?? '';
             const dryRun = process.env.DRY_RUN === 'true';
             const provenance = process.env.PROVENANCE === 'true';
-
-            let tag = inputTag;
-
-            if (!tag) {
-              const isPushTagEvent = eventName === 'push' && gitRefType === 'tag' && gitRef.startsWith('refs/tags/');
-              const hasPushTagRef = eventRef.startsWith('refs/tags/');
-              const canReuseGitTag = gitRefName && !/^(?:v)?\d/.test(gitRefName);
-
-              if ((isPushTagEvent || hasPushTagRef) && canReuseGitTag) {
-                tag = gitRefName;
-                core.info(`No npm dist-tag input provided. Using Git tag "${tag}" as npm dist-tag.`);
-              } else if ((isPushTagEvent || hasPushTagRef) && gitRefName) {
-                core.info(`No npm dist-tag input provided. Git tag "${gitRefName}" looks like a version tag, so npm will use its default dist-tag.`);
-              }
-            }
 
             const args = ['publish', packageTarballPath];
 
