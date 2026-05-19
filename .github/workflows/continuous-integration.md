@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/3054b62b8c81a81f2e8cf7fec489dcadb2a296237b4303031e6a1e5da7366e24/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/3ba5e47f7aba2f5fb945dd924837edab20f46b6d445da03ba5b0b9f920f741ea/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
