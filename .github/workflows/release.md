@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Release
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/3054b62b8c81a81f2e8cf7fec489dcadb2a296237b4303031e6a1e5da7366e24/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
+  <img src="https://opengraph.githubassets.com/a13bac450e5a135f33d1583c03111837458cea565bf78f79b0bb27881fdf86f7/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
 </div>
 
 ---
@@ -80,9 +80,6 @@ jobs:
       # - `next` - Prerelease or beta versions
       # - `canary` - Canary/nightly builds
       #
-      # If omitted for a pushed Git tag, the workflow tries to reuse the Git tag
-      # as the npm dist-tag unless it looks like a version tag such as `v1.2.3`.
-      #
       # See https://docs.npmjs.com/adding-dist-tags-to-packages.
       tag: ""
 
@@ -116,9 +113,6 @@ jobs:
 |                                   | - `latest` - Default tag for stable releases                                       |              |             |                              |
 |                                   | - `next` - Prerelease or beta versions                                             |              |             |                              |
 |                                   | - `canary` - Canary/nightly builds                                                 |              |             |                              |
-|                                   |                                                                                    |              |             |                              |
-|                                   | If omitted for a pushed Git tag, the workflow tries to reuse the Git tag           |              |             |                              |
-|                                   | as the npm dist-tag unless it looks like a version tag such as `v1.2.3`.           |              |             |                              |
 |                                   |                                                                                    |              |             |                              |
 |                                   | See <https://docs.npmjs.com/adding-dist-tags-to-packages>.                         |              |             |                              |
 | **`provenance`**                  | Whether to generate npm provenance for npmjs.org publishes.                        | **false**    | **boolean** | `true`                       |
