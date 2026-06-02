@@ -35,12 +35,21 @@ jobs:
   release:
     needs: ci
     if: github.event_name != 'schedule'
-    uses: hoverkraft-tech/ci-github-publish/.github/workflows/release-actions.yml@b27c38015a8265780329d229c841d057a18b8fae # 0.25.0
+    uses: hoverkraft-tech/ci-github-publish/.github/workflows/release-actions.yml@84d583ba7b357f9476707f54cf5419d630ae0145 # 0.26.2
     permissions:
       contents: read
     with:
       update-all: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch' }}
       github-app-client-id: ${{ vars.CI_BOT_APP_CLIENT_ID }}
+      extra-badges: |
+        [
+          {
+            "label":"codecov",
+            "url":"https://codecov.io/gh/hoverkraft-tech/compose-action/graph/badge.svg?token=90JXB7EIMA",
+            "linkUrl":"https://codecov.io/gh/hoverkraft-tech/compose-action"
+          }
+        ]
+
     secrets:
       github-app-key: ${{ secrets.CI_BOT_APP_PRIVATE_KEY }}
 
