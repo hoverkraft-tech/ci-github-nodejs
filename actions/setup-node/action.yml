@@ -30,6 +30,7 @@ outputs:
 runs:
   using: "composite"
   steps:
+    # jscpd:ignore-start
     - uses: hoverkraft-tech/ci-github-common/actions/local-actions@b553a696531fbd36743ccbb0c76c717971b8acdb # 0.35.4
       with:
         source-path: ${{ github.action_path }}/..
@@ -39,6 +40,7 @@ runs:
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: "false"
+    # jscpd:ignore-end
 
     - id: get-package-manager
       if: inputs.package-manager == ''
