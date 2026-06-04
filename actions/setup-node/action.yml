@@ -31,12 +31,12 @@ runs:
   using: "composite"
   steps:
     # jscpd:ignore-start
-    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@b553a696531fbd36743ccbb0c76c717971b8acdb # 0.35.4
+    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@4bb7594b1bf3696c54b2bbae970376056853f8ea # 0.36.0
       with:
         source-path: ${{ github.action_path }}/..
 
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@b553a696531fbd36743ccbb0c76c717971b8acdb # 0.35.4
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@4bb7594b1bf3696c54b2bbae970376056853f8ea # 0.36.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: "false"
@@ -136,9 +136,22 @@ runs:
         cache-dependency-path: ${{ steps.get-package-manager.outputs.cache-dependency-path }}
         registry-url: ${{ inputs.registry-url }}
 
-    - shell: bash
-      working-directory: ${{ steps.working-directory.outputs.absolute-path }}
-      run: ${{ steps.get-package-manager.outputs.install-command }}
+    - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        INSTALL_COMMAND: ${{ steps.get-package-manager.outputs.install-command }}
+        WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
+      with:
+        script: |
+          const installCommand = process.env.INSTALL_COMMAND?.trim();
+          const workingDirectory = process.env.WORKING_DIRECTORY;
+
+          if (!installCommand) {
+            core.setFailed('Install command is empty');
+            return;
+          }
+
+          const [command, ...args] = installCommand.split(/\s+/);
+          await exec.exec(command, args, { cwd: workingDirectory });
 
     - if: inputs.dependencies-cache != ''
       uses: ./../self-actions/dependencies-cache

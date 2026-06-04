@@ -79,7 +79,7 @@ jobs:
           artifact-ids: ${{ inputs.package-tarball-artifact-id }}
           path: ${{ runner.temp }}/package-tarball-${{ inputs.package-tarball-artifact-id }}
           skip-decompress: true
-          github-token: ${{ secrets.github-token || github.token }}
+          github-token: ${{ secrets.github-token || github.token }} # zizmor: ignore[secrets-outside-env] reusable workflow token override is intentional
 
       - id: package-tarball
         name: Locate package tarball

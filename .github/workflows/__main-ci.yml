@@ -30,7 +30,6 @@ jobs:
       security-events: write
       statuses: write
     # jscpd:ignore-end
-    secrets: inherit
 
   release:
     needs: ci

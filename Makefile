@@ -11,12 +11,13 @@ lint: ## Execute linting
 
 lint-fix: ## Execute linting and fix
 	$(call run_linter, \
-		-e FIX_JSON_PRETTIER=true \
-		-e FIX_JAVASCRIPT_PRETTIER=true \
 		-e FIX_YAML_PRETTIER=true \
 		-e FIX_MARKDOWN=true \
-		-e FIX_MARKDOWN_PRETTIER=true \
-		-e FIX_NATURAL_LANGUAGE=true)
+		-e FIX_NATURAL_LANGUAGE=true \
+		-e FIX_SHELL_SHFMT=true \
+		-e FIX_BIOME_LINT=true \
+		-e FIX_BIOME_FORMAT=true \
+	)
 
 deps-install: ## Install dependencies for all package.json files under tests/
 	@set -u; \
@@ -84,8 +85,8 @@ deps-audit-fix: ## Execute dependency audit fix
 				;; \
 			pnpm) \
 				(cd "$$pkg_dir" && corepack pnpm install); \
-				echo "pnpm audit --fix in $$pkg_dir"; \
-				if ! (cd "$$pkg_dir" && corepack pnpm audit --fix); then \
+				echo "pnpm audit --fix=override in $$pkg_dir"; \
+				if ! (cd "$$pkg_dir" && corepack pnpm audit --fix=override); then \
 					overall_status=1; \
 				fi; \
 				;; \
@@ -113,7 +114,6 @@ define run_linter
 	docker run \
 		-e DEFAULT_WORKSPACE="$$DEFAULT_WORKSPACE" \
 		-e FILTER_REGEX_INCLUDE="$(filter-out $@,$(MAKECMDGOALS))" \
-		-e IGNORE_GITIGNORED_FILES=true \
 		$(1) \
 		-v $$VOLUME \
 		--rm \

@@ -44,6 +44,8 @@ jobs:
     steps:
       - name: Arrange - Checkout sources
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
 
       - name: Act - Run "get-package-manager" action
         id: act-get-package-manager
@@ -52,23 +54,32 @@ jobs:
           working-directory: ${{ matrix.working-directory }}
 
       - name: Assert - Check "get-package-manager" outputs
+        env:
+          ACTUAL_PACKAGE_MANAGER: ${{ steps.act-get-package-manager.outputs.package-manager }}
+          EXPECTED_PACKAGE_MANAGER: ${{ matrix.package-manager }}
+          ACTUAL_CACHE_DEPENDENCY_PATH: ${{ steps.act-get-package-manager.outputs.cache-dependency-path }}
+          EXPECTED_CACHE_DEPENDENCY_PATH: ${{ matrix.cache-dependency-path }}
+          ACTUAL_INSTALL_COMMAND: ${{ steps.act-get-package-manager.outputs.install-command }}
+          EXPECTED_INSTALL_COMMAND: ${{ matrix.install-command }}
+          ACTUAL_RUN_SCRIPT_COMMAND: ${{ steps.act-get-package-manager.outputs.run-script-command }}
+          EXPECTED_RUN_SCRIPT_COMMAND: ${{ matrix.run-script-command }}
         run: |
-          if [ "${{ steps.act-get-package-manager.outputs.package-manager }}" != '${{ matrix.package-manager }}' ]; then
+          if [ "$ACTUAL_PACKAGE_MANAGER" != "$EXPECTED_PACKAGE_MANAGER" ]; then
             echo "get-package-manager outputs result is not valid"
             exit 1
           fi
 
-          if [ "${{ steps.act-get-package-manager.outputs.cache-dependency-path }}" != '${{ matrix.cache-dependency-path }}' ]; then
+          if [ "$ACTUAL_CACHE_DEPENDENCY_PATH" != "$EXPECTED_CACHE_DEPENDENCY_PATH" ]; then
             echo "get-package-manager outputs cache-dependency-path is not valid"
             exit 1
           fi
 
-          if [ "${{ steps.act-get-package-manager.outputs.install-command }}" != '${{ matrix.install-command }}' ]; then
+          if [ "$ACTUAL_INSTALL_COMMAND" != "$EXPECTED_INSTALL_COMMAND" ]; then
             echo "get-package-manager outputs install-command is not valid"
             exit 1
           fi
 
-          if [ "${{ steps.act-get-package-manager.outputs.run-script-command }}" != '${{ matrix.run-script-command }}' ]; then
+          if [ "$ACTUAL_RUN_SCRIPT_COMMAND" != "$EXPECTED_RUN_SCRIPT_COMMAND" ]; then
             echo "get-package-manager outputs run-script-command is not valid"
             exit 1
           fi
