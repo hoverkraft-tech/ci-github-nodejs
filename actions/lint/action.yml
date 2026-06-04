@@ -24,6 +24,7 @@ inputs:
 
       ESLint: `eslint --format json -o eslint-report.json .`
       Prettier: `prettier --check . | tee prettier-report.txt`
+      Biome: `biome lint --error-on-warnings . --reporter=sarif | tee biome-report.sarif`
       Astro: `astro check | tee astro-report.txt`
     required: false
     default: "lint:ci"
@@ -44,12 +45,12 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@b553a696531fbd36743ccbb0c76c717971b8acdb # 0.35.4
+    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@4bb7594b1bf3696c54b2bbae970376056853f8ea # 0.36.0
       with:
         source-path: ${{ github.action_path }}/..
 
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@b553a696531fbd36743ccbb0c76c717971b8acdb # 0.35.4
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@4bb7594b1bf3696c54b2bbae970376056853f8ea # 0.36.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
@@ -104,7 +105,7 @@ runs:
 
     - name: 📊 Parse lint reports
       if: always()
-      uses: hoverkraft-tech/ci-github-common/actions/parse-ci-reports@b553a696531fbd36743ccbb0c76c717971b8acdb # 0.35.4
+      uses: hoverkraft-tech/ci-github-common/actions/parse-ci-reports@4bb7594b1bf3696c54b2bbae970376056853f8ea # 0.36.0
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         report-paths: ${{ inputs.report-file || 'auto:lint' }}

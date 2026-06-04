@@ -25,7 +25,7 @@
 
 ## Overview
 
-Action to setup dependencies cache managment.
+Action to setup dependencies cache management.
 
 ### Supported caches
 

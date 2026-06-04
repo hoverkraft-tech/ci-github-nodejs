@@ -1,0 +1,3 @@
+[codespell]
+check-hidden =
+skip = */package-lock.json,*/tests/pnpm/pnpm-lock.yaml,*/tests/pnpm-package-manager/pnpm-lock.yaml,*/tests/yarn/yarn.lock,*/go.mod,*/go.sum,*.log,.git

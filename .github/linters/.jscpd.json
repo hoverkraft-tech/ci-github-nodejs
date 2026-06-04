@@ -1,8 +1,8 @@
 {
-  "threshold": 5,
-  "ignore": [
-    "**/tests/npm/coverage/**",
-    "**/node_modules/**",
-    "**/.pnpm-store/**"
-  ]
+	"threshold": 5,
+	"ignore": [
+		"**/tests/npm/coverage/**",
+		"**/node_modules/**",
+		"**/.pnpm-store/**"
+	]
 }

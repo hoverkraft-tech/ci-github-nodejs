@@ -24,7 +24,7 @@
 
 ## Overview
 
-Workflow to performs continuous integration steps agains a Node.js project:
+Workflow to performs continuous integration steps against a Node.js project:
 
 - CodeQL analysis
 - Linting
