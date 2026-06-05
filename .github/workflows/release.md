@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Release
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/60888d7d7e501fc04b346e12f24da8bece0244fba94015e80c0231f55684c0aa/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
+  <img src="https://opengraph.githubassets.com/3b5ad6e7d32de59674fbc36faf1a23922627bbe8bc7cbf314484c8f942adb6a5/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
 </div>
 
 ---
