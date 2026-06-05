@@ -140,7 +140,7 @@ runs:
           switch (process.env.PACKAGE_MANAGER) {
             case 'npm':
               allInstalledDependencies = await parseDependencies(
-                `${process.env.PACKAGE_MANAGER} list --depth=1 --json --no-progress --pattern="${dependencies.join('|')}" --non-interactive`
+                `${process.env.PACKAGE_MANAGER} list --depth=1 --json --no-progress`
               );
               allInstalledDependencies = allInstalledDependencies?.dependencies;
               parser = parseNpmDependencies;
