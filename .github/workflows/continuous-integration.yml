@@ -293,7 +293,7 @@ jobs:
       security-events: write
     runs-on: *ci-runner
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@6718ae98e8b6e009f8f2790af074daa1a06946c2 # 0.36.2
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@7034f6ae5bae1ec46a0108e8efb60d102e88961d # 0.37.2
       - uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           languages: ${{ inputs.code-ql }}
@@ -306,7 +306,7 @@ jobs:
       contents: read
     runs-on: *ci-runner
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@6718ae98e8b6e009f8f2790af074daa1a06946c2 # 0.36.2
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@7034f6ae5bae1ec46a0108e8efb60d102e88961d # 0.37.2
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
 
   setup:
@@ -332,10 +332,10 @@ jobs:
     steps:
       - name: Checkout repository
         if: inputs.container == ''
-        uses: hoverkraft-tech/ci-github-common/actions/checkout@6718ae98e8b6e009f8f2790af074daa1a06946c2 # 0.36.2
+        uses: hoverkraft-tech/ci-github-common/actions/checkout@7034f6ae5bae1ec46a0108e8efb60d102e88961d # 0.37.2
 
       - id: working-directory
-        uses: hoverkraft-tech/ci-github-common/actions/working-directory@6718ae98e8b6e009f8f2790af074daa1a06946c2 # 0.36.2
+        uses: hoverkraft-tech/ci-github-common/actions/working-directory@7034f6ae5bae1ec46a0108e8efb60d102e88961d # 0.37.2
         with:
           working-directory: ${{ inputs.working-directory }}
           enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
@@ -441,11 +441,11 @@ jobs:
       contents: read
       packages: read
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@6718ae98e8b6e009f8f2790af074daa1a06946c2 # 0.36.2
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@7034f6ae5bae1ec46a0108e8efb60d102e88961d # 0.37.2
         if: inputs.container == ''
 
       - id: local-workflow-actions
-        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@6718ae98e8b6e009f8f2790af074daa1a06946c2 # 0.36.2
+        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@7034f6ae5bae1ec46a0108e8efb60d102e88961d # 0.37.2
         with:
           actions-path: actions
 
@@ -494,11 +494,11 @@ jobs:
     outputs:
       artifact-id: ${{ steps.build.outputs.artifact-id }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@6718ae98e8b6e009f8f2790af074daa1a06946c2 # 0.36.2
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@7034f6ae5bae1ec46a0108e8efb60d102e88961d # 0.37.2
         if: needs.setup.outputs.build-commands && inputs.container == ''
 
       - id: local-workflow-actions
-        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@6718ae98e8b6e009f8f2790af074daa1a06946c2 # 0.36.2
+        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@7034f6ae5bae1ec46a0108e8efb60d102e88961d # 0.37.2
         with:
           actions-path: actions
 
@@ -528,7 +528,7 @@ jobs:
       packages: read
       pull-requests: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@6718ae98e8b6e009f8f2790af074daa1a06946c2 # 0.36.2
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@7034f6ae5bae1ec46a0108e8efb60d102e88961d # 0.37.2
         if: inputs.container == ''
 
       - if: needs.build.outputs.artifact-id && inputs.container == ''
@@ -538,7 +538,7 @@ jobs:
           path: "/"
 
       - id: local-workflow-actions
-        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@6718ae98e8b6e009f8f2790af074daa1a06946c2 # 0.36.2
+        uses: hoverkraft-tech/ci-github-common/actions/local-workflow-actions@7034f6ae5bae1ec46a0108e8efb60d102e88961d # 0.37.2
         with:
           actions-path: actions
 
