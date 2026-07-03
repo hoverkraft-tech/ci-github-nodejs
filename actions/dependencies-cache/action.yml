@@ -32,12 +32,12 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@6718ae98e8b6e009f8f2790af074daa1a06946c2 # 0.36.2
+    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@2334d395217f9811699dbd4ace9d8559e4d99e0d # 0.37.3
       with:
         source-path: ${{ github.action_path }}/..
 
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@6718ae98e8b6e009f8f2790af074daa1a06946c2 # 0.36.2
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@2334d395217f9811699dbd4ace9d8559e4d99e0d # 0.37.3
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: "false"
@@ -57,7 +57,7 @@ runs:
 
     - name: ♻️ NX cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).nx == true
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.working-directory.outputs.workspace-relative-path }}/node_modules/.cache/nx
         key: ${{ runner.os }}-cache-nx-${{ github.sha }}
@@ -66,7 +66,7 @@ runs:
 
     - name: ♻️ Prettier cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).prettier == true
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.working-directory.outputs.workspace-relative-path }}/node_modules/.cache/prettier
         key: ${{ runner.os }}-cache-prettier-${{ github.sha }}
@@ -75,7 +75,7 @@ runs:
 
     - name: ♻️ Docusaurus cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).docusaurus == true
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           ${{ steps.working-directory.outputs.workspace-relative-path }}/.docusaurus
@@ -86,7 +86,7 @@ runs:
 
     - name: ♻️ Vitest cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).vitest == true
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.working-directory.outputs.workspace-relative-path }}/node_modules/.vite/vitest
         key: ${{ runner.os }}-cache-vitest-${{ github.sha }}
@@ -95,7 +95,7 @@ runs:
 
     - name: ♻️ Astro cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).astro == true
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.working-directory.outputs.workspace-relative-path }}/node_modules/.astro
         key: ${{ runner.os }}-cache-astro-${{ github.sha }}
@@ -104,7 +104,7 @@ runs:
 
     - name: ♻️ Gatsby cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).gatsby == true
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           ${{ steps.working-directory.outputs.workspace-relative-path }}/.cache
@@ -115,7 +115,7 @@ runs:
 
     - name: ♻️ Storybook cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).storybook == true
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.working-directory.outputs.workspace-relative-path }}/node_modules/.cache/storybook
         key: ${{ runner.os }}-cache-storybook-${{ github.sha }}
@@ -191,7 +191,7 @@ runs:
 
     - name: ♻️ Test cache
       if: steps.jest-cache-dir-path.outputs.dir
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.jest-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-test-${{ github.sha }}
