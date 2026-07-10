@@ -26,7 +26,7 @@ jobs:
       packages: write
       pull-requests: write
       id-token: write
-      issues: read
+      issues: write
       security-events: write
       statuses: write
     # jscpd:ignore-end

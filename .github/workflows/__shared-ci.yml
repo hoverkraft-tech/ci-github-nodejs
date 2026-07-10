@@ -9,10 +9,13 @@ jobs:
   linter:
     uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@2334d395217f9811699dbd4ace9d8559e4d99e0d # 0.37.3
     permissions:
-      contents: read
-      statuses: write
       actions: read
+      contents: read
+      issues: write
+      packages: read
+      pull-requests: write
       security-events: write
+      statuses: write
     with:
       # FIXME: Remove this once JS deps will be updated to versions that do not trigger Trivy vulnerabilities
       linter-env: |
