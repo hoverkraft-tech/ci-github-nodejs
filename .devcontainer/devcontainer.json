@@ -2,6 +2,9 @@
 	"name": "ci-github-nodejs",
 	"image": "mcr.microsoft.com/devcontainers/base:debian",
 	"features": {
+		"ghcr.io/devcontainers/features/common-utils:2": {
+			"configureZshAsDefaultShell": true
+		},
 		"ghcr.io/devcontainers/features/node:2": {},
 		"ghcr.io/devcontainers/features/docker-in-docker:3": {
 			"moby": false
@@ -22,10 +25,7 @@
 				"github.copilot-chat",
 				"ms-vscode.makefile-tools",
 				"biomejs.biome"
-			],
-			"settings": {
-				"terminal.integrated.defaultProfile.linux": "zsh"
-			}
+			]
 		}
 	}
 }
