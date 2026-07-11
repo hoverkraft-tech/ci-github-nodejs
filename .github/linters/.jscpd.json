@@ -1,8 +1,11 @@
 {
-	"threshold": 5,
-	"ignore": [
-		"**/tests/npm/coverage/**",
-		"**/node_modules/**",
-		"**/.pnpm-store/**"
-	]
+  "threshold": 5,
+  "ignore": [
+    "**/node_modules/**",
+    "**/.pnpm-store/**",
+    "**/pnpm-workspace.yaml",
+    "**/coverage/**",
+    "**/package-lock.json",
+    "**/dist/**"
+  ]
 }

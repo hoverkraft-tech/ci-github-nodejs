@@ -1,5 +1,5 @@
 function sample() {
-	return "sample";
+  return "sample";
 }
 
 module.exports = { sample };
