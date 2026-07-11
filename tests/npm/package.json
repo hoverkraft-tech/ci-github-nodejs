@@ -1,25 +1,25 @@
 {
-	"name": "test-for-ci-with-npm",
-	"version": "0.1.0",
-	"main": "src/index.js",
-	"scripts": {
-		"lint": "echo \"lint test\"",
-		"lint:ci": "echo \"lint:ci test\"",
-		"build": "mkdir -p dist && echo \"build test\" > dist/test.txt",
-		"test:ci": "jest --coverage"
-	},
-	"dependencies": {
-		"gatsby": "^5.16.1",
-		"jest": "^30.4.2",
-		"nx": "^23.0.1",
-		"prettier": "^3.9.4",
-		"storybook": "^10.4.6"
-	},
-	"overrides": {
-		"nx": {
-			"brace-expansion": "5.0.6",
-			"follow-redirects": "1.16.0",
-			"yaml": "2.9.0"
-		}
-	}
+  "name": "test-for-ci-with-npm",
+  "version": "0.1.0",
+  "main": "src/index.js",
+  "scripts": {
+    "lint": "echo \"lint test\"",
+    "lint:ci": "echo \"lint:ci test\"",
+    "build": "mkdir -p dist && echo \"build test\" > dist/test.txt",
+    "test:ci": "jest --coverage"
+  },
+  "dependencies": {
+    "gatsby": "^5.16.1",
+    "jest": "^30.4.2",
+    "nx": "^23.0.1",
+    "prettier": "^3.9.4",
+    "storybook": "^10.4.6"
+  },
+  "overrides": {
+    "nx": {
+      "brace-expansion": "5.0.6",
+      "follow-redirects": "1.16.0",
+      "yaml": "2.9.0"
+    }
+  }
 }
