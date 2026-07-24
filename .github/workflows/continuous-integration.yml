@@ -294,10 +294,10 @@ jobs:
     runs-on: *ci-runner
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@2334d395217f9811699dbd4ace9d8559e4d99e0d # 0.37.3
-      - uses: github/codeql-action/init@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
+      - uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
           languages: ${{ inputs.code-ql }}
-      - uses: github/codeql-action/analyze@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
+      - uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
 
   dependency-review:
     name: 🛡️ Dependency Review
