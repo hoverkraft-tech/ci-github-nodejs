@@ -9,9 +9,9 @@
   "dependencies": {
     "gatsby": "^5.16.1",
     "jest": "^30.4.2",
-    "nx": "^23.0.1",
-    "prettier": "^3.9.5",
-    "storybook": "^10.4.6"
+    "nx": "^23.1.1",
+    "prettier": "^3.9.6",
+    "storybook": "^10.5.8"
   },
   "resolutions": {
     "nx/brace-expansion": "5.0.6",
