@@ -31,12 +31,12 @@ runs:
   using: "composite"
   steps:
     # jscpd:ignore-start
-    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@2334d395217f9811699dbd4ace9d8559e4d99e0d # 0.37.3
+    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@3a27d31e9ccefbe9609cc9165017ed100ff34a22 # 0.38.0
       with:
         source-path: ${{ github.action_path }}/..
 
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@2334d395217f9811699dbd4ace9d8559e4d99e0d # 0.37.3
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@3a27d31e9ccefbe9609cc9165017ed100ff34a22 # 0.38.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: "false"
@@ -122,7 +122,7 @@ runs:
           core.debug('packageManager field missing; defaulting pnpm version to latest');
           core.setOutput('pnpm-version', 'latest');
 
-    - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+    - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       if: steps.get-package-manager.outputs.package-manager == 'pnpm'
       with:
         version: ${{ steps.get-pnpm-version.outputs.pnpm-version }}
