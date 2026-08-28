@@ -13,7 +13,7 @@
     "jest": "^30.4.2",
     "nx": "^23.1.1",
     "prettier": "^3.9.6",
-    "storybook": "^10.5.8"
+    "storybook": "^10.5.10"
   },
   "overrides": {
     "nx": {
