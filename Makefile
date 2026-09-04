@@ -92,8 +92,8 @@ deps-audit-fix: ## Execute dependency audit fix
 				;; \
 			yarn) \
 				(cd "$$pkg_dir" && corepack yarn install); \
-				echo "yarn audit in $$pkg_dir"; \
-				if ! (cd "$$pkg_dir" && corepack yarn audit); then \
+				echo "yarn-audit-fix in $$pkg_dir"; \
+				if ! (cd "$$pkg_dir" && npm_config_yes=true npx yarn-audit-fix && sed -i -E 's/^([[:space:]]+)(true|false)(-[^[:space:]]*)([[:space:]]+"[^"]+")$/\1"\2\3"\4/' yarn.lock); then \
 					overall_status=1; \
 				fi; \
 				;; \
