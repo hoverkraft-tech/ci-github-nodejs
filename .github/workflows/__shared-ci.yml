@@ -20,6 +20,8 @@ jobs:
       # FIXME: Remove this once JS deps will be updated to versions that do not trigger Trivy vulnerabilities
       linter-env: |
         VALIDATE_TRIVY=false
+        # FIXME: Remove this once zizmor supports this repository workflow patterns
+        VALIDATE_GITHUB_ACTIONS_ZIZMOR=false
 
   test-action-dependencies-cache:
     name: Test action "dependencies-cache"
