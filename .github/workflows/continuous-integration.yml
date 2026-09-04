@@ -190,8 +190,6 @@ jobs:
       container-image: ${{ steps.parse.outputs.container-image }}
       container-env: ${{ steps.parse.outputs.container-env }}
       container-options: ${{ steps.parse.outputs.container-options }}
-      container-ports: ${{ steps.parse.outputs.container-ports }}
-      container-volumes: ${{ steps.parse.outputs.container-volumes }}
       container-username: ${{ steps.parse.outputs.container-username }}
       path-mapping: ${{ steps.parse.outputs.path-mapping }}
     steps:
@@ -199,7 +197,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           CONTAINER_INPUT: ${{ inputs.container }}
-          CONTAINER_PASSWORD: ${{ secrets.container-password }}
+          CONTAINER_PASSWORD: ${{ secrets.container-password }} # zizmor: ignore[secrets-outside-env] reusable workflow validates private registry credentials before job container startup
           WORKING_DIRECTORY: ${{ inputs.working-directory }}
         with:
           script: |
@@ -255,16 +253,28 @@ jobs:
               core.setOutput('container-env', JSON.stringify(container.env));
             }
 
-            if (container.options) {
-              core.setOutput('container-options', container.options);
-            }
-
             if (container.ports) {
-              core.setOutput('container-ports', JSON.stringify(container.ports));
+              if (!Array.isArray(container.ports)) {
+                return core.setFailed('Container ports must be an array.');
+              }
+
+              container.options = [container.options, ...container.ports.map(port => `--publish ${port}`)]
+                .filter(Boolean)
+                .join(' ');
             }
 
             if (container.volumes) {
-              core.setOutput('container-volumes', JSON.stringify(container.volumes));
+              if (!Array.isArray(container.volumes)) {
+                return core.setFailed('Container volumes must be an array.');
+              }
+
+              container.options = [container.options, ...container.volumes.map(volume => `--volume ${volume}`)]
+                .filter(Boolean)
+                .join(' ');
+            }
+
+            if (container.options) {
+              core.setOutput('container-options', container.options);
             }
 
             if (container.credentials?.username) {
@@ -318,12 +328,12 @@ jobs:
       contents: read
       packages: read
     container: &ci-container
-      image: ${{ needs.prepare.outputs.container-image || '' }}
+      image: ${{ needs.prepare.outputs.container-image || '' }} # zizmor: ignore[unpinned-images] reusable workflow intentionally accepts caller-provided container images
       env: ${{ fromJSON(needs.prepare.outputs.container-env || '{}') }}
       options: ${{ needs.prepare.outputs.container-options || ' ' }}
-      ports: ${{ fromJSON(needs.prepare.outputs.container-ports || '[]') }}
-      volumes: ${{ fromJSON(needs.prepare.outputs.container-volumes || '[]') }}
-      credentials: ${{ fromJSON(needs.prepare.outputs.container-username && format('{{"username":{0},"password":{1}}}',toJSON(needs.prepare.outputs.container-username),toJSON(secrets.container-password)) || '{}') }}
+      credentials:
+        username: ${{ needs.prepare.outputs.container-username || '' }}
+        password: ${{ secrets.container-password || '' }} # zizmor: ignore[secrets-outside-env] private registry container authentication is configured at the job container level
     outputs:
       working-directory: ${{ steps.working-directory.outputs.absolute-path }}
       build-env: ${{ steps.build-variables.outputs.env }}
@@ -508,7 +518,7 @@ jobs:
         with:
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           working-directory: ${{ needs.setup.outputs.working-directory }}
-          build-secrets: ${{ secrets.build-secrets }}
+          build-secrets: ${{ secrets.build-secrets }} # zizmor: ignore[secrets-outside-env] build secrets are intentionally forwarded to the build action
           build-commands: ${{ needs.setup.outputs.build-commands }}
           build-env: ${{ needs.setup.outputs.build-env }}
           build-artifact: ${{ needs.setup.outputs.build-artifact }}
@@ -577,4 +587,4 @@ jobs:
           coverage: ${{ steps.prepare-test-options.outputs.coverage }}
           report-file: ${{ steps.prepare-test-options.outputs.report-file }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
-          github-token: ${{ secrets.github-token || github.token }}
+          github-token: ${{ secrets.github-token || github.token }} # zizmor: ignore[secrets-outside-env] reusable workflow token override is intentional
