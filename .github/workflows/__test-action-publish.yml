@@ -1,0 +1,83 @@
+name: Internal - Tests for "publish" action
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  package:
+    name: Arrange package tarball
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
+    steps:
+      - name: Arrange - Checkout sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: package
+        name: Arrange - Create package tarball
+        uses: ./actions/package
+        with:
+          working-directory: tests/npm
+
+  publish:
+    name: Publish dry run (${{ matrix.os }}, ${{ matrix.tag || 'default tag' }})
+    needs: package
+    runs-on: ${{ matrix.os }}
+    permissions:
+      actions: read
+      contents: read
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        tag: ["", next]
+    steps:
+      - name: Arrange - Checkout sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Act - Run "publish" action
+        uses: ./actions/publish
+        with:
+          package-tarball-artifact-id: ${{ needs.package.outputs.package-tarball-artifact-id }}
+          tag: ${{ matrix.tag }}
+          access: ${{ matrix.tag == 'next' && 'restricted' || 'public' }}
+          dry-run: "true"
+          provenance: "false"
+
+      - id: invalid-artifact
+        name: Act - Reject multiple artifact IDs
+        continue-on-error: true
+        uses: ./actions/publish
+        with:
+          package-tarball-artifact-id: "1,2"
+          dry-run: "true"
+          provenance: "false"
+
+      - id: invalid-dry-run
+        name: Act - Reject invalid dry-run input
+        continue-on-error: true
+        uses: ./actions/publish
+        with:
+          package-tarball-artifact-id: ${{ needs.package.outputs.package-tarball-artifact-id }}
+          dry-run: "yes"
+          provenance: "false"
+
+      - name: Assert - Invalid inputs fail before publishing
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          INVALID_ARTIFACT_OUTCOME: ${{ steps.invalid-artifact.outcome }}
+          INVALID_DRY_RUN_OUTCOME: ${{ steps.invalid-dry-run.outcome }}
+        with:
+          script: |
+            for (const outcome of [process.env.INVALID_ARTIFACT_OUTCOME, process.env.INVALID_DRY_RUN_OUTCOME]) {
+              if (outcome !== 'failure') {
+                core.setFailed('Expected invalid publish inputs to fail');
+              }
+            }

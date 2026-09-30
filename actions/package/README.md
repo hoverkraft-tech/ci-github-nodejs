@@ -99,6 +99,9 @@ Action to create and upload an npm package tarball from a Node.js project
 
 ## Examples
 
+Use the [Publish action](../publish/README.md) to publish the resulting tarball.
+See the [release guide](../../.github/workflows/release.md) for version planning and GitHub release orchestration.
+
 ```yaml
 jobs:
   package:

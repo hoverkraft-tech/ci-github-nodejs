@@ -33,6 +33,8 @@ _Actions for continuous integration steps: build, lint, and test._
 
 #### - [Test](actions/test/README.md)
 
+#### - [Publish](actions/publish/README.md)
+
 ### Dependencies
 
 _Actions dedicated to caching and validating Node.js dependencies._
@@ -49,7 +51,7 @@ _Actions focused on discovering and preparing the Node.js environment._
 
 #### - [Setup node](actions/setup-node/README.md)
 
-## Reusable Workflows
+## Reusable Workflows and Guides
 
 ### Continuous Integration
 
@@ -57,7 +59,7 @@ _Actions focused on discovering and preparing the Node.js environment._
 
 ### Release
 
-- [Release](.github/workflows/release.md) — documentation for the reusable Node.js release workflow that publishes CI-produced package tarballs.
+- [Release](.github/workflows/release.md) — guide to Node.js project releases using `ci-github-publish` release actions and the package/publish actions.
 
 ## Contributing
 
