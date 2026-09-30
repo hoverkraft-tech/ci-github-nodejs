@@ -56,6 +56,14 @@ jobs:
     permissions:
       contents: read
 
+  test-action-publish:
+    name: Test action "publish"
+    needs: linter
+    uses: ./.github/workflows/__test-action-publish.yml
+    permissions:
+      actions: read
+      contents: read
+
   test-workflow-continuous-integration:
     name: Test workflow "continuous-integration"
     needs: linter
@@ -67,12 +75,3 @@ jobs:
       id-token: write
       issues: read
       security-events: write
-
-  test-workflow-release:
-    name: Test workflow "release"
-    needs: linter
-    uses: ./.github/workflows/__test-workflow-release.yml
-    permissions:
-      contents: read
-      packages: write
-      id-token: write

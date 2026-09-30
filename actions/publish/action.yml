@@ -1,0 +1,194 @@
+name: "Publish"
+description: "Publish a CI-produced Node.js package tarball to an npm-compatible registry"
+author: hoverkraft
+branding:
+  icon: upload-cloud
+  color: blue
+
+inputs:
+  package-tarball-artifact-id:
+    description: "Artifact ID of one package tarball uploaded by the package action"
+    required: true
+  registry-url:
+    description: "Registry URL used by npm publish"
+    required: false
+    default: "https://registry.npmjs.org"
+  access:
+    description: "Package access: public, restricted, or empty to use npm defaults"
+    required: false
+    default: "public"
+  tag:
+    description: "npm distribution tag, such as latest, next, or canary; empty uses npm defaults"
+    required: false
+    default: ""
+  provenance:
+    description: "Whether to request provenance for npmjs.org publishes (true or false)"
+    required: false
+    default: "true"
+  dry-run:
+    description: "Validate publishing without uploading the package (true or false)"
+    required: false
+    default: "false"
+  github-token:
+    description: "GitHub token for downloading the artifact; registry authentication uses NODE_AUTH_TOKEN or OIDC"
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: validate
+      name: Validate publish inputs
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        PACKAGE_TARBALL_ARTIFACT_ID: ${{ inputs.package-tarball-artifact-id }}
+        ACCESS: ${{ inputs.access }}
+        PROVENANCE: ${{ inputs.provenance }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        REGISTRY_URL: ${{ inputs.registry-url }}
+        RUNNER_TEMP: ${{ runner.temp }}
+      with:
+        script: |
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          if (!/^[1-9][0-9]*$/.test(process.env.PACKAGE_TARBALL_ARTIFACT_ID || '')) {
+            return core.setFailed('package-tarball-artifact-id must be a single positive artifact ID');
+          }
+
+          if (!['', 'public', 'restricted'].includes(process.env.ACCESS.trim())) {
+            return core.setFailed('access must be public, restricted, or empty');
+          }
+
+          for (const input of ['PROVENANCE', 'DRY_RUN']) {
+            if (!['true', 'false'].includes(process.env[input])) {
+              return core.setFailed(`${input.toLowerCase().replaceAll('_', '-')} must be true or false`);
+            }
+          }
+
+          try {
+            const registry = new URL(process.env.REGISTRY_URL);
+            if (!['https:', 'http:'].includes(registry.protocol)) {
+              return core.setFailed('registry-url must use HTTP or HTTPS');
+            }
+          } catch {
+            return core.setFailed('registry-url must be a valid URL');
+          }
+
+          core.setOutput('download-path', fs.mkdtempSync(path.join(process.env.RUNNER_TEMP, 'package-publish-')));
+
+    - name: Setup Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        registry-url: ${{ inputs.registry-url }}
+        node-version: "lts/*"
+
+    - name: Download package tarball
+      id: download-package-tarball
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        artifact-ids: ${{ inputs.package-tarball-artifact-id }}
+        path: ${{ steps.validate.outputs.download-path }}
+        skip-decompress: true
+        github-token: ${{ inputs.github-token }}
+
+    - id: package-tarball
+      name: Locate package tarball
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        PACKAGE_TARBALL_DOWNLOAD_PATH: ${{ steps.download-package-tarball.outputs.download-path }}
+      with:
+        script: |
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const downloadPath = process.env.PACKAGE_TARBALL_DOWNLOAD_PATH;
+
+          if (!fs.existsSync(downloadPath)) {
+            return core.setFailed(`Package tarball download path does not exist: ${downloadPath}`);
+          }
+
+          function findTarballs(directory) {
+            return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+              const entryPath = path.join(directory, entry.name);
+
+              if (entry.isDirectory()) {
+                return findTarballs(entryPath);
+              }
+
+              if (entry.isFile() && entry.name.endsWith('.tgz')) {
+                return [entryPath];
+              }
+
+              return [];
+            });
+          }
+
+          const packageTarballPaths = fs.statSync(downloadPath).isDirectory()
+            ? findTarballs(downloadPath)
+            : downloadPath.endsWith('.tgz') ? [downloadPath] : [];
+
+          if (packageTarballPaths.length === 0) {
+            return core.setFailed(`Package tarball not found in ${downloadPath}`);
+          }
+
+          if (packageTarballPaths.length > 1) {
+            return core.setFailed(`Expected one package tarball, found ${packageTarballPaths.length}: ${packageTarballPaths.join(', ')}`);
+          }
+
+          core.info(`Package tarball: ${packageTarballPaths[0]}`);
+          core.setOutput('path', packageTarballPaths[0]);
+
+    - name: Publish package
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        PACKAGE_TARBALL_PATH: ${{ steps.package-tarball.outputs.path }}
+        ACCESS: ${{ inputs.access }}
+        TAG: ${{ inputs.tag }}
+        PROVENANCE: ${{ inputs.provenance }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        REGISTRY_URL: ${{ inputs.registry-url }}
+      with:
+        script: |
+          const path = require('node:path');
+
+          const packageTarballPath = process.env.PACKAGE_TARBALL_PATH;
+          const access = process.env.ACCESS?.trim();
+          const tag = process.env.TAG?.trim();
+          const registryUrl = process.env.REGISTRY_URL ?? '';
+          const dryRun = process.env.DRY_RUN === 'true';
+          const provenance = process.env.PROVENANCE === 'true';
+
+          const args = ['publish', packageTarballPath, '--registry', registryUrl];
+
+          if (access) {
+            args.push('--access', access);
+          }
+
+          if (tag) {
+            args.push('--tag', tag);
+          }
+
+          if (provenance && new URL(registryUrl).origin === 'https://registry.npmjs.org') {
+            args.push('--provenance');
+          }
+
+          if (dryRun) {
+            args.push('--dry-run');
+          }
+
+          core.info(`Publishing ${path.basename(packageTarballPath)} to ${registryUrl} with npm ${args.join(' ')}`);
+
+          try {
+            const exitCode = await exec.exec('npm', args, {
+              ignoreReturnCode: true
+            });
+
+            if (exitCode !== 0) {
+              return core.setFailed(`Package publish failed with exit code ${exitCode}`);
+            }
+
+            core.info(dryRun ? 'Package publish dry run completed successfully.' : 'Package published successfully!');
+          } catch (error) {
+            return core.setFailed(`Package publish failed: ${error.message}`);
+          }
