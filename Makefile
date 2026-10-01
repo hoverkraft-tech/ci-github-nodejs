@@ -20,86 +20,13 @@ lint-fix: ## Execute linting and fix
 	)
 
 deps-install: ## Install dependencies for all package.json files under tests/
-	@set -u; \
-	packages="$$(find tests -type f -name package.json -not -path '*/node_modules/*' -print | sort)"; \
-	echo "Installing dependencies for package.json files under tests/ ..."; \
-	for pkg in $$packages; do \
-		pkg_dir="$$(dirname "$$pkg")"; \
-		pm_field="$$(sed -n 's/.*"packageManager"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$$pkg" | head -n 1)"; \
-		pm=""; \
-		case "$$pm_field" in \
-			pnpm@*) pm="pnpm" ;; \
-			yarn@*) pm="yarn" ;; \
-			npm@*) pm="npm" ;; \
-			*) \
-				if [ -f "$$pkg_dir/pnpm-lock.yaml" ]; then \
-					pm="pnpm"; \
-				elif [ -f "$$pkg_dir/yarn.lock" ]; then \
-					pm="yarn"; \
-				else \
-					pm="npm"; \
-				fi; \
-				;; \
-		esac; \
-		echo "---"; \
-		echo "Detected $$pm in $$pkg_dir"; \
-		case "$$pm" in \
-			npm) (cd "$$pkg_dir" && npm install) ;; \
-			pnpm) (cd "$$pkg_dir" && corepack pnpm install) ;; \
-			yarn) (cd "$$pkg_dir" && corepack yarn install) ;; \
-		esac; \
-	done
+	@sh scripts/test-packages.sh install
+
+deps-update-interactive: ## Interactively update dependencies under tests/
+	@sh scripts/test-packages.sh update-interactive
 
 deps-audit-fix: ## Execute dependency audit fix
-	@set -u; \
-	overall_status=0; \
-	packages="$$(find tests -type f -name package.json -not -path '*/node_modules/*' -print | sort)"; \
-	echo "Running dependency audit/fix for package.json files under tests/ ..."; \
-	for pkg in $$packages; do \
-		pkg_dir="$$(dirname "$$pkg")"; \
-		pm_field="$$(sed -n 's/.*"packageManager"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$$pkg" | head -n 1)"; \
-		pm=""; \
-		case "$$pm_field" in \
-			pnpm@*) pm="pnpm" ;; \
-			yarn@*) pm="yarn" ;; \
-			npm@*) pm="npm" ;; \
-			*) \
-				if [ -f "$$pkg_dir/pnpm-lock.yaml" ]; then \
-					pm="pnpm"; \
-				elif [ -f "$$pkg_dir/yarn.lock" ]; then \
-					pm="yarn"; \
-				else \
-					pm="npm"; \
-				fi; \
-				;; \
-		esac; \
-		echo "---"; \
-		echo "Detected $$pm in $$pkg_dir"; \
-		case "$$pm" in \
-			npm) \
-				(cd "$$pkg_dir" && npm install); \
-				echo "npm audit fix in $$pkg_dir"; \
-				if ! (cd "$$pkg_dir" && npm audit fix); then \
-					overall_status=1; \
-				fi; \
-				;; \
-			pnpm) \
-				(cd "$$pkg_dir" && corepack pnpm install); \
-				echo "pnpm audit --fix=override in $$pkg_dir"; \
-				if ! (cd "$$pkg_dir" && corepack pnpm audit --fix=override); then \
-					overall_status=1; \
-				fi; \
-				;; \
-			yarn) \
-				(cd "$$pkg_dir" && corepack yarn install); \
-				echo "yarn audit in $$pkg_dir"; \
-				if ! (cd "$$pkg_dir" && corepack yarn audit); then \
-					overall_status=1; \
-				fi; \
-				;; \
-		esac; \
-	done; \
-	exit $$overall_status
+	@sh scripts/test-packages.sh audit-fix
 
 ci: ## Execute CI tasks
 	$(MAKE) deps-install

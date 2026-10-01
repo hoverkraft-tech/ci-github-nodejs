@@ -45,6 +45,7 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # jscpd:ignore-start
     - uses: hoverkraft-tech/ci-github-common/actions/local-actions@3a27d31e9ccefbe9609cc9165017ed100ff34a22 # 0.38.0
       with:
         source-path: ${{ github.action_path }}/..
@@ -69,13 +70,16 @@ runs:
       uses: ./../self-actions/get-package-manager
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+    # jscpd:ignore-end
 
     - id: run-lint
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      # jscpd:ignore-start
       env:
         RUN_LINT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
         LINT_COMMAND: ${{ inputs.command }}
+      # jscpd:ignore-end
       with:
         script: |
           const workingDirectory = process.env.WORKING_DIRECTORY;
