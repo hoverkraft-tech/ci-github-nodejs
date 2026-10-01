@@ -14,3 +14,4 @@ allowBuilds:
 overrides:
   immutable@<3.8.3: ">=3.8.3"
   immutable@<3.8.4: ">=3.8.4"
+  path-to-regexp@<0.1.13: ">=0.1.13"
