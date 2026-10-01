@@ -61,6 +61,7 @@ runs:
       with:
         source-path: ${{ github.action_path }}/..
 
+    # jscpd:ignore-start
     - id: working-directory
       uses: hoverkraft-tech/ci-github-common/actions/working-directory@3a27d31e9ccefbe9609cc9165017ed100ff34a22 # 0.38.0
       with:
@@ -71,6 +72,7 @@ runs:
       uses: ./../self-actions/setup-node
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+    # jscpd:ignore-end
 
     - name: Download build artifacts
       if: inputs.build-artifact-id != ''

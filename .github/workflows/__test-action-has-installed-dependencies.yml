@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    # jscpd:ignore-start
     strategy:
       matrix:
         include:
@@ -52,7 +53,9 @@ jobs:
             exit 1
           fi
 
-      - name: Act - Run "has-installed-dependencies" action
+      - name:
+          Act - Run "has-installed-dependencies" action
+          # jscpd:ignore-end
         id: act-has-installed-dependencies
         uses: ./actions/has-installed-dependencies
         with:

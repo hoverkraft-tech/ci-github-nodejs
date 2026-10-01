@@ -26,6 +26,7 @@ jobs:
           - working-directory: tests/yarn
             run-script-command: yarn
     steps:
+      # jscpd:ignore-start
       - name: Arrange - Checkout sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -40,6 +41,7 @@ jobs:
         uses: ./actions/setup-node
         with:
           working-directory: ${{ matrix.working-directory }}
+      # jscpd:ignore-end
 
       - name: Assert - Check "setup-node" outputs
         env:

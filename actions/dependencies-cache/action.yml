@@ -32,6 +32,7 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # jscpd:ignore-start
     - uses: hoverkraft-tech/ci-github-common/actions/local-actions@3a27d31e9ccefbe9609cc9165017ed100ff34a22 # 0.38.0
       with:
         source-path: ${{ github.action_path }}/..
@@ -54,6 +55,7 @@ runs:
       uses: ./../self-actions/get-package-manager
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+    # jscpd:ignore-end
 
     - name: ♻️ NX cache
       if: fromJson(steps.has-installed-dependencies.outputs.installed-dependencies).nx == true

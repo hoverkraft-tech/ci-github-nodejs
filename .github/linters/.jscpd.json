@@ -4,6 +4,8 @@
     "**/node_modules/**",
     "**/.pnpm-store/**",
     "**/pnpm-workspace.yaml",
+    "**/pnpm-lock.yaml",
+    "**/yarn.lock",
     "**/coverage/**",
     "**/package-lock.json",
     "**/dist/**"

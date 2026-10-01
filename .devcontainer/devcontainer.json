@@ -1,5 +1,5 @@
 {
-  "name": "ci-github-nodejs",
+  "name": "hoverkraft-tech/ci-github-nodejs",
   "image": "mcr.microsoft.com/devcontainers/base:debian",
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {

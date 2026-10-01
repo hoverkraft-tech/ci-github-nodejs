@@ -76,11 +76,13 @@ runs:
       with:
         source-path: ${{ github.action_path }}/..
 
+    # jscpd:ignore-start
     - id: working-directory
       uses: hoverkraft-tech/ci-github-common/actions/working-directory@3a27d31e9ccefbe9609cc9165017ed100ff34a22 # 0.38.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
+    # jscpd:ignore-end
 
     - id: setup-node
       if: inputs.container != 'true'
