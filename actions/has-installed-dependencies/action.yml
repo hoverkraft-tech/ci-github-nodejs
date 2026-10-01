@@ -153,9 +153,14 @@ runs:
               allInstalledDependencies = await parseDependencies(
                 `${process.env.PACKAGE_MANAGER} list --depth=1 --json --no-color`
               );
-              (allInstalledDependencies || []).reduce((accumulator, currentValue) => {
-                return { ...accumulator, ...(currentValue?.dependencies || {}) };
-              }, []);
+              allInstalledDependencies = (allInstalledDependencies || []).reduce((accumulator, currentValue) => {
+                return {
+                  ...accumulator,
+                  ...(currentValue?.dependencies || {}),
+                  ...(currentValue?.devDependencies || {}),
+                  ...(currentValue?.optionalDependencies || {}),
+                };
+              }, {});
               parser = parseNpmDependencies;
               break;
 

@@ -11,3 +11,6 @@ allowBuilds:
   nx: true
   sharp: true
   unrs-resolver: true
+overrides:
+  immutable@<3.8.3: ">=3.8.3"
+  immutable@<3.8.4: ">=3.8.4"
