@@ -16,10 +16,6 @@ jobs:
       pull-requests: write
       security-events: write
       statuses: write
-    with:
-      # FIXME: Remove this once JS deps will be updated to versions that do not trigger Trivy vulnerabilities
-      linter-env: |
-        VALIDATE_TRIVY=false
 
   test-action-dependencies-cache:
     name: Test action "dependencies-cache"
