@@ -24,7 +24,7 @@ inputs:
 
       ESLint: `eslint --format json -o eslint-report.json .`
       Prettier: `prettier --check . | tee prettier-report.txt`
-      Biome: `biome lint --error-on-warnings . --reporter=sarif | tee biome-report.sarif`
+      Biome: `biome check --assist-enabled=false . --reporter=sarif --reporter-file=biome-report.sarif --reporter=default`
       Astro: `astro check | tee astro-report.txt`
     required: false
     default: "lint:ci"
