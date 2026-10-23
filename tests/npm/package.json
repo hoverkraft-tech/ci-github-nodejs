@@ -14,5 +14,8 @@
     "nx": "^24.0.0",
     "prettier": "^3.9.10",
     "storybook": "^10.6.3"
+  },
+  "overrides": {
+    "undici": ">=7.29.1"
   }
 }
