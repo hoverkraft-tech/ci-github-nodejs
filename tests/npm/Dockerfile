@@ -1,6 +1,6 @@
 FROM node:24.14-bookworm-slim AS base
 
-USER node
+USER 1000:1000
 WORKDIR /usr/src/app
 
 FROM base AS build
@@ -19,6 +19,6 @@ FROM base AS ci
 
 COPY --chown=node:node --from=build /usr/src/app/ /usr/src/app/
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD node -v >/dev/null 2>&1 || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD ["node", "--version"]
 
 CMD [ "tail", "-f", "/dev/null" ]
