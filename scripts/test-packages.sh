@@ -54,7 +54,7 @@ has_yarn_resolutions() {
 yarn_has_direct_dependency_updates() {
 	pkg_dir="$1"
 	updates_json="$(
-		cd "$pkg_dir" && npm exec --yes npm-check-updates@latest -- --packageFile package.json --jsonUpgraded --loglevel silent 2>/dev/null
+		cd "$pkg_dir" && npm exec --yes npm-check-updates@latest -- --packageFile package.json --jsonUpgraded 2>/dev/null
 	)"
 
 	case "$(printf '%s' "$updates_json" | tr -d '[:space:]')" in
@@ -74,7 +74,12 @@ run_interactive_update_for_pm() {
 		fi
 		run_install_for_pm "$pkg_dir" "$pm"
 		;;
-	pnpm) (cd "$pkg_dir" && run_with_terminal_input corepack pnpm update --interactive --latest) ;;
+	pnpm)
+		if ! (cd "$pkg_dir" && run_with_terminal_input corepack pnpm update --interactive --latest); then
+			return 1
+		fi
+		(cd "$pkg_dir" && corepack pnpm install --no-frozen-lockfile)
+		;;
 	yarn)
 		resolutions_updated=0
 
@@ -118,8 +123,12 @@ run_audit_fix_for_pm() {
 		;;
 	yarn)
 		run_install_for_pm "$pkg_dir" "$pm"
-		echo "yarn audit in $pkg_dir"
-		(cd "$pkg_dir" && corepack yarn audit)
+		echo "yarn-audit-fix in $pkg_dir"
+		if ! (cd "$pkg_dir" && npm exec --yes yarn-audit-fix@latest); then
+			return 1
+		fi
+		node "$script_dir/normalize-yarn-lock.js" "$pkg_dir/yarn.lock"
+		run_install_for_pm "$pkg_dir" "$pm"
 		;;
 	esac
 }
