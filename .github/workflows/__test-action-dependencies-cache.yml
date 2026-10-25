@@ -35,7 +35,7 @@ jobs:
 
       - name: Arrange - Setup Node.js runtime
         id: arrange-setup-node
-        uses: ./actions/setup-node
+        uses: $/actions/setup-node
         with:
           working-directory: ${{ matrix.working-directory }}
 
@@ -54,7 +54,7 @@ jobs:
 
       - name: Act - Run "dependencies-cache" action
         id: act-get-dependencies-cache
-        uses: ./actions/dependencies-cache
+        uses: $/actions/dependencies-cache
         with:
           working-directory: ${{ matrix.working-directory }}
           dependencies: |

@@ -38,7 +38,7 @@ jobs:
 
       - name: Act - Run "setup-node" action
         id: act-setup-node
-        uses: ./actions/setup-node
+        uses: $/actions/setup-node
         with:
           working-directory: ${{ matrix.working-directory }}
       # jscpd:ignore-end

@@ -21,7 +21,7 @@ jobs:
 
       - id: package
         name: Arrange - Create package tarball
-        uses: ./actions/package
+        uses: $/actions/package
         with:
           working-directory: tests/npm
 
@@ -43,7 +43,7 @@ jobs:
           persist-credentials: false
 
       - name: Act - Run "publish" action
-        uses: ./actions/publish
+        uses: $/actions/publish
         with:
           package-tarball-artifact-id: ${{ needs.package.outputs.package-tarball-artifact-id }}
           tag: ${{ matrix.tag }}
@@ -54,7 +54,7 @@ jobs:
       - id: invalid-artifact
         name: Act - Reject multiple artifact IDs
         continue-on-error: true
-        uses: ./actions/publish
+        uses: $/actions/publish
         with:
           package-tarball-artifact-id: "1,2"
           dry-run: "true"
@@ -63,7 +63,7 @@ jobs:
       - id: invalid-dry-run
         name: Act - Reject invalid dry-run input
         continue-on-error: true
-        uses: ./actions/publish
+        uses: $/actions/publish
         with:
           package-tarball-artifact-id: ${{ needs.package.outputs.package-tarball-artifact-id }}
           dry-run: "yes"
