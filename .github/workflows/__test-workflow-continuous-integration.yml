@@ -8,7 +8,7 @@ permissions: {}
 jobs:
   act-without-container:
     name: Act - Run the continuous integration workflow (without container)
-    uses: ./.github/workflows/continuous-integration.yml
+    uses: $/.github/workflows/continuous-integration.yml
     permissions:
       contents: read
       id-token: write
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.act-without-container.outputs.build-artifact-id }}
           path: "/"
@@ -41,7 +41,7 @@ jobs:
   act-without-container-and-github-reports:
     # jscpd:ignore-start
     name: Act - Run the continuous integration workflow (without container and GitHub reports)
-    uses: ./.github/workflows/continuous-integration.yml
+    uses: $/.github/workflows/continuous-integration.yml
     permissions:
       contents: read
       id-token: write
@@ -61,14 +61,16 @@ jobs:
   arrange-with-container:
     name: Arrange - Build container image for CI workflow
     permissions:
+      attestations: write
       contents: read
       id-token: write
       issues: read
       packages: write
       pull-requests: read
-    uses: hoverkraft-tech/ci-github-container/.github/workflows/docker-build-images.yml@f8255a6a37eb141fa331527f5aed9b9e1d598c77 # 0.38.0
+    uses: hoverkraft-tech/ci-github-container/.github/workflows/docker-build-images.yml@5ffc3c81daacc57700a14bb91d67edbc67eedc1d # 0.39.0
     with:
       sign: false
+      attest: false
       images: |
         [{
           "name": "ci-npm",
@@ -83,7 +85,7 @@ jobs:
 
   act-with-container:
     name: Act - Run the continuous integration workflow (with container)
-    uses: ./.github/workflows/continuous-integration.yml
+    uses: $/.github/workflows/continuous-integration.yml
     needs: arrange-with-container
     permissions:
       contents: read
@@ -109,7 +111,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.act-with-container.outputs.build-artifact-id }}
           path: ${{ runner.temp }}
@@ -119,7 +121,7 @@ jobs:
 
   act-with-container-advanced:
     name: Act - Run the continuous integration workflow (with container and advanced options)
-    uses: ./.github/workflows/continuous-integration.yml
+    uses: $/.github/workflows/continuous-integration.yml
     needs: arrange-with-container
     permissions:
       contents: read
@@ -159,7 +161,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.act-with-container-advanced.outputs.build-artifact-id }}
           path: ${{ runner.temp }}

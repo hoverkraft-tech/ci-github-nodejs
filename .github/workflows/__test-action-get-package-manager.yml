@@ -49,7 +49,7 @@ jobs:
 
       - name: Act - Run "get-package-manager" action
         id: act-get-package-manager
-        uses: ./actions/get-package-manager
+        uses: $/actions/get-package-manager
         with:
           working-directory: ${{ matrix.working-directory }}
 

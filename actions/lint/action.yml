@@ -46,19 +46,15 @@ runs:
   using: "composite"
   steps:
     # jscpd:ignore-start
-    - uses: hoverkraft-tech/ci-github-common/actions/local-actions@3a27d31e9ccefbe9609cc9165017ed100ff34a22 # 0.38.0
-      with:
-        source-path: ${{ github.action_path }}/..
-
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@3a27d31e9ccefbe9609cc9165017ed100ff34a22 # 0.38.0
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
 
     - id: setup-node
       if: inputs.container != 'true'
-      uses: ./../self-actions/setup-node
+      uses: $/actions/setup-node
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         dependencies-cache: |
@@ -67,7 +63,7 @@ runs:
 
     - id: get-package-manager
       if: inputs.container == 'true'
-      uses: ./../self-actions/get-package-manager
+      uses: $/actions/get-package-manager
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
     # jscpd:ignore-end
@@ -109,7 +105,7 @@ runs:
 
     - name: 📊 Parse lint reports
       if: always()
-      uses: hoverkraft-tech/ci-github-common/actions/parse-ci-reports@3a27d31e9ccefbe9609cc9165017ed100ff34a22 # 0.38.0
+      uses: hoverkraft-tech/ci-github-common/actions/parse-ci-reports@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         report-paths: ${{ inputs.report-file || 'auto:lint' }}

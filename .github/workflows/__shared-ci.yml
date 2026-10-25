@@ -7,7 +7,7 @@ permissions: {}
 
 jobs:
   linter:
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@3a27d31e9ccefbe9609cc9165017ed100ff34a22 # 0.38.0
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
     permissions:
       actions: read
       contents: read
@@ -20,42 +20,42 @@ jobs:
   test-action-dependencies-cache:
     name: Test action "dependencies-cache"
     needs: linter
-    uses: ./.github/workflows/__test-action-dependencies-cache.yml
+    uses: $/.github/workflows/__test-action-dependencies-cache.yml
     permissions:
       contents: read
 
   test-action-get-package-manager:
     name: Test action "get-package-manager"
     needs: linter
-    uses: ./.github/workflows/__test-action-get-package-manager.yml
+    uses: $/.github/workflows/__test-action-get-package-manager.yml
     permissions:
       contents: read
 
   test-action-has-installed-dependencies:
     name: Test action "has-installed-dependencies"
     needs: linter
-    uses: ./.github/workflows/__test-action-has-installed-dependencies.yml
+    uses: $/.github/workflows/__test-action-has-installed-dependencies.yml
     permissions:
       contents: read
 
   test-action-package:
     name: Test action "package"
     needs: linter
-    uses: ./.github/workflows/__test-action-package.yml
+    uses: $/.github/workflows/__test-action-package.yml
     permissions:
       contents: read
 
   test-action-setup-node:
     name: Test action "setup-node"
     needs: linter
-    uses: ./.github/workflows/__test-action-setup-node.yml
+    uses: $/.github/workflows/__test-action-setup-node.yml
     permissions:
       contents: read
 
   test-action-publish:
     name: Test action "publish"
     needs: linter
-    uses: ./.github/workflows/__test-action-publish.yml
+    uses: $/.github/workflows/__test-action-publish.yml
     permissions:
       actions: read
       contents: read
@@ -63,8 +63,9 @@ jobs:
   test-workflow-continuous-integration:
     name: Test workflow "continuous-integration"
     needs: linter
-    uses: ./.github/workflows/__test-workflow-continuous-integration.yml
+    uses: $/.github/workflows/__test-workflow-continuous-integration.yml
     permissions:
+      attestations: write
       contents: read
       packages: write
       pull-requests: write
