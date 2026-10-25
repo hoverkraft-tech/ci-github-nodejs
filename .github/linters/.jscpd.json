@@ -1,6 +1,8 @@
 {
   "threshold": 5,
   "ignore": [
+    "**/actions/**/README.md",
+    "**/.github/workflows/continuous-integration.md",
     "**/node_modules/**",
     "**/.pnpm-store/**",
     "**/pnpm-workspace.yaml",
