@@ -17,7 +17,11 @@ jobs:
       security-events: write
     with:
       working-directory: tests/npm
-      code-ql-config-file: tests/npm/codeql-config.yml
+      code-ql: |
+        {
+          "languages": "javascript-typescript",
+          "config-file": "tests/npm/codeql-config.yml"
+        }
       build: |
         {
           "artifact": "dist"
@@ -51,6 +55,7 @@ jobs:
       security-events: write
     with:
       working-directory: tests/npm
+      code-ql: typescript
       build: |
         {
           "artifact": "dist"
@@ -131,6 +136,7 @@ jobs:
       pull-requests: write
       security-events: write
     with:
+      code-ql: '{"languages":"typescript"}'
       container: |
         {
           "image": "${{ fromJSON(needs.arrange-with-container.outputs.built-images).ci-npm.images[0] }}",
