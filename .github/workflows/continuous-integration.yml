@@ -73,6 +73,8 @@ on:
           CodeQL analysis language, or a JSON object with `languages` and optional `config-file`.
           Set to an empty string to disable CodeQL.
           In JSON form, `languages` must be a nonempty string and `config-file` must be a string.
+          Omitting or leaving `config-file` empty keeps CodeQL's default configuration behavior.
+          Unknown JSON properties and invalid field types fail before CodeQL initialization.
           Local configuration paths are relative to the caller repository root, not `working-directory`.
 
           Example:

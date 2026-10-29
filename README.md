@@ -60,7 +60,6 @@ _Actions focused on discovering and preparing the Node.js environment._
 ### Continuous Integration
 
 - [Continuous Integration](.github/workflows/continuous-integration.md) — documentation for the reusable Node.js CI workflow.
-- [CodeQL configuration](docs/usage/codeql.md) — customize analysis with a configuration file in the caller repository.
 
 ### Release
 
