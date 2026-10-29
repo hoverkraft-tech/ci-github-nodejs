@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/d3cfc8b5e0d32c7bbee8e143f24dda679c080d2de26953e5a85b8ea744ddf609/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/d3f52e682bccd36faeca9ac95068e6cafe42fa539cefd27605c495ac6c794235/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -58,7 +58,7 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@81a4bca8445b7b273455ff26a9a5c3c31c86b2a1 # 0.25.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@1f81dd00d941680ab227a6eae5378790d6242e02 # 1.0.0
     permissions:
       contents: read
       id-token: write
@@ -137,7 +137,20 @@ jobs:
       # Default: `true`
       lint: "true"
 
-      # Code QL analysis language.
+      # CodeQL analysis language, or a JSON object with `languages` and optional `config-file`.
+      # Set to an empty string to disable CodeQL.
+      # In JSON form, `languages` must be a nonempty string and `config-file` must be a string.
+      # Omitting or leaving `config-file` empty keeps CodeQL's default configuration behavior.
+      # Unknown JSON properties and invalid field types fail before CodeQL initialization.
+      # Local configuration paths are relative to the caller repository root, not `working-directory`.
+      #
+      # Example:
+      # ```json
+      # {
+      # "languages": "javascript-typescript",
+      # "config-file": ".github/codeql/config.yml"
+      # }
+      # ```
       # See https://github.com/github/codeql-action.
       #
       # Default: `typescript`
@@ -249,8 +262,15 @@ jobs:
 |                         | Example:                                                                                                                                                                                                                                                                                                                                                                                            |              |             |                     |
 |                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
 |                         | <!-- textlint-disable --><pre lang="json:package.json">{&#13; "lint:ci": "eslint . --output-file eslint-report.json --format json"&#13;}</pre><!-- textlint-enable -->                                                                                                                                                                                                                              |              |             |                     |
-| **`code-ql`**           | Code QL analysis language.                                                                                                                                                                                                                                                                                                                                                                          | **false**    | **string**  | `typescript`        |
-|                         | See <https://github.com/github/codeql-action>.                                                                                                                                                                                                                                                                                                                                                      |              |             |                     |
+| **`code-ql`**           | CodeQL analysis language, or a JSON object with `languages` and optional `config-file`.                                                                                                                                                                                                                                                                                                             | **false**    | **string**  | `typescript`        |
+|                         | Set to an empty string to disable CodeQL.                                                                                                                                                                                                                                                                                                                                                           |              |             |                     |
+|                         | In JSON form, `languages` must be a nonempty string and `config-file` must be a string.                                                                                                                                                                                                                                                                                                             |              |             |                     |
+|                         | Omitting or leaving `config-file` empty keeps CodeQL's default configuration behavior.                                                                                                                                                                                                                                                                                                              |              |             |                     |
+|                         | Unknown JSON properties and invalid field types fail before CodeQL initialization.                                                                                                                                                                                                                                                                                                                  |              |             |                     |
+|                         | Local configuration paths are relative to the caller repository root, not `working-directory`.                                                                                                                                                                                                                                                                                                      |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
+|                         | Example:                                                                                                                                                                                                                                                                                                                                                                                            |              |             |                     |
+|                         | <!-- textlint-disable --><pre lang="json">{&#13; "languages": "javascript-typescript",&#13; "config-file": ".github/codeql/config.yml"&#13;}</pre><!-- textlint-enable -->See &lt;https://github.com/github/codeql-action&gt;.                                                                                                                                                                      |              |             |                     |
 | **`dependency-review`** | Enable dependency review scan.                                                                                                                                                                                                                                                                                                                                                                      | **false**    | **boolean** | `true`              |
 |                         | Works with public repositories and private repositories with a GitHub Advanced Security license.                                                                                                                                                                                                                                                                                                    |              |             |                     |
 |                         | See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                                                                                                                                                                          |              |             |                     |
@@ -397,7 +417,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@81a4bca8445b7b273455ff26a9a5c3c31c86b2a1 # 0.25.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@1f81dd00d941680ab227a6eae5378790d6242e02 # 1.0.0
     permissions:
       id-token: write
       security-events: write
@@ -463,7 +483,7 @@ jobs:
   # Run CI checks inside the Docker container
   continuous-integration:
     needs: build-image
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@81a4bca8445b7b273455ff26a9a5c3c31c86b2a1 # 0.25.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@1f81dd00d941680ab227a6eae5378790d6242e02 # 1.0.0
     permissions:
       id-token: write
       security-events: write
@@ -487,7 +507,7 @@ on:
     branches: [main]
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@81a4bca8445b7b273455ff26a9a5c3c31c86b2a1 # 0.25.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@1f81dd00d941680ab227a6eae5378790d6242e02 # 1.0.0
     permissions:
       id-token: write
       security-events: write
@@ -515,7 +535,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@81a4bca8445b7b273455ff26a9a5c3c31c86b2a1 # 0.25.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@1f81dd00d941680ab227a6eae5378790d6242e02 # 1.0.0
     permissions:
       id-token: write
       security-events: write
