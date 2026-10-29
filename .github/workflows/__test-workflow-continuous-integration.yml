@@ -17,6 +17,7 @@ jobs:
       security-events: write
     with:
       working-directory: tests/npm
+      code-ql-config-file: tests/npm/codeql-config.yml
       build: |
         {
           "artifact": "dist"
