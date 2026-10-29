@@ -76,6 +76,7 @@ on:
           Omitting or leaving `config-file` empty keeps CodeQL's default configuration behavior.
           Unknown JSON properties and invalid field types fail before CodeQL initialization.
           Local configuration paths are relative to the caller repository root, not `working-directory`.
+          See https://github.com/github/codeql-action.
 
           Example:
           ```json
@@ -84,7 +85,6 @@ on:
             "config-file": ".github/codeql/config.yml"
           }
           ```
-          See https://github.com/github/codeql-action.
         type: string
         required: false
         default: "typescript"
