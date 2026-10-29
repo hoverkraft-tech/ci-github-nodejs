@@ -1,0 +1,4 @@
+name: npm fixture source
+
+paths:
+  - tests/npm/src
