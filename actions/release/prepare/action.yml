@@ -1,0 +1,91 @@
+name: Prepare Node.js release
+description: Prepare a single-package Release Please PR or a fixed-version Lerna release, and dispatch publication from the committed tag.
+author: hoverkraft
+branding:
+  icon: git-commit
+  color: blue
+inputs:
+  versioning:
+    description: Version preparation tool, release-please for one package or lerna for fixed-version workspaces.
+    default: release-please
+  working-directory:
+    description: Project directory relative to the caller repository root.
+    default: .
+  github-token:
+    description: Token with contents, issues, pull-requests and actions write permissions. An app token allows CI to run on release PRs.
+    default: ${{ github.token }}
+outputs:
+  status:
+    description: One of no-changes, awaiting-review, dispatched, ready or released. Only ready should start publication jobs.
+    value: ${{ steps.prepare.outputs.status }}
+  tag:
+    description: Stable release tag, empty when preparation has no release to publish.
+    value: ${{ steps.prepare.outputs.tag }}
+  packages:
+    description: JSON array of public packages at the committed release version, with name, version, directory and slug.
+    value: ${{ steps.prepare.outputs.packages }}
+  published:
+    description: Whether the tag already has a published GitHub release.
+    value: ${{ steps.prepare.outputs.published }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+        token: ${{ inputs.github-token }}
+        # The preparation step pushes version commits and tags atomically.
+        persist-credentials: true
+    - name: Validate release project
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        VERSIONING: ${{ inputs.versioning }}
+      with:
+        script: |
+          const { ReleaseProject } = require(`${process.env.ACTION_PATH}/../ReleaseProject.js`);
+          if (context.ref !== `refs/heads/${context.payload.repository.default_branch}` && !context.ref.startsWith('refs/tags/v')) {
+            throw new Error('Run releases from the default branch or an existing release tag.');
+          }
+          new ReleaseProject({ workspace: process.env.GITHUB_WORKSPACE, workingDirectory: process.env.WORKING_DIRECTORY, versioning: process.env.VERSIONING, github, context });
+    - uses: $/actions/setup-node
+      if: inputs.versioning == 'lerna'
+      with:
+        working-directory: ${{ inputs.working-directory }}
+    - name: Prepare single-package release PR
+      if: inputs.versioning == 'release-please' && github.ref_type == 'branch'
+      uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+      with:
+        token: ${{ inputs.github-token }}
+        release-type: node
+        path: ${{ inputs.working-directory }}
+        target-branch: ${{ github.event.repository.default_branch }}
+        include-component-in-tag: false
+        skip-github-release: true
+    - name: Prepare release source
+      id: prepare
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        VERSIONING: ${{ inputs.versioning }}
+        CALLER_WORKFLOW_REF: ${{ github.workflow_ref }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const { ReleaseProject } = require(`${process.env.ACTION_PATH}/../ReleaseProject.js`);
+          const { ReleaseArtifacts } = require(`${process.env.ACTION_PATH}/../ReleaseArtifacts.js`);
+          const project = new ReleaseProject({ workspace: process.env.GITHUB_WORKSPACE, workingDirectory: process.env.WORKING_DIRECTORY, versioning: process.env.VERSIONING, github, context });
+          const result = await project.prepare({ workflowRef: process.env.CALLER_WORKFLOW_REF, findRelease: ReleaseArtifacts.findRelease });
+          for (const [name, value] of Object.entries(result)) core.setOutput(name, value);
+          core.setOutput('packages', result.packages || []);
+          core.setOutput('published', String(Boolean(result.published)));
+          const messages = {
+            'no-changes': 'No changes to release.',
+            'awaiting-review': `Merge the release PR, then run this workflow again: ${result.url}`,
+            dispatched: `Publication dispatched for ${result.tag}. Follow the new workflow run for that tag.`,
+            ready: `Publishing committed release ${result.tag}.`,
+            released: `${result.tag} is already released.`,
+          };
+          await core.summary.addRaw(messages[result.status]).write();

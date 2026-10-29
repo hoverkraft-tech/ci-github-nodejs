@@ -1,0 +1,228 @@
+# Release a single npm package or fixed-version Lerna workspaces without consumer scripts.
+#
+# Keep workflow_dispatch and schedule triggers in the calling workflow.
+# Release Please prepares a release PR; merge it and run again to publish.
+# Lerna prepares and atomically pushes versions and changelogs directly.
+# Preparation dispatches the caller workflow at the release tag so CI, packaging
+# and npm provenance all refer to the same committed source.
+# See [the release guide](../../docs/usage/releases.md) for setup, examples and recovery.
+name: Node.js Release
+
+on:
+  workflow_call:
+    inputs:
+      versioning:
+        description: Version preparation tool. Use release-please for a single public package or lerna for fixed-version workspaces. Versions are inferred from Conventional Commits.
+        type: string
+        default: release-please
+      working-directory:
+        description: Project directory relative to the caller repository root.
+        type: string
+        default: .
+      build:
+        description: Build commands and artifact paths, using the continuous-integration workflow's build format. Artifacts must include the package's compiled files.
+        type: string
+        default: '{"commands":["build"],"artifact":["dist"]}'
+      lint:
+        description: Lint options forwarded to continuous-integration. Set to an empty string to disable.
+        type: string
+        default: "true"
+      test:
+        description: Test options forwarded to continuous-integration. Set to an empty string to disable.
+        type: string
+        default: "true"
+      code-ql:
+        description: CodeQL options forwarded to continuous-integration. Set to an empty string to disable.
+        type: string
+        default: typescript
+      ai-summary:
+        description: Generate an OpenAI summary before npm publication. Requires the OPENAI_API_KEY secret; failures stop publication.
+        type: boolean
+        default: false
+      environment:
+        description: GitHub environment for source preparation, AI and npm publishing. It must permit the default branch and release tags. Configure npm trusted publishing for this environment and the calling workflow.
+        type: string
+        default: release
+    secrets:
+      OPENAI_API_KEY:
+        description: OpenAI API key, required when ai-summary is enabled.
+        required: false
+      github-token:
+        description: Optional GitHub App token for release PR CI. Defaults to GITHUB_TOKEN; see the guide for its PR event restrictions.
+        required: false
+    outputs:
+      status:
+        description: no-changes, awaiting-review, dispatched, released or published. A dispatched run only prepares the release; follow its tag run for publication.
+        value: ${{ jobs.publish.outputs.status || jobs.prepare.outputs.status }}
+      tag:
+        description: Prepared release tag.
+        value: ${{ jobs.prepare.outputs.tag }}
+      release-url:
+        description: Published GitHub release URL from the tag run.
+        value: ${{ jobs.publish.outputs.url }}
+      build-artifact-id:
+        description: CI build artifact ID from the tag run, reusable for documentation deployment.
+        value: ${{ jobs.ci.outputs.build-artifact-id }}
+
+permissions: {}
+
+concurrency:
+  group: node-release-${{ github.repository }}-${{ inputs.working-directory }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    permissions:
+      actions: write
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      status: ${{ steps.prepare.outputs.status }}
+      tag: ${{ steps.prepare.outputs.tag }}
+      packages: ${{ steps.prepare.outputs.packages }}
+      published: ${{ steps.prepare.outputs.published }}
+    steps:
+      - name: Validate AI configuration
+        if: inputs.ai-summary
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY is required when ai-summary is enabled." >&2
+            exit 1
+          fi
+      - id: prepare
+        uses: $/actions/release/prepare
+        with:
+          versioning: ${{ inputs.versioning }}
+          working-directory: ${{ inputs.working-directory }}
+          github-token: ${{ secrets.github-token || github.token }}
+
+  ci:
+    needs: prepare
+    if: needs.prepare.outputs.status == 'ready'
+    uses: $/.github/workflows/continuous-integration.yml
+    permissions:
+      contents: read
+      packages: read
+      pull-requests: write
+      id-token: write
+      security-events: write
+    with:
+      working-directory: ${{ inputs.working-directory }}
+      build: ${{ inputs.build }}
+      lint: ${{ inputs.lint }}
+      test: ${{ inputs.test }}
+      code-ql: ${{ inputs.code-ql }}
+
+  draft:
+    name: Draft release notes
+    needs: [prepare, ci]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create draft and optional AI summary
+        if: needs.prepare.outputs.published != 'true'
+        uses: hoverkraft-tech/ci-github-publish/actions/release/create@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          tag: ${{ needs.prepare.outputs.tag }}
+          target-sha: ${{ github.sha }}
+          working-directory: ${{ inputs.working-directory != '.' && inputs.working-directory || '' }}
+          publish: "false"
+          changelog-summary: ${{ inputs.ai-summary && format('{{"llmAuth":{0},"llmProvider":"openai"}}', toJSON(env.OPENAI_API_KEY)) || '' }}
+
+  packages:
+    name: Publish ${{ matrix.package.name }}
+    needs: [prepare, ci, draft]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.prepare.outputs.packages) }}
+    steps:
+      - name: Package the tested release commit
+        id: package
+        uses: $/actions/package
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          package-directory: ${{ matrix.package.directory }}
+          build-artifact-id: ${{ needs.ci.outputs.build-artifact-id }}
+          build-artifact-path: /
+          artifact-name: npm-${{ matrix.package.slug }}-${{ github.run_attempt }}
+      - name: Validate publication
+        uses: $/actions/publish
+        with:
+          package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
+          dry-run: "true"
+          provenance: "false"
+      - id: registry
+        uses: $/actions/release/restore-package
+        with:
+          name: ${{ matrix.package.name }}
+          version: ${{ matrix.package.version }}
+          tarball-path: ${{ steps.package.outputs.package-tarball-path }}
+      - name: Publish missing npm version
+        if: steps.registry.outputs.published != 'true'
+        uses: $/actions/publish
+        with:
+          package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
+          tag: latest
+      - name: Prepare release asset
+        env:
+          PACKAGE_TARBALL: ${{ steps.package.outputs.package-tarball-path }}
+          ASSET_NAME: ${{ matrix.package.slug }}-${{ matrix.package.version }}.tgz
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-assets"
+          cp "$PACKAGE_TARBALL" "$RUNNER_TEMP/release-assets/$ASSET_NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets-${{ matrix.package.slug }}
+          path: ${{ runner.temp }}/release-assets/*.tgz
+          overwrite: true
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: [prepare, packages]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: read
+    outputs:
+      url: ${{ steps.finalize.outputs.url }}
+      status: ${{ steps.finalize.outcome == 'success' && 'published' || '' }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-assets-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/release-assets
+      - id: finalize
+        uses: $/actions/release/finalize
+        with:
+          tag: ${{ needs.prepare.outputs.tag }}
+          asset-directory: ${{ runner.temp }}/release-assets
+          versioning: ${{ inputs.versioning }}

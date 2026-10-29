@@ -1,0 +1,54 @@
+# Replace <sha> with a published ci-github-nodejs commit containing the Release workflow.
+name: Release
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 8 * * 1"
+
+permissions: {}
+
+jobs:
+  release:
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@<sha>
+    permissions:
+      actions: write
+      contents: write
+      issues: write
+      pull-requests: write
+      packages: read
+      security-events: write
+      id-token: write
+    with:
+      versioning: lerna
+      environment: github-pages
+      build: |
+        {"commands":["build:ci","storybook:build","docs:build"],"artifact":["packages/**/lib","build","packages/**/docs"]}
+      test: '{"coverage":"codecov"}'
+      ai-summary: true
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  pages:
+    name: Deploy documentation
+    needs: release
+    if: needs.release.outputs.status == 'published'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.url }}
+    outputs:
+      url: ${{ steps.deployment.outputs.url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: deployment
+        uses: hoverkraft-tech/ci-github-publish/actions/deploy/github-pages@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+        with:
+          build-artifact-id: ${{ needs.release.outputs.build-artifact-id }}
+          build-path: build/storybook
