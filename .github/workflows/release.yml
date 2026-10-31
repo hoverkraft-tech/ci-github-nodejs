@@ -1,0 +1,175 @@
+# Publish CI-produced npm tarballs and finalize a GitHub release without rebuilding.
+# Call after successful CI on the prepared tag, passing its package-artifacts output.
+# See [the release guide](../../docs/usage/releases.md) for preparation, CI and recovery.
+name: Node.js Release
+
+on:
+  workflow_call:
+    inputs:
+      package-artifacts:
+        description: JSON package artifact list from successful CI in this same workflow run and at this release tag's commit.
+        type: string
+        required: true
+      working-directory:
+        description: Project directory relative to the caller repository root, matching release preparation and CI.
+        type: string
+        default: .
+      ai-summary:
+        description: Generate an OpenAI summary before npm publication. Requires OPENAI_API_KEY; failures stop publication.
+        type: boolean
+        default: false
+      environment:
+        description: GitHub environment for AI and npm publishing. Configure npm trusted publishing for this environment and the calling workflow.
+        type: string
+        default: release
+    secrets:
+      OPENAI_API_KEY:
+        description: OpenAI API key, required when ai-summary is enabled.
+        required: false
+    outputs:
+      status:
+        description: published after all npm packages and GitHub release assets succeed.
+        value: ${{ jobs.publish.outputs.status }}
+      tag:
+        description: Published release tag.
+        value: ${{ jobs.verify.outputs.tag }}
+      release-url:
+        description: Published GitHub release URL.
+        value: ${{ jobs.publish.outputs.url }}
+
+permissions: {}
+
+concurrency:
+  group: node-release-publish-${{ github.repository }}-${{ inputs.working-directory }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify CI artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ${{ inputs.environment }}
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      tag: ${{ steps.verify.outputs.tag }}
+      packages: ${{ steps.verify.outputs.packages }}
+      published: ${{ steps.verify.outputs.published }}
+    steps:
+      - name: Validate AI configuration
+        if: inputs.ai-summary
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY is required when ai-summary is enabled." >&2
+            exit 1
+          fi
+      - id: verify
+        uses: $/actions/release/verify
+        with:
+          package-artifacts: ${{ inputs.package-artifacts }}
+          working-directory: ${{ inputs.working-directory }}
+
+  draft:
+    name: Draft release notes
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create draft and optional AI summary
+        if: needs.verify.outputs.published != 'true'
+        uses: hoverkraft-tech/ci-github-publish/actions/release/create@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          tag: ${{ needs.verify.outputs.tag }}
+          target-sha: ${{ github.sha }}
+          working-directory: ${{ inputs.working-directory != '.' && inputs.working-directory || '' }}
+          publish: "false"
+          changelog-summary: ${{ inputs.ai-summary && format('{{"llmAuth":{0},"llmProvider":"openai"}}', toJSON(env.OPENAI_API_KEY)) || '' }}
+
+  packages:
+    name: Publish ${{ matrix.package.name }}
+    needs: [verify, draft]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.verify.outputs.packages) }}
+    steps:
+      - name: Download the CI package tarball
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ matrix.package.artifact-id }}
+          path: ${{ runner.temp }}/ci-package
+          skip-decompress: true
+      - id: registry
+        uses: $/actions/release/restore-package
+        with:
+          name: ${{ matrix.package.name }}
+          version: ${{ matrix.package.version }}
+          tarball-path: ${{ runner.temp }}/ci-package/${{ matrix.package.artifact-name }}
+      - name: Validate publication
+        uses: $/actions/publish
+        with:
+          package-tarball-artifact-id: ${{ matrix.package.artifact-id }}
+          dry-run: "true"
+          provenance: "false"
+      - name: Publish missing npm version
+        if: steps.registry.outputs.published != 'true'
+        uses: $/actions/publish
+        with:
+          package-tarball-artifact-id: ${{ matrix.package.artifact-id }}
+          tag: latest
+      - name: Prepare release asset
+        env:
+          PACKAGE_TARBALL: ${{ runner.temp }}/ci-package/${{ matrix.package.artifact-name }}
+          ASSET_NAME: ${{ matrix.package.slug }}-${{ matrix.package.version }}.tgz
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-assets"
+          cp "$PACKAGE_TARBALL" "$RUNNER_TEMP/release-assets/$ASSET_NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets-${{ matrix.package.slug }}
+          path: ${{ runner.temp }}/release-assets/*.tgz
+          overwrite: true
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: [verify, packages]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      url: ${{ steps.finalize.outputs.url }}
+      status: ${{ steps.finalize.outcome == 'success' && 'published' || '' }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-assets-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/release-assets
+      - id: finalize
+        uses: $/actions/release/finalize
+        with:
+          tag: ${{ needs.verify.outputs.tag }}
+          asset-directory: ${{ runner.temp }}/release-assets

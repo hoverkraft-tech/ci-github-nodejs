@@ -1,0 +1,10 @@
+{
+  "name": "nodejs-release-tests",
+  "private": true,
+  "scripts": {
+    "test": "node --test *.test.js"
+  },
+  "devDependencies": {
+    "lerna": "10.1.1"
+  }
+}

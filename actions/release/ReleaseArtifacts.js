@@ -1,0 +1,110 @@
+const { createHash } = require("node:crypto");
+const fs = require("node:fs");
+const { execFileSync } = require("node:child_process");
+const path = require("node:path");
+
+class ReleaseArtifacts {
+  constructor(fetchPackage = fetch) {
+    this.fetchPackage = fetchPackage;
+  }
+
+  static async findRelease(github, repo, tag) {
+    try {
+      const { data } = await github.rest.repos.getReleaseByTag({
+        ...repo,
+        tag,
+      });
+      return data;
+    } catch (error) {
+      if (error.status !== 404) throw error;
+      const releases = await github.paginate(github.rest.repos.listReleases, {
+        ...repo,
+        per_page: 100,
+      });
+      return releases.find((release) => release.tag_name === tag);
+    }
+  }
+
+  static verifyTarball({ name, version, tarballPath }) {
+    const manifest = JSON.parse(
+      execFileSync("tar", ["-xOf", tarballPath, "package/package.json"], {
+        encoding: "utf8",
+      }),
+    );
+    if (
+      manifest.name !== name ||
+      manifest.version !== version ||
+      manifest.private
+    )
+      throw new Error(
+        "CI tarball must contain the expected public package and release version.",
+      );
+  }
+
+  async restorePackage({ name, version, tarballPath }) {
+    const response = await this.fetchPackage(
+      `https://registry.npmjs.org/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
+    );
+    if (response.status === 404) return false;
+    if (!response.ok)
+      throw new Error(`npm registry lookup failed: HTTP ${response.status}`);
+    const metadata = await response.json();
+    if (metadata.name !== name || metadata.version !== version)
+      throw new Error("npm registry returned an unexpected package version.");
+    const url = new URL(metadata.dist.tarball);
+    if (url.origin !== "https://registry.npmjs.org")
+      throw new Error(
+        "Published package tarball must come from the npm registry.",
+      );
+    const tarballResponse = await this.fetchPackage(url.href);
+    if (!tarballResponse.ok)
+      throw new Error(
+        `npm tarball download failed: HTTP ${tarballResponse.status}`,
+      );
+    const tarball = Buffer.from(await tarballResponse.arrayBuffer());
+    const integrity = `sha512-${createHash("sha512").update(tarball).digest("base64")}`;
+    if (metadata.dist.integrity !== integrity)
+      throw new Error(
+        "Published package tarball failed integrity verification.",
+      );
+    fs.writeFileSync(tarballPath, tarball);
+    return true;
+  }
+
+  async prepareAssets({ github, repo, tag, directory }) {
+    const release = await ReleaseArtifacts.findRelease(github, repo, tag);
+    if (!release) throw new Error(`No release found for ${tag}.`);
+    const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
+      ...repo,
+      release_id: release.id,
+      per_page: 100,
+    });
+    const files = fs
+      .readdirSync(directory)
+      .filter((name) => name.endsWith(".tgz"));
+    if (!files.length)
+      throw new Error("No package tarballs available to attach.");
+    const missing = [];
+    for (const name of files) {
+      const data = fs.readFileSync(path.join(directory, name));
+      const digest = `sha256:${createHash("sha256").update(data).digest("hex")}`;
+      const existing = assets.find((asset) => asset.name === name);
+      if (existing) {
+        if (existing.digest !== digest)
+          throw new Error(
+            `Release asset ${name} has a different or unavailable digest.`,
+          );
+        continue;
+      }
+      if (!release.draft)
+        throw new Error(`Published release is missing expected asset ${name}.`);
+      missing.push({ name, data });
+    }
+    const pendingDirectory = fs.mkdtempSync(path.join(directory, "pending-"));
+    for (const { name, data } of missing)
+      fs.writeFileSync(path.join(pendingDirectory, name), data);
+    return { release, pendingDirectory, hasAssets: missing.length > 0 };
+  }
+}
+
+module.exports = { ReleaseArtifacts };

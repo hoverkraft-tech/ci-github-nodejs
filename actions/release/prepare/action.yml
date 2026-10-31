@@ -1,0 +1,113 @@
+name: Prepare Node.js release
+description: Plan with HoverKraft, apply the version and changelog with npm or Lerna, and dispatch publication from the committed tag.
+author: hoverkraft
+branding:
+  icon: git-commit
+  color: blue
+inputs:
+  versioning:
+    description: Tool applying the HoverKraft release plan, npm for one package or lerna for fixed-version workspaces.
+    default: npm
+  working-directory:
+    description: Project directory relative to the caller repository root.
+    default: .
+  github-token:
+    description: Token with contents and actions write and pull-requests read permissions. Its identity must be allowed to push release commits and tags.
+    default: ${{ github.token }}
+outputs:
+  status:
+    description: One of no-changes, dispatched, ready or released. Only ready should start CI, followed by publication.
+    value: ${{ steps.prepare.outputs.status }}
+  tag:
+    description: Stable release tag, empty when preparation has no release to publish.
+    value: ${{ steps.prepare.outputs.tag }}
+  packages:
+    description: JSON array of public packages at the committed release version, with name, version, directory and slug.
+    value: ${{ steps.prepare.outputs.packages }}
+  published:
+    description: Whether the tag already has a published GitHub release.
+    value: ${{ steps.prepare.outputs.published }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+        token: ${{ inputs.github-token }}
+        # The preparation step pushes version commits and tags atomically.
+        persist-credentials: true
+    - name: Validate release project
+      id: inspect
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        VERSIONING: ${{ inputs.versioning }}
+      with:
+        script: |
+          const { ReleaseProject } = require(`${process.env.ACTION_PATH}/../ReleaseProject.js`);
+          const project = new ReleaseProject({ workspace: process.env.GITHUB_WORKSPACE, workingDirectory: process.env.WORKING_DIRECTORY, versioning: process.env.VERSIONING, github, context });
+          core.setOutput('needs-plan', String(!project.currentTag()));
+    - name: Plan release with HoverKraft
+      id: plan
+      if: steps.inspect.outputs.needs-plan == 'true'
+      uses: hoverkraft-tech/ci-github-publish/actions/release/plan@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+      with:
+        github-token: ${{ inputs.github-token }}
+        target-sha: ${{ github.sha }}
+        working-directory: ${{ inputs.working-directory != '.' && inputs.working-directory || '' }}
+    - name: Restore source checkout for version preparation
+      if: steps.plan.outputs.has-changes == 'true'
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+        token: ${{ inputs.github-token }}
+        persist-credentials: true
+    - uses: $/actions/setup-node
+      if: steps.plan.outputs.has-changes == 'true' || inputs.versioning == 'lerna' && steps.inspect.outputs.needs-plan != 'true'
+      with:
+        working-directory: ${{ inputs.working-directory }}
+    - id: configuration
+      if: steps.plan.outputs.has-changes == 'true'
+      uses: hoverkraft-tech/ci-github-publish/actions/release/get-configuration@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+      with:
+        working-directory: ${{ inputs.working-directory != '.' && inputs.working-directory || '' }}
+    - name: Render the planned changelog without creating release state
+      id: notes
+      if: steps.plan.outputs.has-changes == 'true'
+      uses: hoverkraft-tech/ci-github-publish/actions/release/prepare@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+      with:
+        config-name: file:${{ steps.configuration.outputs.config-path }}
+        token: ${{ inputs.github-token }}
+        dry-run: "true"
+        tag: ${{ steps.plan.outputs.tag }}
+        commitish: ${{ github.sha }} # codespell:ignore commitish
+    - name: Prepare release source
+      id: prepare
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        VERSIONING: ${{ inputs.versioning }}
+        CALLER_WORKFLOW_REF: ${{ github.workflow_ref }}
+        PLANNED_TAG: ${{ steps.plan.outputs.tag }}
+        HAS_CHANGES: ${{ steps.plan.outputs.has-changes }}
+        CHANGELOG: ${{ steps.notes.outputs.body }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const { ReleaseProject } = require(`${process.env.ACTION_PATH}/../ReleaseProject.js`);
+          const { ReleaseArtifacts } = require(`${process.env.ACTION_PATH}/../ReleaseArtifacts.js`);
+          const project = new ReleaseProject({ workspace: process.env.GITHUB_WORKSPACE, workingDirectory: process.env.WORKING_DIRECTORY, versioning: process.env.VERSIONING, github, context });
+          const plan = { tag: process.env.PLANNED_TAG, hasChanges: process.env.HAS_CHANGES === 'true', body: process.env.CHANGELOG };
+          const result = await project.prepare({ workflowRef: process.env.CALLER_WORKFLOW_REF, findRelease: ReleaseArtifacts.findRelease, plan });
+          for (const [name, value] of Object.entries(result)) core.setOutput(name, value);
+          core.setOutput('packages', result.packages || []);
+          core.setOutput('published', String(Boolean(result.published)));
+          const messages = {
+            'no-changes': 'No changes to release.',
+            dispatched: `Publication dispatched for ${result.tag}. Follow the new workflow run for that tag.`,
+            ready: `Ready for CI on committed release ${result.tag}.`,
+            released: `${result.tag} is already released.`,
+          };
+          await core.summary.addRaw(messages[result.status]).write();

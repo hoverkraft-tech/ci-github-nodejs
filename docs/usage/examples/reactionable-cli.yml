@@ -1,0 +1,87 @@
+# Replace <sha> with a published ci-github-nodejs commit containing these workflows.
+name: Release
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 8 * * 1"
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/prepare-release.yml@<sha>
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: read
+    with:
+      environment: github-pages
+
+  ci:
+    needs: prepare
+    if: needs.prepare.outputs.status == 'ready'
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@<sha>
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      pull-requests: write
+      security-events: write
+      id-token: write
+    with:
+      packages: ${{ needs.prepare.outputs.packages }}
+      build: |
+        {"commands":["build","build:doc"],"artifact":["dist","build"]}
+      test: '{"coverage":"codecov"}'
+
+  release:
+    needs: ci
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@<sha>
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: read
+      id-token: write
+    with:
+      package-artifacts: ${{ needs.ci.outputs.package-artifacts }}
+      environment: github-pages
+      ai-summary: true
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  pages:
+    name: Deploy documentation
+    needs: [ci, release]
+    if: needs.release.outputs.status == 'published'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.url }}
+    outputs:
+      url: ${{ steps.deployment.outputs.url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: deployment
+        uses: hoverkraft-tech/ci-github-publish/actions/deploy/github-pages@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+        with:
+          build-artifact-id: ${{ needs.ci.outputs.build-artifact-id }}
+          build-path: build/docs
+
+  deploy-checks:
+    needs: pages
+    uses: hoverkraft-tech/ci-github-publish/.github/workflows/deploy-checks.yml@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+    permissions:
+      contents: read
+    with:
+      url: ${{ needs.pages.outputs.url }}

@@ -4,6 +4,7 @@
 # - Linting
 # - Build
 # - Test
+# - Optional npm packaging for publication from the same commit
 
 name: Node.js Continuous Integration
 
@@ -46,6 +47,14 @@ on:
         type: string
         required: false
         default: "build"
+      packages:
+        description: |
+          Optional JSON package list from prepare-release, with name, version, directory and slug.
+          Packages the build output after checks pass and returns immutable tarball artifact IDs.
+          Requires checks, a build artifact, GitHub-hosted Ubuntu runners and no container.
+          Leave empty for ordinary CI without release packaging.
+        type: string
+        default: ""
       checks:
         description: "Optional flag to enable check steps."
         type: boolean
@@ -188,6 +197,9 @@ on:
           Defaults to `GITHUB_TOKEN` if not provided.
         required: false
     outputs:
+      package-artifacts:
+        description: JSON package artifact list for the release workflow in this same run. Empty when packaging is disabled.
+        value: ${{ jobs.package-artifacts.outputs.packages }}
       build-artifact-id:
         description: "ID of the build artifact) uploaded during the build step."
         value: ${{ jobs.build.outputs.artifact-id }}
@@ -208,6 +220,18 @@ jobs:
       container-username: ${{ steps.parse.outputs.container-username }}
       path-mapping: ${{ steps.parse.outputs.path-mapping }}
     steps:
+      - name: Validate packaging configuration
+        if: inputs.packages != ''
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CHECKS: ${{ inputs.checks }}
+          CONTAINER: ${{ inputs.container }}
+          RUNS_ON: ${{ inputs.runs-on }}
+        with:
+          script: |
+            if (process.env.CHECKS !== 'true' || process.env.CONTAINER || JSON.stringify(JSON.parse(process.env.RUNS_ON)) !== '["ubuntu-latest"]') {
+              core.setFailed('Release packaging requires checks, runs-on: ["ubuntu-latest"] and no container.');
+            }
       - id: parse
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -606,3 +630,46 @@ jobs:
           report-file: ${{ steps.prepare-test-options.outputs.report-file }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
           github-token: ${{ secrets.github-token || github.token }}
+
+  package:
+    name: 📦 Package ${{ matrix.package.name }}
+    needs: [prepare, setup, build, lint, test, code-ql, dependency-review]
+    if: >-
+      ${{ !cancelled() && inputs.packages != '' && needs.build.result == 'success'
+          && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(inputs.packages) }}
+    steps:
+      - name: Require build output
+        env:
+          BUILD_ARTIFACT_ID: ${{ needs.build.outputs.artifact-id }}
+        run: test -n "$BUILD_ARTIFACT_ID"
+      - uses: $/actions/package
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          package-directory: ${{ matrix.package.directory }}
+          build-artifact-id: ${{ needs.build.outputs.artifact-id }}
+          build-artifact-path: /
+          artifact-name: npm-${{ matrix.package.slug }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+  package-artifacts:
+    name: 📦 Collect package artifact IDs
+    needs: package
+    if: ${{ !cancelled() && needs.package.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      packages: ${{ steps.artifacts.outputs.packages }}
+    steps:
+      - id: artifacts
+        uses: $/actions/package-artifacts
+        with:
+          packages: ${{ inputs.packages }}

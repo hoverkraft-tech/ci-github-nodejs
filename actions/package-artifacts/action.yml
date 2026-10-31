@@ -1,0 +1,26 @@
+name: Collect npm package artifacts
+description: Collect immutable tarball artifact IDs after CI packaging, including successful matrix jobs from earlier attempts of the same run.
+author: hoverkraft
+branding:
+  icon: package
+  color: blue
+inputs:
+  packages:
+    description: JSON list of packages with name, version, directory and slug from release preparation.
+    required: true
+outputs:
+  packages:
+    description: JSON package list with artifact-id and artifact-name, verified against this workflow run.
+    value: ${{ steps.collect.outputs.packages }}
+runs:
+  using: composite
+  steps:
+    - id: collect
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        PACKAGES: ${{ inputs.packages }}
+      with:
+        script: |
+          const { PackageArtifacts } = require(`${process.env.ACTION_PATH}/PackageArtifacts.js`);
+          core.setOutput('packages', await new PackageArtifacts({ github, context }).collect(process.env.PACKAGES));

@@ -1,0 +1,52 @@
+name: Finalize Node.js release
+description: Verify published npm tarballs against existing assets, then upload missing assets and publish the draft with HoverKraft release/update.
+author: hoverkraft
+branding:
+  icon: tag
+  color: blue
+inputs:
+  tag:
+    description: Committed release tag.
+    required: true
+  asset-directory:
+    description: Directory containing the published npm tarballs.
+    required: true
+  github-token:
+    description: Token with contents write permissions.
+    default: ${{ github.token }}
+outputs:
+  url:
+    description: Published GitHub release URL.
+    value: ${{ steps.assets.outputs.url }}
+runs:
+  using: composite
+  steps:
+    - id: assets
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        RELEASE_TAG: ${{ inputs.tag }}
+        ASSET_DIRECTORY: ${{ inputs.asset-directory }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const { ReleaseArtifacts } = require(`${process.env.ACTION_PATH}/../ReleaseArtifacts.js`);
+          const { release, pendingDirectory, hasAssets } = await new ReleaseArtifacts().prepareAssets({ github, repo: context.repo, tag: process.env.RELEASE_TAG, directory: process.env.ASSET_DIRECTORY });
+          core.setOutput('url', release.html_url);
+          core.setOutput('published', String(!release.draft));
+          core.setOutput('pending-directory', pendingDirectory);
+          core.setOutput('has-assets', String(hasAssets));
+    - id: pending-assets
+      if: steps.assets.outputs.has-assets == 'true'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: release-pending-assets-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ steps.assets.outputs.pending-directory }}/*.tgz
+        if-no-files-found: error
+    - uses: hoverkraft-tech/ci-github-publish/actions/release/update@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+      if: steps.assets.outputs.published != 'true'
+      with:
+        tag: ${{ inputs.tag }}
+        publish: "true"
+        release-artifact-id: ${{ steps.pending-assets.outputs.artifact-id }}
+        github-token: ${{ inputs.github-token }}

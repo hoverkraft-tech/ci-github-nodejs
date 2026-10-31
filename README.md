@@ -39,6 +39,12 @@ _Actions for continuous integration steps: build, lint, and test._
 
 #### - [Publish](actions/publish/README.md)
 
+### Release Actions
+
+- [Prepare a release](actions/release/prepare/README.md)
+- [Restore a published package](actions/release/restore-package/README.md)
+- [Finalize a release](actions/release/finalize/README.md)
+
 ### Dependencies
 
 _Actions dedicated to caching and validating Node.js dependencies._
@@ -63,7 +69,10 @@ _Actions focused on discovering and preparing the Node.js environment._
 
 ### Release
 
-- [Release](.github/workflows/release.md) — guide to Node.js project releases using `ci-github-publish` release actions and the package/publish actions.
+- [Release packages](docs/usage/releases.md) — single-package and Lerna releases with preparation, CI and publication.
+- [Preparation workflow reference](.github/workflows/prepare-release.md) — version planning and tagged source.
+- [Release workflow reference](.github/workflows/release.md) — inputs, secrets and outputs.
+- [Custom release pipelines](docs/usage/custom-releases.md) — compose the package, publish and GitHub release actions.
 
 ## Contributing
 

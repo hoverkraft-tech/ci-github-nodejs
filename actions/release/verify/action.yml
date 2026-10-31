@@ -1,0 +1,49 @@
+name: Verify release package artifacts
+description: Require CI tarballs from this tag, workflow run and source commit before creating release state.
+author: hoverkraft
+branding:
+  icon: check-circle
+  color: blue
+inputs:
+  package-artifacts:
+    description: JSON package artifact list from the CI workflow.
+    required: true
+  working-directory:
+    description: Project directory relative to the repository root, matching release preparation.
+    default: .
+outputs:
+  packages:
+    description: Verified package artifact list for publication.
+    value: ${{ steps.verify.outputs.packages }}
+  tag:
+    description: Release tag from this workflow's immutable source ref.
+    value: ${{ steps.verify.outputs.tag }}
+  published:
+    description: Whether the GitHub release is already public and its notes must be preserved.
+    value: ${{ steps.verify.outputs.published }}
+runs:
+  using: composite
+  steps:
+    - id: verify
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        PACKAGES: ${{ inputs.package-artifacts }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      with:
+        script: |
+          const path = require('node:path');
+          const { PackageArtifacts } = require(`${process.env.ACTION_PATH}/../../package-artifacts/PackageArtifacts.js`);
+          const { ReleaseProject } = require(`${process.env.ACTION_PATH}/../ReleaseProject.js`);
+          const { ReleaseArtifacts } = require(`${process.env.ACTION_PATH}/../ReleaseArtifacts.js`);
+          if (!context.ref.startsWith('refs/tags/')) throw new Error('Publish from the prepared release tag.');
+          const tag = context.ref.slice('refs/tags/'.length);
+          const directory = path.resolve(process.env.GITHUB_WORKSPACE, process.env.WORKING_DIRECTORY);
+          const relativeDirectory = path.relative(process.env.GITHUB_WORKSPACE, directory);
+          if (relativeDirectory.startsWith('..') || path.isAbsolute(relativeDirectory)) throw new Error('Release directory must be inside the repository.');
+          const version = ReleaseProject.versionFromTag(tag, directory, relativeDirectory);
+          const packages = await new PackageArtifacts({ github, context }).verify(process.env.PACKAGES, version);
+          const release = await ReleaseArtifacts.findRelease(github, context.repo, tag);
+          core.setOutput('packages', packages);
+          core.setOutput('tag', tag);
+          core.setOutput('published', String(Boolean(release && !release.draft)));

@@ -6,6 +6,21 @@ on:
 permissions: {}
 
 jobs:
+  test-release:
+    name: Test release preparation and recovery
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/actions/setup-node
+        with:
+          working-directory: tests/release
+      - run: npm test
+        working-directory: tests/release
+
   linter:
     uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
     permissions:
@@ -65,6 +80,7 @@ jobs:
     needs: linter
     uses: $/.github/workflows/__test-workflow-continuous-integration.yml
     permissions:
+      actions: read
       attestations: write
       contents: read
       packages: write
