@@ -1,0 +1,44 @@
+name: Build Node.js release artifacts
+description: |
+  Build the checked-out release source and preserve artifact paths for packaging, independently of CI checks.
+  See the [release guide](../../../docs/usage/releases.md) for configuration and the CI boundary.
+author: hoverkraft
+branding:
+  icon: package
+  color: blue
+inputs:
+  working-directory:
+    description: Project directory relative to the caller repository root. Check out the release source before calling this action.
+    default: .
+  build:
+    description: JSON object with commands (script names), artifact (paths or an object with paths), and optional env. Artifact paths are relative to the project directory or absolute.
+    default: '{"commands":["build"],"artifact":["dist"]}'
+outputs:
+  artifact-id:
+    description: Build artifact ID. Download to / to restore the original paths for packaging or documentation deployment.
+    value: ${{ steps.build.outputs.artifact-id }}
+runs:
+  using: composite
+  steps:
+    - id: working-directory
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+      with:
+        working-directory: ${{ inputs.working-directory }}
+    - id: configuration
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        BUILD_INPUT: ${{ inputs.build }}
+        WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
+      with:
+        script: |
+          const { ReleaseBuild } = require(`${process.env.ACTION_PATH}/../ReleaseBuild.js`);
+          const configuration = new ReleaseBuild(process.env.WORKING_DIRECTORY).configure(process.env.BUILD_INPUT);
+          for (const [name, value] of Object.entries(configuration)) core.setOutput(name, value);
+    - id: build
+      uses: $/actions/build
+      with:
+        working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+        build-commands: ${{ steps.configuration.outputs.commands }}
+        build-env: ${{ steps.configuration.outputs.env }}
+        build-artifact: ${{ steps.configuration.outputs.artifact }}

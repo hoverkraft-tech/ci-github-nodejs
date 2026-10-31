@@ -2,8 +2,8 @@
 
 Use the [Release workflow](../../.github/workflows/release.md) to release one public
 npm package or fixed-version Lerna workspaces. The calling repository supplies
-triggers and build settings. HoverKraft prepares versions, runs CI on the release
-commit, packages the build output, publishes to npm and creates the GitHub release.
+triggers and build settings. HoverKraft prepares versions, builds the tagged
+source, packages the build output, publishes to npm and creates the GitHub release.
 No custom release scripts are needed in the calling repository.
 
 Complete caller examples, including documentation deployment:
@@ -31,6 +31,19 @@ GitHub-hosted Linux runners and public packages on npmjs.org are supported.
 Private packages, custom registries, prereleases and independent Lerna versions
 require a [custom pipeline](custom-releases.md).
 
+## Keep CI separate
+
+Run linting, tests, coverage and security analysis in the caller's independent
+[CI workflow](../../.github/workflows/continuous-integration.md). Configure required
+checks on pull requests and branch rules before allowing releases from that branch.
+The Release workflow neither runs those checks nor queries or waits for CI results.
+
+Release builds run from the version tag because package contents can embed the
+version. Their artifacts are used for npm packaging and optional documentation
+deployment. They are not evidence that CI passed on that tag. In particular, Lerna
+creates a version commit directly; if it needs additional validation, arrange it
+in the caller and gate publication through the release environment.
+
 ## Single package
 
 This configuration fits a TypeScript CLI such as `reactionable-cli`. Release
@@ -57,7 +70,6 @@ jobs:
       issues: write
       pull-requests: write
       packages: read
-      security-events: write
       id-token: write
     with:
       versioning: release-please
@@ -74,7 +86,9 @@ jobs:
 
 The defaults use Release Please and `npm run build` with `dist` as the build
 artifact. Omit `versioning` and `build` when those defaults match your project.
-The existing CI workflow's `lint`, `test` and `code-ql` options are also available.
+The `build` input is a JSON object with `commands`, `artifact` paths and an optional
+`env` object. Commands are package scripts, not shell commands. The Build action
+installs dependencies and executes those scripts.
 
 GitHub must allow Actions to create PRs. Release PRs created with `GITHUB_TOKEN`
 do not trigger normal PR workflows. If required checks depend on those events,
@@ -96,7 +110,6 @@ with:
       "commands": ["build:ci", "storybook:build", "docs:build"],
       "artifact": ["packages/**/lib", "build", "packages/**/docs"]
     }
-  test: '{"coverage":"codecov"}'
   ai-summary: true
 ```
 
@@ -119,7 +132,7 @@ Preparation reports one of these outcomes in the job summary:
 
 | Status            | Meaning                                                       |
 | ----------------- | ------------------------------------------------------------- |
-| `no-changes`      | Nothing needs releasing; no CI or publishing starts.          |
+| `no-changes`      | Nothing needs releasing; no build or publishing starts.       |
 | `awaiting-review` | Merge the linked Release Please PR, then run again.           |
 | `dispatched`      | The version tag exists; follow the new run for that tag.      |
 | `released`        | This version already has a published GitHub release.          |
@@ -127,7 +140,7 @@ Preparation reports one of these outcomes in the job summary:
 
 Both preparation and publication share a concurrency group inside the reusable
 workflow. Do not use that same group in the caller. A successful preparation run
-does not imply publication succeeded: its tag run performs CI and publication.
+does not imply publication succeeded: its tag run builds artifacts and publishes.
 
 AI generation runs before npm publication. A draft becomes public only after
 every package and release asset succeeds. AI summaries accompany the full release
@@ -141,14 +154,15 @@ gh workflow run release.yml --ref v1.2.3
 ```
 
 The tag must contain the caller workflow and match the committed version. A tag
-run never computes another version. CI rebuilds that source. Already published npm
+run never computes another version. The release build uses that source. Already published npm
 versions are skipped and their original tarballs are downloaded with SHA-512
 verification. Existing GitHub assets are reused only when SHA-256 digests match;
 conflicting or missing digests fail instead of replacing assets.
 
 npm workspace publication cannot be atomic, so partial publication is possible.
 An npm registry error stops recovery; only an absent version permits publishing.
-If CI fails because source code needs changing, make a new commit and release.
+If the release build fails because source code needs changing, make a new commit
+and release.
 Do not move an existing release tag.
 
 The `release-url`, `tag`, `status` and `build-artifact-id` workflow outputs support

@@ -7,6 +7,8 @@ npm ci --prefix tests/release
 npm test --prefix tests/release
 ```
 
+Build configuration tests check script/environment forwarding, artifact paths
+for single packages and nested workspaces, retry names, and invalid inputs.
 The suite uses temporary local Git repositories and offline npm commands. It
 executes the installed Lerna, checks dependent package and lockfile changes, and
 tests no-change behavior, tag collisions and concurrent branch pushes. A single

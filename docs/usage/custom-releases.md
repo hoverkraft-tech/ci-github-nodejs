@@ -2,7 +2,7 @@
 
 Publish a package to npm and attach the same tarball to a GitHub release:
 
-**Plan version → Run CI → Package build output → Publish to npm → Create GitHub release**
+**Plan version → Build release artifacts → Package → Publish to npm → Create GitHub release**
 
 The workflow below releases a single package from the repository root using stable versions such as `1.2.3`.
 It sets the version during packaging. If your build reads the package version or you commit version changes,
@@ -17,10 +17,12 @@ use [Commit the version before building](#commit-the-version-before-building).
    The example uses GitHub-hosted runners and `id-token: write`; no npm token is needed.
    For a new npm package, publish its first version before configuring the trusted publisher.
 4. Save the workflow below as `.github/workflows/release.yml` in your project. Before running it:
-   - Replace every `<sha>` with the **same `ci-github-nodejs` commit containing `actions/publish`**.
+   - Replace every `<sha>` with the **same `ci-github-nodejs` commit containing `actions/release/build` and `actions/publish`**.
      The `ci-github-publish` actions are already pinned to `1.0.3`.
-   - Set the `build`, `lint:ci`, and `test:ci` script names and the `dist/` output path to match your project.
-     See [CI options](../../.github/workflows/continuous-integration.md) if you need a different setup.
+   - Set the `build` script name and `dist/` output path to match your project.
+5. Run linting, tests and security analysis in a separate
+   [CI workflow](../../.github/workflows/continuous-integration.md), with required checks
+   on pull requests and branch rules. This release workflow does not run or wait for CI.
 
 ## Workflow
 
@@ -73,23 +75,26 @@ jobs:
             }
             core.setOutput('version', version);
 
-  ci:
+  build:
     needs: plan
     if: needs.plan.outputs.should-release == 'true'
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@<sha>
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: read
-      pull-requests: write
-      id-token: write
-      security-events: write
-    with:
-      build: '{"commands":["build"],"artifact":{"paths":["dist/"]}}'
-      lint: '{"command":"lint:ci"}'
-      test: '{"command":"test:ci"}'
+    outputs:
+      artifact-id: ${{ steps.build.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: build
+        uses: hoverkraft-tech/ci-github-nodejs/actions/release/build@<sha>
+        with:
+          build: '{"commands":["build"],"artifact":["dist"]}'
 
   release:
-    needs: [plan, ci]
+    needs: [plan, build]
     if: needs.plan.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -103,8 +108,8 @@ jobs:
         uses: hoverkraft-tech/ci-github-nodejs/actions/package@<sha>
         with:
           version: ${{ needs.plan.outputs.version }}
-          build-artifact-id: ${{ needs.ci.outputs.build-artifact-id }}
-          # The reusable CI workflow preserves absolute paths in build artifacts.
+          build-artifact-id: ${{ needs.build.outputs.artifact-id }}
+          # The release build preserves absolute paths in build artifacts.
           build-artifact-path: /
 
       # Add any package smoke tests before publishing.
@@ -139,7 +144,7 @@ jobs:
           publish: "true"
 ```
 
-[Package](../../actions/package/README.md) checks out the source, installs dependencies, restores the CI build output,
+[Package](../../actions/package/README.md) checks out the source, installs dependencies, restores the release build output,
 and creates the tarball. [Publish](../../actions/publish/README.md) publishes that tarball.
 The package version is changed locally; it is not committed. GitHub's source archive therefore keeps the version from the source commit.
 If `package.json` already contains the planned version, omit the Package action's `version` input.
@@ -196,9 +201,9 @@ Releases are serialized so two runs cannot publish the same package concurrently
 
 | Situation                                      | Result                                                                             |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Relevant changes since the last GitHub release | Plan the next version, run CI, and release.                                        |
-| No relevant changes                            | Skip CI and publishing successfully.                                               |
-| Manual run with `force` checked                | Release the planned version even without changes; CI must still pass.              |
+| Relevant changes since the last GitHub release | Plan the next version, build, and release.                                         |
+| No relevant changes                            | Skip building and publishing successfully.                                         |
+| Manual run with `force` checked                | Release the planned version even without changes; the build must still pass.       |
 | No previous matching GitHub release            | Plan the first GitHub release. Registry authentication must already be configured. |
 
 The dry run checks the tarball with `npm publish --dry-run`. It does not verify registry credentials or trusted publishing access.
@@ -211,7 +216,7 @@ Use this when the build embeds the version or the released source must include u
 1. Plan the version with `release/plan`, using the same no-change and `force` rules as the workflow above.
 2. Update the version on a release branch, for example with `npm version 1.2.3 --no-git-tag-version`.
    Commit the package manifest, lockfile, changelog, and any generated version files through a pull request.
-3. After merging, run CI and packaging **from the merged commit**. Omit the Package action's `version` input; the version is already in `package.json`.
+3. After merging, run the release build and packaging **from the merged commit**. Omit the Package action's `version` input; the version is already in `package.json`.
 4. Publish the tarball, then create the GitHub release with the planned `tag` and merged commit as `target-sha`.
 
 Keep the planned tag throughout this process; do not calculate another version after merging.
@@ -230,7 +235,7 @@ for automating the pull request and merge.
 - **Prereleases:** set `prerelease: "true"` on `release/plan` and `release/create`, and `tag: next` on both Publish steps.
   Update the version conversion to accept your full prerelease version, such as `1.2.3-rc.1`.
   The npm distribution tag (`next`) is separate from the Git release tag (`v1.2.3-rc.1`).
-- **Monorepos:** scope CI and both release actions with `working-directory`.
+- **Monorepos:** scope the build and both release actions with `working-directory`.
   For Package, set `working-directory` to the dependency installation root and `package-directory` to the package's relative path.
   Convert prefixed Git tags such as `my-package/v1.2.3` to npm versions, and use a separate concurrency group and artifact name per package.
 - **Drafts and signing:** create a draft with `publish: "false"`, then use `release/update` to attach assets and publish after npm publication succeeds.

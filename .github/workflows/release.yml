@@ -3,8 +3,9 @@
 # Keep workflow_dispatch and schedule triggers in the calling workflow.
 # Release Please prepares a release PR; merge it and run again to publish.
 # Lerna prepares and atomically pushes versions and changelogs directly.
-# Preparation dispatches the caller workflow at the release tag so CI, packaging
+# Preparation dispatches the caller workflow at the release tag so building, packaging
 # and npm provenance all refer to the same committed source.
+# Keep linting, tests and security analysis in the caller's separate CI workflow.
 # See [the release guide](../../docs/usage/releases.md) for setup, examples and recovery.
 name: Node.js Release
 
@@ -20,21 +21,9 @@ on:
         type: string
         default: .
       build:
-        description: Build commands and artifact paths, using the continuous-integration workflow's build format. Artifacts must include the package's compiled files.
+        description: JSON object with commands (script names), artifact (paths or an object with paths), and optional env. Artifacts must include the package's compiled files. Builds the tagged source without running CI checks.
         type: string
         default: '{"commands":["build"],"artifact":["dist"]}'
-      lint:
-        description: Lint options forwarded to continuous-integration. Set to an empty string to disable.
-        type: string
-        default: "true"
-      test:
-        description: Test options forwarded to continuous-integration. Set to an empty string to disable.
-        type: string
-        default: "true"
-      code-ql:
-        description: CodeQL options forwarded to continuous-integration. Set to an empty string to disable.
-        type: string
-        default: typescript
       ai-summary:
         description: Generate an OpenAI summary before npm publication. Requires the OPENAI_API_KEY secret; failures stop publication.
         type: boolean
@@ -61,8 +50,8 @@ on:
         description: Published GitHub release URL from the tag run.
         value: ${{ jobs.publish.outputs.url }}
       build-artifact-id:
-        description: CI build artifact ID from the tag run, reusable for documentation deployment.
-        value: ${{ jobs.ci.outputs.build-artifact-id }}
+        description: Release build artifact ID from the tag run, reusable for documentation deployment.
+        value: ${{ jobs.build.outputs.artifact-id }}
 
 permissions: {}
 
@@ -103,26 +92,30 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
           github-token: ${{ secrets.github-token || github.token }}
 
-  ci:
+  build:
+    name: Build release artifacts
     needs: prepare
     if: needs.prepare.outputs.status == 'ready'
-    uses: $/.github/workflows/continuous-integration.yml
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: read
-      pull-requests: write
-      id-token: write
-      security-events: write
-    with:
-      working-directory: ${{ inputs.working-directory }}
-      build: ${{ inputs.build }}
-      lint: ${{ inputs.lint }}
-      test: ${{ inputs.test }}
-      code-ql: ${{ inputs.code-ql }}
+    outputs:
+      artifact-id: ${{ steps.build.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: build
+        uses: $/actions/release/build
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          build: ${{ inputs.build }}
 
   draft:
     name: Draft release notes
-    needs: [prepare, ci]
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: ${{ inputs.environment }}
@@ -147,7 +140,7 @@ jobs:
 
   packages:
     name: Publish ${{ matrix.package.name }}
-    needs: [prepare, ci, draft]
+    needs: [prepare, build, draft]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: ${{ inputs.environment }}
@@ -160,13 +153,13 @@ jobs:
       matrix:
         package: ${{ fromJSON(needs.prepare.outputs.packages) }}
     steps:
-      - name: Package the tested release commit
+      - name: Package the tagged release commit
         id: package
         uses: $/actions/package
         with:
           working-directory: ${{ inputs.working-directory }}
           package-directory: ${{ matrix.package.directory }}
-          build-artifact-id: ${{ needs.ci.outputs.build-artifact-id }}
+          build-artifact-id: ${{ needs.build.outputs.artifact-id }}
           build-artifact-path: /
           artifact-name: npm-${{ matrix.package.slug }}-${{ github.run_attempt }}
       - name: Validate publication

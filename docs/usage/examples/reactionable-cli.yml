@@ -17,14 +17,12 @@ jobs:
       issues: write
       pull-requests: write
       packages: read
-      security-events: write
       id-token: write
     with:
       versioning: release-please
       environment: github-pages
       build: |
         {"commands":["build","build:doc"],"artifact":["dist","build"]}
-      test: '{"coverage":"codecov"}'
       ai-summary: true
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

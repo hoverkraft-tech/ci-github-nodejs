@@ -26,8 +26,9 @@ Release a single npm package or fixed-version Lerna workspaces without consumer 
 Keep workflow_dispatch and schedule triggers in the calling workflow.
 Release Please prepares a release PR; merge it and run again to publish.
 Lerna prepares and atomically pushes versions and changelogs directly.
-Preparation dispatches the caller workflow at the release tag so CI, packaging
+Preparation dispatches the caller workflow at the release tag so building, packaging
 and npm provenance all refer to the same committed source.
+Keep linting, tests and security analysis in the caller's separate CI workflow.
 See [the release guide](../../docs/usage/releases.md) for setup, examples and recovery.
 
 ### Permissions
@@ -38,7 +39,6 @@ See [the release guide](../../docs/usage/releases.md) for setup, examples and re
 - **`issues`**: `write`
 - **`packages`**: `read`
 - **`pull-requests`**: `write`
-- **`security-events`**: `write`
 
 <!-- overview:end -->
 <!-- inputs:start -->
@@ -47,16 +47,13 @@ See [the release guide](../../docs/usage/releases.md) for setup, examples and re
 
 ### Workflow Call Inputs
 
-| **Input**               | **Description**                                                                                                                                                                                       | **Required** | **Type**    | **Default**                                  |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- | -------------------------------------------- |
-| **`versioning`**        | Version preparation tool. Use release-please for a single public package or lerna for fixed-version workspaces. Versions are inferred from Conventional Commits.                                      | **false**    | **string**  | `release-please`                             |
-| **`working-directory`** | Project directory relative to the caller repository root.                                                                                                                                             | **false**    | **string**  | `.`                                          |
-| **`build`**             | Build commands and artifact paths, using the continuous-integration workflow's build format. Artifacts must include the package's compiled files.                                                     | **false**    | **string**  | `{"commands":["build"],"artifact":["dist"]}` |
-| **`lint`**              | Lint options forwarded to continuous-integration. Set to an empty string to disable.                                                                                                                  | **false**    | **string**  | `true`                                       |
-| **`test`**              | Test options forwarded to continuous-integration. Set to an empty string to disable.                                                                                                                  | **false**    | **string**  | `true`                                       |
-| **`code-ql`**           | CodeQL options forwarded to continuous-integration. Set to an empty string to disable.                                                                                                                | **false**    | **string**  | `typescript`                                 |
-| **`ai-summary`**        | Generate an OpenAI summary before npm publication. Requires the OPENAI_API_KEY secret; failures stop publication.                                                                                     | **false**    | **boolean** | `false`                                      |
-| **`environment`**       | GitHub environment for source preparation, AI and npm publishing. It must permit the default branch and release tags. Configure npm trusted publishing for this environment and the calling workflow. | **false**    | **string**  | `release`                                    |
+| **Input**               | **Description**                                                                                                                                                                                                | **Required** | **Type**    | **Default**                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- | -------------------------------------------- |
+| **`versioning`**        | Version preparation tool. Use release-please for a single public package or lerna for fixed-version workspaces. Versions are inferred from Conventional Commits.                                               | **false**    | **string**  | `release-please`                             |
+| **`working-directory`** | Project directory relative to the caller repository root.                                                                                                                                                      | **false**    | **string**  | `.`                                          |
+| **`build`**             | JSON object with commands (script names), artifact (paths or an object with paths), and optional env. Artifacts must include the package's compiled files. Builds the tagged source without running CI checks. | **false**    | **string**  | `{"commands":["build"],"artifact":["dist"]}` |
+| **`ai-summary`**        | Generate an OpenAI summary before npm publication. Requires the OPENAI_API_KEY secret; failures stop publication.                                                                                              | **false**    | **boolean** | `false`                                      |
+| **`environment`**       | GitHub environment for source preparation, AI and npm publishing. It must permit the default branch and release tags. Configure npm trusted publishing for this environment and the calling workflow.          | **false**    | **string**  | `release`                                    |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
@@ -78,7 +75,7 @@ See [the release guide](../../docs/usage/releases.md) for setup, examples and re
 | **`status`**            | no-changes, awaiting-review, dispatched, released or published. A dispatched run only prepares the release; follow its tag run for publication. |
 | **`tag`**               | Prepared release tag.                                                                                                                           |
 | **`release-url`**       | Published GitHub release URL from the tag run.                                                                                                  |
-| **`build-artifact-id`** | CI build artifact ID from the tag run, reusable for documentation deployment.                                                                   |
+| **`build-artifact-id`** | Release build artifact ID from the tag run, reusable for documentation deployment.                                                              |
 
 <!-- outputs:end -->
 <!-- contributing:start -->

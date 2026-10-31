@@ -3,6 +3,9 @@
 - Status: accepted
 - Date: 2026-10-29
 
+The decision to run CI inside release is superseded by
+[ADR 0002](0002-separate-ci-from-release.md). The other decisions remain accepted.
+
 ## Context
 
 The Package and Publish actions handle a single tarball. Consumers still need
