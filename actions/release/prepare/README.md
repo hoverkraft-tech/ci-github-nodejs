@@ -44,7 +44,7 @@ Plan with HoverKraft, apply the version and changelog with npm or Lerna, and dis
 
 | **Output**      | **Description**                                                                                         |
 | --------------- | ------------------------------------------------------------------------------------------------------- |
-| **`status`**    | One of no-changes, dispatched, ready or released. Only ready should start publication jobs.             |
+| **`status`**    | One of no-changes, dispatched, ready or released. Only ready should start CI, followed by publication.  |
 | **`tag`**       | Stable release tag, empty when preparation has no release to publish.                                   |
 | **`packages`**  | JSON array of public packages at the committed release version, with name, version, directory and slug. |
 | **`published`** | Whether the tag already has a published GitHub release.                                                 |

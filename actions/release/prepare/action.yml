@@ -16,7 +16,7 @@ inputs:
     default: ${{ github.token }}
 outputs:
   status:
-    description: One of no-changes, dispatched, ready or released. Only ready should start publication jobs.
+    description: One of no-changes, dispatched, ready or released. Only ready should start CI, followed by publication.
     value: ${{ steps.prepare.outputs.status }}
   tag:
     description: Stable release tag, empty when preparation has no release to publish.
@@ -107,7 +107,7 @@ runs:
           const messages = {
             'no-changes': 'No changes to release.',
             dispatched: `Publication dispatched for ${result.tag}. Follow the new workflow run for that tag.`,
-            ready: `Publishing committed release ${result.tag}.`,
+            ready: `Ready for CI on committed release ${result.tag}.`,
             released: `${result.tag} is already released.`,
           };
           await core.summary.addRaw(messages[result.status]).write();

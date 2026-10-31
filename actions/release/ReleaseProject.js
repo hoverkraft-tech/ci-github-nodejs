@@ -130,12 +130,20 @@ class ReleaseProject {
   }
 
   versionFromTag(tag) {
+    return ReleaseProject.versionFromTag(
+      tag,
+      this.directory,
+      this.relativeDirectory,
+    );
+  }
+
+  static versionFromTag(tag, directory, relativeDirectory) {
     const slug = path
-      .basename(this.directory)
+      .basename(directory)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
-    const prefixes = ["", "v", ...(this.relativeDirectory ? [`${slug}-`] : [])];
+    const prefixes = ["", "v", ...(relativeDirectory ? [`${slug}-`] : [])];
     const version = prefixes
       .map((prefix) => (tag.startsWith(prefix) ? tag.slice(prefix.length) : ""))
       .find((candidate) =>

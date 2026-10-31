@@ -80,6 +80,7 @@ jobs:
     needs: linter
     uses: $/.github/workflows/__test-workflow-continuous-integration.yml
     permissions:
+      actions: read
       attestations: write
       contents: read
       packages: write

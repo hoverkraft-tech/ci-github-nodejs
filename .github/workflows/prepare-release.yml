@@ -1,0 +1,63 @@
+# Prepare a Node.js release version and changelog without building or publishing.
+# Dispatches the calling workflow at the prepared tag; that run can invoke CI and publication.
+# See [the release guide](../../docs/usage/releases.md).
+name: Prepare Node.js Release
+
+on:
+  workflow_call:
+    inputs:
+      versioning:
+        description: Tool applying the HoverKraft release plan, npm for a single package or lerna for fixed-version workspaces.
+        type: string
+        default: npm
+      working-directory:
+        description: Project directory relative to the caller repository root.
+        type: string
+        default: .
+      environment:
+        description: GitHub environment permitting release preparation on the default branch and release tags.
+        type: string
+        default: release
+    secrets:
+      github-token:
+        description: Optional token for pushing release commits and dispatching the caller at the tag. Its identity must be permitted by branch and tag rules.
+        required: false
+    outputs:
+      status:
+        description: no-changes, dispatched, released or ready. Only ready should start CI and publication in this run.
+        value: ${{ jobs.prepare.outputs.status }}
+      tag:
+        description: Prepared release tag.
+        value: ${{ jobs.prepare.outputs.tag }}
+      packages:
+        description: JSON package list for the CI workflow's packages input. Available when status is ready.
+        value: ${{ jobs.prepare.outputs.packages }}
+
+permissions: {}
+
+concurrency:
+  group: node-release-prepare-${{ github.repository }}-${{ inputs.working-directory }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: read
+    outputs:
+      status: ${{ steps.prepare.outputs.status }}
+      tag: ${{ steps.prepare.outputs.tag }}
+      packages: ${{ steps.prepare.outputs.packages }}
+      published: ${{ steps.prepare.outputs.published }}
+    steps:
+      - id: prepare
+        uses: $/actions/release/prepare
+        with:
+          versioning: ${{ inputs.versioning }}
+          working-directory: ${{ inputs.working-directory }}
+          github-token: ${{ secrets.github-token || github.token }}

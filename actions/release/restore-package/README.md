@@ -22,7 +22,7 @@
 
 ## Overview
 
-Check an exact npm version and restore its original tarball with integrity verification when resuming publication.
+Validate a CI tarball, check an exact npm version and restore its original tarball with integrity verification when resuming publication.
 
 <!-- overview:end -->
 <!-- inputs:start -->

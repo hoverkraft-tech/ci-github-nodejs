@@ -1,5 +1,5 @@
 name: Restore published Node.js package
-description: Check an exact npm version and restore its original tarball with integrity verification when resuming publication.
+description: Validate a CI tarball, check an exact npm version and restore its original tarball with integrity verification when resuming publication.
 author: hoverkraft
 branding:
   icon: package
@@ -31,5 +31,7 @@ runs:
       with:
         script: |
           const { ReleaseArtifacts } = require(`${process.env.ACTION_PATH}/../ReleaseArtifacts.js`);
-          const published = await new ReleaseArtifacts().restorePackage({ name: process.env.PACKAGE_NAME, version: process.env.PACKAGE_VERSION, tarballPath: process.env.TARBALL_PATH });
+          const options = { name: process.env.PACKAGE_NAME, version: process.env.PACKAGE_VERSION, tarballPath: process.env.TARBALL_PATH };
+          ReleaseArtifacts.verifyTarball(options);
+          const published = await new ReleaseArtifacts().restorePackage(options);
           core.setOutput('published', String(published));

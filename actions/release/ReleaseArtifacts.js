@@ -1,5 +1,6 @@
 const { createHash } = require("node:crypto");
 const fs = require("node:fs");
+const { execFileSync } = require("node:child_process");
 const path = require("node:path");
 
 class ReleaseArtifacts {
@@ -22,6 +23,22 @@ class ReleaseArtifacts {
       });
       return releases.find((release) => release.tag_name === tag);
     }
+  }
+
+  static verifyTarball({ name, version, tarballPath }) {
+    const manifest = JSON.parse(
+      execFileSync("tar", ["-xOf", tarballPath, "package/package.json"], {
+        encoding: "utf8",
+      }),
+    );
+    if (
+      manifest.name !== name ||
+      manifest.version !== version ||
+      manifest.private
+    )
+      throw new Error(
+        "CI tarball must contain the expected public package and release version.",
+      );
   }
 
   async restorePackage({ name, version, tarballPath }) {

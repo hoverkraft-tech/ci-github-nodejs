@@ -1,79 +1,61 @@
-# Release a single npm package or fixed-version Lerna workspaces without consumer scripts.
-#
-# Keep workflow_dispatch and schedule triggers in the calling workflow.
-# HoverKraft plans the release from Conventional Commits. npm or Lerna applies
-# the plan before the version commit and tag are pushed atomically.
-# Preparation dispatches the caller workflow at the release tag so building, packaging
-# and npm provenance all refer to the same committed source.
-# Keep linting, tests and security analysis in the caller's separate CI workflow.
-# See [the release guide](../../docs/usage/releases.md) for setup, examples and recovery.
+# Publish CI-produced npm tarballs and finalize a GitHub release without rebuilding.
+# Call after successful CI on the prepared tag, passing its package-artifacts output.
+# See [the release guide](../../docs/usage/releases.md) for preparation, CI and recovery.
 name: Node.js Release
 
 on:
   workflow_call:
     inputs:
-      versioning:
-        description: Tool applying the HoverKraft release plan. Use npm for a single public package or lerna for fixed-version workspaces. HoverKraft infers versions from Conventional Commits in both modes.
+      package-artifacts:
+        description: JSON package artifact list from successful CI in this same workflow run and at this release tag's commit.
         type: string
-        default: npm
+        required: true
       working-directory:
-        description: Project directory relative to the caller repository root.
+        description: Project directory relative to the caller repository root, matching release preparation and CI.
         type: string
         default: .
-      build:
-        description: JSON object with commands (script names), artifact (paths or an object with paths), and optional env. Artifacts must include the package's compiled files. Builds the tagged source without running CI checks.
-        type: string
-        default: '{"commands":["build"],"artifact":["dist"]}'
       ai-summary:
-        description: Generate an OpenAI summary before npm publication. Requires the OPENAI_API_KEY secret; failures stop publication.
+        description: Generate an OpenAI summary before npm publication. Requires OPENAI_API_KEY; failures stop publication.
         type: boolean
         default: false
       environment:
-        description: GitHub environment for source preparation, AI and npm publishing. It must permit the default branch and release tags. Configure npm trusted publishing for this environment and the calling workflow.
+        description: GitHub environment for AI and npm publishing. Configure npm trusted publishing for this environment and the calling workflow.
         type: string
         default: release
     secrets:
       OPENAI_API_KEY:
         description: OpenAI API key, required when ai-summary is enabled.
         required: false
-      github-token:
-        description: Optional token for pushing release commits and dispatching publication. Defaults to GITHUB_TOKEN. Its identity must be permitted by branch and tag rules.
-        required: false
     outputs:
       status:
-        description: no-changes, dispatched, released or published. A dispatched run only prepares the release; follow its tag run for publication.
-        value: ${{ jobs.publish.outputs.status || jobs.prepare.outputs.status }}
+        description: published after all npm packages and GitHub release assets succeed.
+        value: ${{ jobs.publish.outputs.status }}
       tag:
-        description: Prepared release tag.
-        value: ${{ jobs.prepare.outputs.tag }}
+        description: Published release tag.
+        value: ${{ jobs.verify.outputs.tag }}
       release-url:
-        description: Published GitHub release URL from the tag run.
+        description: Published GitHub release URL.
         value: ${{ jobs.publish.outputs.url }}
-      build-artifact-id:
-        description: Release build artifact ID from the tag run, reusable for documentation deployment.
-        value: ${{ jobs.build.outputs.artifact-id }}
 
 permissions: {}
 
 concurrency:
-  group: node-release-${{ github.repository }}-${{ inputs.working-directory }}
+  group: node-release-publish-${{ github.repository }}-${{ inputs.working-directory }}
   cancel-in-progress: false
 
 jobs:
-  prepare:
-    name: Prepare release
+  verify:
+    name: Verify CI artifacts
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     environment: ${{ inputs.environment }}
     permissions:
-      actions: write
-      contents: write
-      pull-requests: read
+      actions: read
+      contents: read
     outputs:
-      status: ${{ steps.prepare.outputs.status }}
-      tag: ${{ steps.prepare.outputs.tag }}
-      packages: ${{ steps.prepare.outputs.packages }}
-      published: ${{ steps.prepare.outputs.published }}
+      tag: ${{ steps.verify.outputs.tag }}
+      packages: ${{ steps.verify.outputs.packages }}
+      published: ${{ steps.verify.outputs.published }}
     steps:
       - name: Validate AI configuration
         if: inputs.ai-summary
@@ -84,37 +66,15 @@ jobs:
             echo "OPENAI_API_KEY is required when ai-summary is enabled." >&2
             exit 1
           fi
-      - id: prepare
-        uses: $/actions/release/prepare
+      - id: verify
+        uses: $/actions/release/verify
         with:
-          versioning: ${{ inputs.versioning }}
+          package-artifacts: ${{ inputs.package-artifacts }}
           working-directory: ${{ inputs.working-directory }}
-          github-token: ${{ secrets.github-token || github.token }}
-
-  build:
-    name: Build release artifacts
-    needs: prepare
-    if: needs.prepare.outputs.status == 'ready'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      packages: read
-    outputs:
-      artifact-id: ${{ steps.build.outputs.artifact-id }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - id: build
-        uses: $/actions/release/build
-        with:
-          working-directory: ${{ inputs.working-directory }}
-          build: ${{ inputs.build }}
 
   draft:
     name: Draft release notes
-    needs: [prepare, build]
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: ${{ inputs.environment }}
@@ -126,12 +86,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Create draft and optional AI summary
-        if: needs.prepare.outputs.published != 'true'
+        if: needs.verify.outputs.published != 'true'
         uses: hoverkraft-tech/ci-github-publish/actions/release/create@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         with:
-          tag: ${{ needs.prepare.outputs.tag }}
+          tag: ${{ needs.verify.outputs.tag }}
           target-sha: ${{ github.sha }}
           working-directory: ${{ inputs.working-directory != '.' && inputs.working-directory || '' }}
           publish: "false"
@@ -139,7 +99,7 @@ jobs:
 
   packages:
     name: Publish ${{ matrix.package.name }}
-    needs: [prepare, build, draft]
+    needs: [verify, draft]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: ${{ inputs.environment }}
@@ -150,38 +110,35 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: ${{ fromJSON(needs.prepare.outputs.packages) }}
+        package: ${{ fromJSON(needs.verify.outputs.packages) }}
     steps:
-      - name: Package the tagged release commit
-        id: package
-        uses: $/actions/package
+      - name: Download the CI package tarball
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          working-directory: ${{ inputs.working-directory }}
-          package-directory: ${{ matrix.package.directory }}
-          build-artifact-id: ${{ needs.build.outputs.artifact-id }}
-          build-artifact-path: /
-          artifact-name: npm-${{ matrix.package.slug }}-${{ github.run_attempt }}
-      - name: Validate publication
-        uses: $/actions/publish
-        with:
-          package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
-          dry-run: "true"
-          provenance: "false"
+          artifact-ids: ${{ matrix.package.artifact-id }}
+          path: ${{ runner.temp }}/ci-package
+          skip-decompress: true
       - id: registry
         uses: $/actions/release/restore-package
         with:
           name: ${{ matrix.package.name }}
           version: ${{ matrix.package.version }}
-          tarball-path: ${{ steps.package.outputs.package-tarball-path }}
+          tarball-path: ${{ runner.temp }}/ci-package/${{ matrix.package.artifact-name }}
+      - name: Validate publication
+        uses: $/actions/publish
+        with:
+          package-tarball-artifact-id: ${{ matrix.package.artifact-id }}
+          dry-run: "true"
+          provenance: "false"
       - name: Publish missing npm version
         if: steps.registry.outputs.published != 'true'
         uses: $/actions/publish
         with:
-          package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
+          package-tarball-artifact-id: ${{ matrix.package.artifact-id }}
           tag: latest
       - name: Prepare release asset
         env:
-          PACKAGE_TARBALL: ${{ steps.package.outputs.package-tarball-path }}
+          PACKAGE_TARBALL: ${{ runner.temp }}/ci-package/${{ matrix.package.artifact-name }}
           ASSET_NAME: ${{ matrix.package.slug }}-${{ matrix.package.version }}.tgz
         run: |
           mkdir -p "$RUNNER_TEMP/release-assets"
@@ -195,7 +152,7 @@ jobs:
 
   publish:
     name: Publish GitHub release
-    needs: [prepare, packages]
+    needs: [verify, packages]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: ${{ inputs.environment }}
@@ -214,5 +171,5 @@ jobs:
       - id: finalize
         uses: $/actions/release/finalize
         with:
-          tag: ${{ needs.prepare.outputs.tag }}
+          tag: ${{ needs.verify.outputs.tag }}
           asset-directory: ${{ runner.temp }}/release-assets

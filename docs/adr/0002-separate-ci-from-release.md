@@ -1,6 +1,7 @@
 # ADR 0002: Separate CI checks from release publication
 
-- Status: accepted
+- Status: accepted; build ownership and orchestration partially superseded by
+  [ADR 0004](0004-ci-produces-release-artifacts.md)
 - Date: 2026-10-31
 - Partially supersedes: [ADR 0001](0001-release-orchestration.md)
 

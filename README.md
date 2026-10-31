@@ -69,7 +69,8 @@ _Actions focused on discovering and preparing the Node.js environment._
 
 ### Release
 
-- [Release packages](docs/usage/releases.md) — single-package and Lerna releases through one reusable workflow.
+- [Release packages](docs/usage/releases.md) — single-package and Lerna releases with preparation, CI and publication.
+- [Preparation workflow reference](.github/workflows/prepare-release.md) — version planning and tagged source.
 - [Release workflow reference](.github/workflows/release.md) — inputs, secrets and outputs.
 - [Custom release pipelines](docs/usage/custom-releases.md) — compose the package, publish and GitHub release actions.
 

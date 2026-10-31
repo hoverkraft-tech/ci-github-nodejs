@@ -1,4 +1,4 @@
-# Replace <sha> with a published ci-github-nodejs commit containing the Release workflow.
+# Replace <sha> with a published ci-github-nodejs commit containing these workflows.
 name: Release
 
 on:
@@ -8,27 +8,56 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
 jobs:
-  release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@<sha>
+  prepare:
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/prepare-release.yml@<sha>
     permissions:
       actions: write
       contents: write
       pull-requests: read
-      packages: read
-      id-token: write
     with:
       versioning: lerna
       environment: github-pages
+
+  ci:
+    needs: prepare
+    if: needs.prepare.outputs.status == 'ready'
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@<sha>
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      pull-requests: write
+      security-events: write
+      id-token: write
+    with:
+      packages: ${{ needs.prepare.outputs.packages }}
       build: |
         {"commands":["build:ci","storybook:build","docs:build"],"artifact":["packages/**/lib","build","packages/**/docs"]}
+      test: '{"coverage":"codecov"}'
+
+  release:
+    needs: ci
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@<sha>
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: read
+      id-token: write
+    with:
+      package-artifacts: ${{ needs.ci.outputs.package-artifacts }}
+      environment: github-pages
       ai-summary: true
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
   pages:
     name: Deploy documentation
-    needs: release
+    needs: [ci, release]
     if: needs.release.outputs.status == 'published'
     runs-on: ubuntu-latest
     permissions:
@@ -47,5 +76,5 @@ jobs:
       - id: deployment
         uses: hoverkraft-tech/ci-github-publish/actions/deploy/github-pages@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
         with:
-          build-artifact-id: ${{ needs.release.outputs.build-artifact-id }}
+          build-artifact-id: ${{ needs.ci.outputs.build-artifact-id }}
           build-path: build/storybook
