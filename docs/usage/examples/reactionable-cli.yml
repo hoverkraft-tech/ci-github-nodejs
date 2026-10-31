@@ -14,12 +14,10 @@ jobs:
     permissions:
       actions: write
       contents: write
-      issues: write
-      pull-requests: write
+      pull-requests: read
       packages: read
       id-token: write
     with:
-      versioning: release-please
       environment: github-pages
       build: |
         {"commands":["build","build:doc"],"artifact":["dist","build"]}

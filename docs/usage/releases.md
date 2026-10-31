@@ -19,7 +19,8 @@ Complete caller examples, including documentation deployment:
    for each package. Use the **calling repository and workflow filename**, such
    as `release.yml`, and the environment passed below. Allow direct `npm publish`.
    Publish the first version of a new npm package before configuring its publisher.
-3. Allow the default branch and `v*` tags in the GitHub environment. Its name
+3. Allow the default branch and the tags produced by your release configuration
+   in the GitHub environment (for example, `*.*.*` for stable version tags). Its name
    defaults to `release`; an existing environment can be passed explicitly.
 4. Store `OPENAI_API_KEY` as a repository or environment secret when enabling AI
    summaries, and pass it explicitly as shown below.
@@ -41,15 +42,16 @@ The Release workflow neither runs those checks nor queries or waits for CI resul
 Release builds run from the version tag because package contents can embed the
 version. Their artifacts are used for npm packaging and optional documentation
 deployment. They are not evidence that CI passed on that tag. In particular, Lerna
-creates a version commit directly; if it needs additional validation, arrange it
-in the caller and gate publication through the release environment.
+and npm both create version commits directly; if they need additional validation,
+arrange it in the caller and gate publication through the release environment.
 
 ## Single package
 
-This configuration fits a TypeScript CLI such as `reactionable-cli`. Release
-Please computes versions from Conventional Commits and prepares a release PR
-containing `package.json`, the lockfile and `CHANGELOG.md` updates. It does not
-publish until that PR is merged and the workflow runs again, manually or on schedule.
+This configuration fits a TypeScript CLI such as `reactionable-cli`. HoverKraft
+plans the version from Conventional Commits and renders the changelog. npm applies
+that exact version to `package.json` and npm lockfiles. The workflow commits those
+files with `CHANGELOG.md`, pushes the commit and tag atomically, and dispatches
+publication at the tag.
 
 ```yaml
 name: Release
@@ -67,12 +69,10 @@ jobs:
     permissions:
       actions: write
       contents: write
-      issues: write
-      pull-requests: write
+      pull-requests: read
       packages: read
       id-token: write
     with:
-      versioning: release-please
       environment: github-pages
       build: |
         {
@@ -84,17 +84,33 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 ```
 
-The defaults use Release Please and `npm run build` with `dist` as the build
+The defaults use `versioning: npm` and `npm run build` with `dist` as the build
 artifact. Omit `versioning` and `build` when those defaults match your project.
 The `build` input is a JSON object with `commands`, `artifact` paths and an optional
 `env` object. Commands are package scripts, not shell commands. The Build action
 installs dependencies and executes those scripts.
 
-GitHub must allow Actions to create PRs. Release PRs created with `GITHUB_TOKEN`
-do not trigger normal PR workflows. If required checks depend on those events,
-pass a GitHub App token through the optional `github-token` secret. Grant the app
-contents, issues, pull requests and actions write access. The workflow never
-merges a release PR or bypasses branch protection.
+## Release planning and branch rules
+
+Both package modes use `ci-github-publish/actions/release/plan` as their version
+planner. Its generated rules use Conventional Commits: breaking changes select
+major, features select minor, and other changes select patch. Repository release
+configuration takes precedence. See the
+[HoverKraft release actions](https://github.com/hoverkraft-tech/ci-github-publish/blob/1.0.3/.github/workflows/release.md)
+for configuration, history filtering and change detection.
+
+The workflow preserves the planned tag. It accepts stable `1.2.3` and `v1.2.3`
+tags, plus `<directory-slug>-1.2.3` for a project in `working-directory`.
+Keep the tag convention and release history aligned with existing packages.
+A plan older than or equal to the committed version is rejected. If the first
+planned release is behind an existing package version, reconcile the GitHub
+release baseline and release configuration before running it.
+
+Branch and tag rules must allow the preparation identity to push the release
+commit and tag. The default is `GITHUB_TOKEN`; pass an appropriate token through
+`github-token` when required by your rules or when release commits must trigger
+normal push CI. It needs contents and actions write and pull requests read access.
+The workflow does not create or auto-merge a release PR, and does not bypass rules.
 
 ## Fixed-version Lerna workspaces
 
@@ -114,10 +130,12 @@ with:
 ```
 
 Install Lerna in the project and use a stable fixed version in `lerna.json`.
-The workflow runs the installed Lerna with `--conventional-commits`; it does not
-implement another version calculator. Lerna updates package versions, internal
-dependency ranges, lockfiles and changelogs. Its existing versioning settings,
-including pre-1.0 behavior, apply.
+The workflow passes the exact HoverKraft-planned version to the installed Lerna.
+Lerna updates package versions, internal dependency ranges and lockfiles;
+`--conventional-commits` generates package changelogs. It does not choose a second
+version. The root `CHANGELOG.md` receives HoverKraft's rendered notes.
+Lerna can report no changed packages even when the release plan contains changes;
+in that case no release commit, tag or publication run is created.
 
 This mode commits directly to the default branch and pushes the commit and tag
 atomically. Repository rules must permit that push. If the branch advances during
@@ -130,13 +148,12 @@ unchanged packages can retain their previous versions.
 Run the calling workflow from the default branch or wait for its schedule.
 Preparation reports one of these outcomes in the job summary:
 
-| Status            | Meaning                                                       |
-| ----------------- | ------------------------------------------------------------- |
-| `no-changes`      | Nothing needs releasing; no build or publishing starts.       |
-| `awaiting-review` | Merge the linked Release Please PR, then run again.           |
-| `dispatched`      | The version tag exists; follow the new run for that tag.      |
-| `released`        | This version already has a published GitHub release.          |
-| `published`       | The tag run published all packages and finalized the release. |
+| Status       | Meaning                                                       |
+| ------------ | ------------------------------------------------------------- |
+| `no-changes` | Nothing needs releasing; no build or publishing starts.       |
+| `dispatched` | The version tag exists; follow the new run for that tag.      |
+| `released`   | This version already has a published GitHub release.          |
+| `published`  | The tag run published all packages and finalized the release. |
 
 Both preparation and publication share a concurrency group inside the reusable
 workflow. Do not use that same group in the caller. A successful preparation run
@@ -158,6 +175,9 @@ run never computes another version. The release build uses that source. Already 
 versions are skipped and their original tarballs are downloaded with SHA-512
 verification. Existing GitHub assets are reused only when SHA-256 digests match;
 conflicting or missing digests fail instead of replacing assets.
+
+Asset uploads and final publication use HoverKraft `release/update`. On retry,
+only missing assets are passed to it after the existing digests are verified.
 
 npm workspace publication cannot be atomic, so partial publication is possible.
 An npm registry error stops recovery; only an absent version permits publishing.

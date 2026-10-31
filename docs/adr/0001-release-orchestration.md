@@ -4,7 +4,9 @@
 - Date: 2026-10-29
 
 The decision to run CI inside release is superseded by
-[ADR 0002](0002-separate-ci-from-release.md). The other decisions remain accepted.
+[ADR 0002](0002-separate-ci-from-release.md). The version planning and release PR
+decisions are superseded by [ADR 0003](0003-hoverkraft-release-actions.md).
+The other decisions remain accepted.
 
 ## Context
 

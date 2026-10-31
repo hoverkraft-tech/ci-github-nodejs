@@ -22,19 +22,18 @@
 
 ## Overview
 
-Attach published npm tarballs without overwriting existing assets, publish the draft and mark its release PR as released.
+Verify published npm tarballs against existing assets, then upload missing assets and publish the draft with HoverKraft release/update.
 
 <!-- overview:end -->
 <!-- inputs:start -->
 
 ## Inputs
 
-| **Input**             | **Description**                                    | **Required** | **Default**           |
-| --------------------- | -------------------------------------------------- | ------------ | --------------------- |
-| **`tag`**             | Committed release tag.                             | **true**     | -                     |
-| **`asset-directory`** | Directory containing the published npm tarballs.   | **true**     | -                     |
-| **`versioning`**      | Version preparation tool, release-please or lerna. | **false**    | `release-please`      |
-| **`github-token`**    | Token with contents and issues write permissions.  | **false**    | `${{ github.token }}` |
+| **Input**             | **Description**                                  | **Required** | **Default**           |
+| --------------------- | ------------------------------------------------ | ------------ | --------------------- |
+| **`tag`**             | Committed release tag.                           | **true**     | -                     |
+| **`asset-directory`** | Directory containing the published npm tarballs. | **true**     | -                     |
+| **`github-token`**    | Token with contents write permissions.           | **false**    | `${{ github.token }}` |
 
 <!-- inputs:end -->
 <!-- secrets:start -->

@@ -1,5 +1,5 @@
 name: Finalize Node.js release
-description: Attach published npm tarballs without overwriting existing assets, publish the draft and mark its release PR as released.
+description: Verify published npm tarballs against existing assets, then upload missing assets and publish the draft with HoverKraft release/update.
 author: hoverkraft
 branding:
   icon: tag
@@ -11,11 +11,8 @@ inputs:
   asset-directory:
     description: Directory containing the published npm tarballs.
     required: true
-  versioning:
-    description: Version preparation tool, release-please or lerna.
-    default: release-please
   github-token:
-    description: Token with contents and issues write permissions.
+    description: Token with contents write permissions.
     default: ${{ github.token }}
 outputs:
   url:
@@ -34,22 +31,22 @@ runs:
         github-token: ${{ inputs.github-token }}
         script: |
           const { ReleaseArtifacts } = require(`${process.env.ACTION_PATH}/../ReleaseArtifacts.js`);
-          const release = await new ReleaseArtifacts().attachAssets({ github, repo: context.repo, tag: process.env.RELEASE_TAG, directory: process.env.ASSET_DIRECTORY });
+          const { release, pendingDirectory, hasAssets } = await new ReleaseArtifacts().prepareAssets({ github, repo: context.repo, tag: process.env.RELEASE_TAG, directory: process.env.ASSET_DIRECTORY });
           core.setOutput('url', release.html_url);
           core.setOutput('published', String(!release.draft));
+          core.setOutput('pending-directory', pendingDirectory);
+          core.setOutput('has-assets', String(hasAssets));
+    - id: pending-assets
+      if: steps.assets.outputs.has-assets == 'true'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: release-pending-assets-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ steps.assets.outputs.pending-directory }}/*.tgz
+        if-no-files-found: error
     - uses: hoverkraft-tech/ci-github-publish/actions/release/update@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
       if: steps.assets.outputs.published != 'true'
       with:
         tag: ${{ inputs.tag }}
         publish: "true"
+        release-artifact-id: ${{ steps.pending-assets.outputs.artifact-id }}
         github-token: ${{ inputs.github-token }}
-    - name: Complete release PR
-      if: inputs.versioning == 'release-please'
-      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-      env:
-        ACTION_PATH: ${{ github.action_path }}
-      with:
-        github-token: ${{ inputs.github-token }}
-        script: |
-          const { ReleaseArtifacts } = require(`${process.env.ACTION_PATH}/../ReleaseArtifacts.js`);
-          await new ReleaseArtifacts().markReleaseRequests({ github, context });

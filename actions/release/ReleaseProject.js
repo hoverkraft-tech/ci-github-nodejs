@@ -1,13 +1,12 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
-const { ReleaseArtifacts } = require("./ReleaseArtifacts.js");
 
 class ReleaseProject {
   constructor({
     workspace,
     workingDirectory = ".",
-    versioning,
+    versioning = "npm",
     github,
     context,
   }) {
@@ -22,19 +21,16 @@ class ReleaseProject {
         "Release working directory must be inside the repository.",
       );
     }
-    if (!["lerna", "release-please"].includes(versioning)) {
-      throw new Error("versioning must be lerna or release-please.");
+    if (!["lerna", "npm"].includes(versioning)) {
+      throw new Error("versioning must be npm or lerna.");
     }
     this.versioning = versioning;
     this.github = github;
     this.context = context;
     const manifest = this.readJson("package.json");
-    if (
-      versioning === "release-please" &&
-      (manifest.workspaces || manifest.private)
-    ) {
+    if (versioning === "npm" && (manifest.workspaces || manifest.private)) {
       throw new Error(
-        "release-please mode requires one public package; use lerna for fixed-version workspaces.",
+        "npm mode requires one public package; use lerna for fixed-version workspaces.",
       );
     }
     this.version();
@@ -74,7 +70,7 @@ class ReleaseProject {
 
   packages(tag) {
     const version = this.version();
-    if (tag !== `v${version}`)
+    if (this.versionFromTag(tag) !== version)
       throw new Error("Release tag must match the committed package version.");
     const candidates =
       this.versioning === "lerna"
@@ -133,85 +129,119 @@ class ReleaseProject {
     }
   }
 
-  async releaseRequests(state = "all") {
-    const issues = await this.github.paginate(
-      this.github.rest.issues.listForRepo,
-      {
-        ...this.context.repo,
-        labels: "autorelease: pending",
-        state,
-        per_page: 100,
-      },
-    );
-    const requests = [];
-    for (const issue of issues.filter((item) => item.pull_request)) {
-      const { data } = await this.github.rest.pulls.get({
-        ...this.context.repo,
-        pull_number: issue.number,
+  versionFromTag(tag) {
+    const slug = path
+      .basename(this.directory)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    const prefixes = ["", "v", ...(this.relativeDirectory ? [`${slug}-`] : [])];
+    const version = prefixes
+      .map((prefix) => (tag.startsWith(prefix) ? tag.slice(prefix.length) : ""))
+      .find((candidate) =>
+        /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(candidate),
+      );
+    if (!version)
+      throw new Error(
+        "Expected a stable version tag, optionally prefixed with v or the project directory slug.",
+      );
+    return version;
+  }
+
+  currentTag() {
+    if (this.context.ref.startsWith("refs/tags/"))
+      return this.context.ref.slice("refs/tags/".length);
+    if (
+      this.context.ref !==
+      `refs/heads/${this.context.payload.repository.default_branch}`
+    ) {
+      throw new Error(
+        "Run releases from the default branch or an existing release tag.",
+      );
+    }
+    const tags = this.git("tag", "--points-at", this.context.sha)
+      .split("\n")
+      .filter((tag) => {
+        try {
+          return this.versionFromTag(tag) === this.version();
+        } catch {
+          return false;
+        }
       });
-      if (data.base.ref === this.context.payload.repository.default_branch)
-        requests.push(data);
-    }
-    return requests.sort((a, b) =>
-      (a.merged_at || "").localeCompare(b.merged_at || ""),
-    );
+    if (tags.length > 1)
+      throw new Error(
+        "Several release tags match this commit; resume the intended tag explicitly.",
+      );
+    return tags[0];
   }
 
-  async prepareReleasePlease() {
-    const requests = await this.releaseRequests();
-    const merged = requests.find((request) => request.merged_at);
-    if (!merged) {
-      const open = requests.find((request) => request.state === "open");
-      return {
-        status: open ? "awaiting-review" : "no-changes",
-        url: open?.html_url || "",
-      };
-    }
-    this.git(
-      "merge-base",
-      "--is-ancestor",
-      merged.merge_commit_sha,
-      this.context.sha,
-    );
-    this.git("checkout", "--detach", merged.merge_commit_sha);
-    const tag = `v${this.version()}`;
-    const existing = this.tagCommit(tag);
-    if (existing && existing !== merged.merge_commit_sha)
-      throw new Error(`Existing tag ${tag} points to another commit.`);
-    if (!existing) this.git("tag", tag, merged.merge_commit_sha);
-    this.git("push", "origin", `refs/tags/${tag}`);
-    return { tag };
-  }
-
-  prepareLerna() {
+  prepareVersion({ tag, body }) {
+    const version = this.versionFromTag(tag);
+    const current = this.version();
+    const previousParts = current.split(".").map(BigInt);
+    const parts = version.split(".").map(BigInt);
+    const difference = parts
+      .map((part, index) => part - previousParts[index])
+      .find((part) => part !== 0n);
+    if (!difference || difference < 0n)
+      throw new Error(
+        "Planned version must be newer than the committed version; reconcile the release history and configuration.",
+      );
+    if (this.tagCommit(tag))
+      throw new Error(`Existing tag ${tag} must not be overwritten.`);
+    if (typeof body !== "string" || !body.trim())
+      throw new Error(
+        "Upstream release notes are required before preparing source files.",
+      );
     const branch = this.context.payload.repository.default_branch;
     this.git("switch", "--force-create", branch, this.context.sha);
+    if (this.git("status", "--porcelain"))
+      throw new Error(
+        "Release source must be clean before applying the planned version.",
+      );
     this.git("config", "user.name", "github-actions[bot]");
     this.git(
       "config",
       "user.email",
       "41898282+github-actions[bot]@users.noreply.github.com",
     );
-    let tag = `v${this.version()}`;
-    if (this.tagCommit(tag) !== this.git("rev-parse", "HEAD")) {
+    if (this.versioning === "lerna") {
       this.run("npm", [
         "exec",
         "--no",
         "--",
         "lerna",
         "version",
+        version,
         "--conventional-commits",
+        "--tag-version-prefix",
+        tag.slice(0, -version.length),
+        "--no-git-tag-version",
         "--no-push",
         "--yes",
-        "--message",
-        "chore(release): %s",
       ]);
-      if (this.git("rev-parse", "HEAD") === this.context.sha)
-        return { status: "no-changes" };
-      tag = `v${this.version()}`;
+      if (this.version() === current) return { status: "no-changes" };
+    } else {
+      this.run("npm", [
+        "version",
+        version,
+        "--no-git-tag-version",
+        "--ignore-scripts",
+      ]);
     }
-    if (this.tagCommit(tag) !== this.git("rev-parse", "HEAD"))
-      throw new Error("Release tag does not match the prepared commit.");
+    if (this.version() !== version)
+      throw new Error("Version preparation did not apply the planned version.");
+    const changelog = path.join(this.directory, "CHANGELOG.md");
+    const previous = fs.existsSync(changelog)
+      ? fs.readFileSync(changelog, "utf8").replace(/^# Changelog\s*/i, "")
+      : "";
+    fs.writeFileSync(
+      changelog,
+      `# Changelog\n\n## ${tag}\n\n${body.trim()}\n\n${previous}`,
+    );
+    this.git("add", "--all", "--", ".");
+    this.git("commit", "-m", `chore(release): ${tag}`);
+    this.git("tag", tag);
     this.git(
       "push",
       "--atomic",
@@ -222,7 +252,7 @@ class ReleaseProject {
     return { tag };
   }
 
-  async prepare({ workflowRef, findRelease }) {
+  async prepare({ workflowRef, findRelease, plan }) {
     const { ref, payload, repo } = this.context;
     if (ref.startsWith("refs/tags/")) {
       const tag = ref.slice("refs/tags/".length);
@@ -240,19 +270,14 @@ class ReleaseProject {
         "Run releases from the default branch or an existing release tag.",
       );
     }
-    const result =
-      this.versioning === "lerna"
-        ? this.prepareLerna()
-        : await this.prepareReleasePlease();
+    const currentTag = this.currentTag();
+    if (!currentTag && !plan)
+      throw new Error("An upstream release plan is required.");
+    if (!currentTag && !plan.hasChanges) return { status: "no-changes" };
+    const result = currentTag ? { tag: currentTag } : this.prepareVersion(plan);
     if (!result.tag) return result;
     const release = await findRelease(this.github, repo, result.tag);
     if (release && !release.draft) {
-      if (this.versioning === "release-please") {
-        await new ReleaseArtifacts().markReleaseRequests({
-          github: this.github,
-          context: { ...this.context, sha: this.git("rev-parse", "HEAD") },
-        });
-      }
       return { ...result, status: "released", url: release.html_url };
     }
     const prefix = `${repo.owner}/${repo.repo}/`;

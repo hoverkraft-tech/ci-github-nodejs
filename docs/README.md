@@ -5,3 +5,4 @@
 - [Validate release automation](development/release-tests.md)
 - [Release orchestration decision](adr/0001-release-orchestration.md)
 - [Separation of CI and release](adr/0002-separate-ci-from-release.md)
+- [HoverKraft release planning and publication](adr/0003-hoverkraft-release-actions.md)

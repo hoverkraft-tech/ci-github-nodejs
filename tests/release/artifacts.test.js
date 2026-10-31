@@ -142,12 +142,10 @@ function assetsFixture(t) {
   fs.writeFileSync(path.join(root, "example-core-1.2.0.tgz"), data);
   const release = { id: 1, draft: true };
   const assets = [];
-  const uploaded = [];
   const github = {
     rest: {
       repos: {
         getReleaseByTag: async () => ({ data: release }),
-        uploadReleaseAsset: async (asset) => uploaded.push(asset),
       },
     },
     paginate: async () => assets,
@@ -155,7 +153,6 @@ function assetsFixture(t) {
   return {
     release,
     assets,
-    uploaded,
     data,
     args: {
       github,
@@ -166,34 +163,58 @@ function assetsFixture(t) {
   };
 }
 
-test("uploads the exact package bytes and skips an identical existing release asset", async (t) => {
+test("stages only missing package bytes for HoverKraft upload and skips identical assets", async (t) => {
   const f = assetsFixture(t);
-  await new ReleaseArtifacts().attachAssets(f.args);
-  assert.equal(f.uploaded.length, 1);
-  assert.deepEqual(f.uploaded[0].data, f.data);
+  const result = await new ReleaseArtifacts().prepareAssets(f.args);
+  assert.equal(result.hasAssets, true);
+  assert.deepEqual(
+    fs.readFileSync(
+      path.join(result.pendingDirectory, "example-core-1.2.0.tgz"),
+    ),
+    f.data,
+  );
   f.assets.push({
     name: "example-core-1.2.0.tgz",
     digest: `sha256:${createHash("sha256").update(f.data).digest("hex")}`,
   });
-  await new ReleaseArtifacts().attachAssets(f.args);
-  assert.equal(f.uploaded.length, 1);
+  const retry = await new ReleaseArtifacts().prepareAssets(f.args);
+  assert.equal(retry.hasAssets, false);
+  assert.deepEqual(fs.readdirSync(retry.pendingDirectory), []);
   f.release.draft = false;
-  await new ReleaseArtifacts().attachAssets(f.args);
-  assert.equal(f.uploaded.length, 1);
+  assert.equal(
+    (await new ReleaseArtifacts().prepareAssets(f.args)).hasAssets,
+    false,
+  );
 });
 
 test("does not overwrite mismatched assets or modify an incomplete published release", async (t) => {
   const f = assetsFixture(t);
   f.assets.push({ name: "example-core-1.2.0.tgz", digest: "sha256:different" });
   await assert.rejects(
-    new ReleaseArtifacts().attachAssets(f.args),
+    new ReleaseArtifacts().prepareAssets(f.args),
     /different or unavailable digest/,
   );
   f.assets.length = 0;
   f.release.draft = false;
   await assert.rejects(
-    new ReleaseArtifacts().attachAssets(f.args),
+    new ReleaseArtifacts().prepareAssets(f.args),
     /missing expected asset/,
   );
-  assert.equal(f.uploaded.length, 0);
+});
+
+test("partial asset recovery passes only missing tarballs to the uploader", async (t) => {
+  const f = assetsFixture(t);
+  const name = "example-cli-1.2.0.tgz";
+  fs.writeFileSync(path.join(f.args.directory, name), "second package");
+  f.assets.push({
+    name: "example-core-1.2.0.tgz",
+    digest: `sha256:${createHash("sha256").update(f.data).digest("hex")}`,
+  });
+  const result = await new ReleaseArtifacts().prepareAssets(f.args);
+  assert.equal(result.hasAssets, true);
+  assert.deepEqual(fs.readdirSync(result.pendingDirectory), [name]);
+  assert.equal(
+    fs.readFileSync(path.join(result.pendingDirectory, name), "utf8"),
+    "second package",
+  );
 });

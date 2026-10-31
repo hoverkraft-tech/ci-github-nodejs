@@ -1,8 +1,8 @@
 # Release a single npm package or fixed-version Lerna workspaces without consumer scripts.
 #
 # Keep workflow_dispatch and schedule triggers in the calling workflow.
-# Release Please prepares a release PR; merge it and run again to publish.
-# Lerna prepares and atomically pushes versions and changelogs directly.
+# HoverKraft plans the release from Conventional Commits. npm or Lerna applies
+# the plan before the version commit and tag are pushed atomically.
 # Preparation dispatches the caller workflow at the release tag so building, packaging
 # and npm provenance all refer to the same committed source.
 # Keep linting, tests and security analysis in the caller's separate CI workflow.
@@ -13,9 +13,9 @@ on:
   workflow_call:
     inputs:
       versioning:
-        description: Version preparation tool. Use release-please for a single public package or lerna for fixed-version workspaces. Versions are inferred from Conventional Commits.
+        description: Tool applying the HoverKraft release plan. Use npm for a single public package or lerna for fixed-version workspaces. HoverKraft infers versions from Conventional Commits in both modes.
         type: string
-        default: release-please
+        default: npm
       working-directory:
         description: Project directory relative to the caller repository root.
         type: string
@@ -37,11 +37,11 @@ on:
         description: OpenAI API key, required when ai-summary is enabled.
         required: false
       github-token:
-        description: Optional GitHub App token for release PR CI. Defaults to GITHUB_TOKEN; see the guide for its PR event restrictions.
+        description: Optional token for pushing release commits and dispatching publication. Defaults to GITHUB_TOKEN. Its identity must be permitted by branch and tag rules.
         required: false
     outputs:
       status:
-        description: no-changes, awaiting-review, dispatched, released or published. A dispatched run only prepares the release; follow its tag run for publication.
+        description: no-changes, dispatched, released or published. A dispatched run only prepares the release; follow its tag run for publication.
         value: ${{ jobs.publish.outputs.status || jobs.prepare.outputs.status }}
       tag:
         description: Prepared release tag.
@@ -68,8 +68,7 @@ jobs:
     permissions:
       actions: write
       contents: write
-      issues: write
-      pull-requests: write
+      pull-requests: read
     outputs:
       status: ${{ steps.prepare.outputs.status }}
       tag: ${{ steps.prepare.outputs.tag }}
@@ -202,8 +201,7 @@ jobs:
     environment: ${{ inputs.environment }}
     permissions:
       contents: write
-      issues: write
-      pull-requests: read
+      actions: read
     outputs:
       url: ${{ steps.finalize.outputs.url }}
       status: ${{ steps.finalize.outcome == 'success' && 'published' || '' }}
@@ -218,4 +216,3 @@ jobs:
         with:
           tag: ${{ needs.prepare.outputs.tag }}
           asset-directory: ${{ runner.temp }}/release-assets
-          versioning: ${{ inputs.versioning }}

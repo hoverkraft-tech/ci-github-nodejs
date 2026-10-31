@@ -5,9 +5,6 @@ const os = require("node:os");
 const path = require("node:path");
 const { test } = require("node:test");
 const { ReleaseProject } = require("../../actions/release/ReleaseProject.js");
-const {
-  ReleaseArtifacts,
-} = require("../../actions/release/ReleaseArtifacts.js");
 
 Object.assign(process.env, {
   CI: "true",
@@ -20,7 +17,7 @@ Object.assign(process.env, {
   npm_config_fund: "false",
 });
 
-function fixture(t, versioning = "release-please") {
+function fixture(t, versioning = "npm") {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "nodejs-release-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const directory = path.join(root, "project");
@@ -102,27 +99,18 @@ function fixture(t, versioning = "release-please") {
   commit("chore: initial");
   git("tag", "-a", "v1.0.0", "-m", "v1.0.0");
   git("push", "origin", "main", "--tags");
-  const requests = [];
   const dispatches = [];
-  const labels = [];
   const github = {
     rest: {
-      issues: {
-        listForRepo: () => {},
-        addLabels: async (args) => labels.push(args),
-        removeLabel: async (args) => labels.push(args),
-      },
-      pulls: {
-        get: async ({ pull_number }) => ({
-          data: requests.find((request) => request.number === pull_number),
-        }),
-      },
       actions: {
         createWorkflowDispatch: async (args) => dispatches.push(args),
       },
     },
-    paginate: async () =>
-      requests.map((request) => ({ number: request.number, pull_request: {} })),
+  };
+  const plan = {
+    tag: "v1.1.0",
+    hasChanges: true,
+    body: "### Features\n\n* Add a command.\n",
   };
   const context = {
     repo: { owner: "example", repo: "project" },
@@ -141,6 +129,7 @@ function fixture(t, versioning = "release-please") {
       workflowRef:
         "example/project/.github/workflows/release.yml@refs/heads/main",
       findRelease: async () => undefined,
+      plan,
     });
   return {
     root,
@@ -151,9 +140,8 @@ function fixture(t, versioning = "release-please") {
     write,
     json,
     commit,
-    requests,
+    plan,
     dispatches,
-    labels,
     github,
     context,
     project,
@@ -161,49 +149,38 @@ function fixture(t, versioning = "release-please") {
   };
 }
 
-function releaseRequest(f, properties = {}) {
-  const request = {
-    number: 1,
-    state: "open",
-    html_url: "https://example.invalid/pull/1",
-    base: { ref: "main" },
-    ...properties,
-  };
-  f.requests.push(request);
-  return request;
-}
-
-test("single package waits for its release PR without dispatching publication", async (t) => {
+test("an unchanged upstream plan skips source preparation and publication", async (t) => {
   const f = fixture(t);
+  f.write("README.md", "Documentation only.");
+  f.context.sha = f.commit("docs: describe setup");
+  f.plan.hasChanges = false;
   assert.equal((await f.prepare()).status, "no-changes");
-  const request = releaseRequest(f);
-  assert.deepEqual(await f.prepare(), {
-    status: "awaiting-review",
-    url: request.html_url,
-  });
+  assert.equal(f.project.version(), "1.0.0");
   assert.equal(f.dispatches.length, 0);
 });
 
-test("single package publishes the merged release commit and packs an executable CLI", async (t) => {
+test("single package applies the HoverKraft plan and packs an executable CLI", async (t) => {
   const f = fixture(t);
-  f.run("npm", [
-    "version",
-    "1.1.0",
-    "--no-git-tag-version",
-    "--ignore-scripts",
-  ]);
-  f.write("CHANGELOG.md", "# 1.1.0\n\n* Add a command.\n");
-  const releaseSha = f.commit("chore(main): release 1.1.0");
-  releaseRequest(f, {
-    state: "closed",
-    merged_at: "2026-01-01T00:00:00Z",
-    merge_commit_sha: releaseSha,
-  });
-  f.write("later.txt", "Later changes must not enter the release.");
-  f.context.sha = f.commit("feat: later change");
+  f.write("CHANGELOG.md", "# Changelog\n\n## v1.0.0\n\nExisting history.\n");
+  f.context.sha = f.commit("feat: add output");
   f.git("push", "origin", "main");
   assert.deepEqual(await f.prepare(), { tag: "v1.1.0", status: "dispatched" });
-  assert.equal(f.project.tagCommit("v1.1.0"), releaseSha);
+  const releaseSha = f.project.tagCommit("v1.1.0");
+  assert.notEqual(releaseSha, f.context.sha);
+  assert.equal(
+    f.run("git", ["rev-parse", "refs/heads/main"], f.remote),
+    releaseSha,
+  );
+  assert.equal(
+    f.project.readJson("package-lock.json").packages[""].version,
+    "1.1.0",
+  );
+  const changelog = fs.readFileSync(
+    path.join(f.directory, "CHANGELOG.md"),
+    "utf8",
+  );
+  assert.ok(changelog.includes(f.plan.body.trim()));
+  assert.ok(changelog.includes("Existing history."));
   assert.deepEqual(f.dispatches, [
     {
       owner: "example",
@@ -212,7 +189,6 @@ test("single package publishes the merged release commit and packs an executable
       ref: "v1.1.0",
     },
   ]);
-  assert.equal(fs.existsSync(path.join(f.directory, "later.txt")), false);
   f.context.ref = "refs/tags/v1.1.0";
   f.context.sha = releaseSha;
   const ready = await f.prepare();
@@ -250,88 +226,70 @@ test("single package publishes the merged release commit and packs an executable
     ]),
     "1.1.0",
   );
-  await new ReleaseArtifacts().markReleaseRequests({
-    github: f.github,
-    context: f.context,
-  });
-  assert.deepEqual(
-    f.labels.map((item) => item.labels || item.name),
-    [["autorelease: tagged"], "autorelease: pending"],
-  );
 });
 
-test("a single-package tag collision preserves the remote tag", async (t) => {
-  const f = fixture(t);
-  f.write("CHANGELOG.md", "a merged PR with an already-used version");
-  f.context.sha = f.commit("chore(main): release 1.0.0");
-  releaseRequest(f, {
-    state: "closed",
-    merged_at: "2026-01-01T00:00:00Z",
-    merge_commit_sha: f.context.sha,
+for (const mode of ["npm", "lerna"]) {
+  test(`${mode} preserves an existing tag when the planned version collides`, async (t) => {
+    const f = fixture(t, mode);
+    f.git("tag", "v1.1.0");
+    f.git("push", "origin", "refs/tags/v1.1.0");
+    const original = f.project.tagCommit("v1.1.0");
+    f.write(
+      mode === "lerna" ? "packages/core/index.js" : "feature.txt",
+      "new feature",
+    );
+    f.context.sha = f.commit("feat: add output");
+    f.git("push", "origin", "main");
+    await assert.rejects(f.prepare(), /Existing tag/);
+    assert.equal(f.project.tagCommit("v1.1.0"), original);
+    assert.equal(
+      f.run("git", ["rev-parse", "refs/heads/main"], f.remote),
+      f.context.sha,
+    );
+    assert.equal(f.dispatches.length, 0);
   });
-  const original = f.project.tagCommit("v1.0.0");
-  await assert.rejects(f.prepare(), /another commit/);
-  assert.equal(f.project.tagCommit("v1.0.0"), original);
-  assert.equal(f.dispatches.length, 0);
-});
 
-test("unmerged or unrelated release PRs cannot mark a release as complete", async (t) => {
-  const f = fixture(t);
-  releaseRequest(f, { merge_commit_sha: f.context.sha });
-  releaseRequest(f, {
-    number: 2,
-    state: "closed",
-    merged_at: "2026-01-01",
-    merge_commit_sha: "other",
+  test(`${mode} applies a planned version without recomputing its increment`, async (t) => {
+    const f = fixture(t, mode);
+    f.write(
+      mode === "lerna" ? "packages/core/index.js" : "feature.txt",
+      "fixed output",
+    );
+    f.context.sha = f.commit("fix: correct output");
+    f.git("push", "origin", "main");
+    f.plan.tag = "3.2.1";
+    assert.equal((await f.prepare()).tag, "3.2.1");
+    assert.equal(f.project.version(), "3.2.1");
+    assert.equal(f.project.tagCommit("3.2.1"), f.git("rev-parse", "HEAD"));
   });
-  releaseRequest(f, {
-    number: 3,
-    state: "closed",
-    merged_at: "2026-01-01",
-    merge_commit_sha: f.context.sha,
-    base: { ref: "other" },
-  });
-  await new ReleaseArtifacts().markReleaseRequests({
-    github: f.github,
-    context: f.context,
-  });
-  assert.equal(f.labels.length, 0);
-});
 
-test("branch recovery completes PR labels after publication succeeded", async (t) => {
-  const f = fixture(t);
-  f.run("npm", [
-    "version",
-    "1.0.1",
-    "--no-git-tag-version",
-    "--ignore-scripts",
-  ]);
-  f.context.sha = f.commit("chore(main): release 1.0.1");
-  releaseRequest(f, {
-    state: "closed",
-    merged_at: "2026-01-01",
-    merge_commit_sha: f.context.sha,
+  test(`${mode} rejects invalid, older or missing plans before changing source`, async (t) => {
+    const f = fixture(t, mode);
+    f.write("feature.txt", "new feature");
+    f.context.sha = f.commit("feat: add output");
+    for (const tag of ["v0.9.0", "v1.0.0", "v1.0.1-rc.1", "latest"]) {
+      f.plan.tag = tag;
+      await assert.rejects(f.prepare(), /newer|stable version tag/);
+      assert.equal(f.git("rev-parse", "HEAD"), f.context.sha);
+    }
+    f.plan.tag = "v1.1.0";
+    f.plan.body = "";
+    await assert.rejects(f.prepare(), /release notes/);
+    await assert.rejects(f.project.prepare({}), /release plan/);
+    assert.equal(f.dispatches.length, 0);
   });
-  const result = await f.project.prepare({
-    findRelease: async () => ({
-      draft: false,
-      html_url: "https://example.invalid/release",
-    }),
-  });
-  assert.equal(result.status, "released");
-  assert.equal(f.labels.length, 2);
-  assert.equal(f.dispatches.length, 0);
-});
+}
 
 for (const [message, version] of [
   ["fix: correct output", "1.0.1"],
   ["feat: add output", "1.1.0"],
   ["feat: change output\n\nBREAKING CHANGE: output is now structured", "2.0.0"],
 ]) {
-  test(`Lerna infers ${version}, updates dependent packages and resumes the tag`, async (t) => {
+  test(`Lerna applies planned ${version}, updates dependent packages and resumes the tag`, async (t) => {
     const f = fixture(t, "lerna");
     f.write("packages/core/index.js", "module.exports = 2;\n");
     f.context.sha = f.commit(message);
+    f.plan.tag = `v${version}`;
     f.git("push", "origin", "main");
     assert.deepEqual(await f.prepare(), {
       tag: `v${version}`,
@@ -376,39 +334,25 @@ test("Lerna skips a commit that changes no packages", async (t) => {
   assert.equal(f.dispatches.length, 0);
 });
 
-test("Lerna does not overwrite an existing version tag", async (t) => {
-  const f = fixture(t, "lerna");
-  f.git("tag", "v1.1.0");
-  f.git("push", "origin", "refs/tags/v1.1.0");
-  const original = f.project.tagCommit("v1.1.0");
-  f.write("packages/core/index.js", "module.exports = 2;\n");
-  f.context.sha = f.commit("feat: add output");
-  f.git("push", "origin", "main");
-  await assert.rejects(f.prepare());
-  assert.equal(f.project.tagCommit("v1.1.0"), original);
-  assert.equal(
-    f.run("git", ["rev-parse", "refs/heads/main"], f.remote),
-    f.context.sha,
-  );
-});
-
-test("an advancing default branch rejects both the Lerna commit and tag push", async (t) => {
-  const f = fixture(t, "lerna");
-  f.write("packages/core/index.js", "module.exports = 2;\n");
-  f.context.sha = f.commit("feat: add output");
-  f.git("push", "origin", "main");
-  f.write("later.txt", "concurrent main commit");
-  const advanced = f.commit("docs: update main");
-  f.git("push", "origin", "main");
-  await assert.rejects(f.prepare());
-  assert.equal(
-    f.run("git", ["rev-parse", "refs/heads/main"], f.remote),
-    advanced,
-  );
-  assert.throws(() =>
-    f.run("git", ["rev-parse", "refs/tags/v1.1.0"], f.remote),
-  );
-});
+for (const mode of ["npm", "lerna"]) {
+  test(`${mode} rejects both commit and tag when the default branch advances`, async (t) => {
+    const f = fixture(t, mode);
+    f.write("packages/core/index.js", "module.exports = 2;\n");
+    f.context.sha = f.commit("feat: add output");
+    f.git("push", "origin", "main");
+    f.write("later.txt", "concurrent main commit");
+    const advanced = f.commit("docs: update main");
+    f.git("push", "origin", "main");
+    await assert.rejects(f.prepare());
+    assert.equal(
+      f.run("git", ["rev-parse", "refs/heads/main"], f.remote),
+      advanced,
+    );
+    assert.throws(() =>
+      f.run("git", ["rev-parse", "refs/tags/v1.1.0"], f.remote),
+    );
+  });
+}
 
 test("published releases skip dispatch and tag recovery preserves their notes", async (t) => {
   const f = fixture(t, "lerna");
@@ -426,6 +370,57 @@ test("published releases skip dispatch and tag recovery preserves their notes", 
   );
 });
 
+test("branch recovery dispatches an unfinished tagged version without planning again", async (t) => {
+  const f = fixture(t);
+  f.write("feature.txt", "feature");
+  f.context.sha = f.commit("feat: add output");
+  f.git("push", "origin", "main");
+  await f.prepare();
+  f.context.sha = f.git("rev-parse", "HEAD");
+  const result = await f.project.prepare({
+    workflowRef: "example/project/.github/workflows/release.yml@main",
+    findRelease: async () => ({ draft: true }),
+  });
+  assert.equal(result.tag, "v1.1.0");
+  assert.equal(result.status, "dispatched");
+  assert.equal(f.dispatches.length, 2);
+});
+
+test("a nested npm project preserves the directory-scoped planned tag", async (t) => {
+  const f = fixture(t);
+  const nested = path.join(f.directory, "tools", "cli");
+  fs.mkdirSync(nested, { recursive: true });
+  for (const name of ["package.json", "package-lock.json", "build.js", "bin"]) {
+    fs.renameSync(path.join(f.directory, name), path.join(nested, name));
+  }
+  f.context.sha = f.commit("feat: relocate CLI");
+  f.git("push", "origin", "main");
+  const project = new ReleaseProject({
+    workspace: f.directory,
+    workingDirectory: "tools/cli",
+    github: f.github,
+    context: f.context,
+  });
+  const result = await project.prepare({
+    workflowRef: "example/project/.github/workflows/release.yml@main",
+    findRelease: async () => undefined,
+    plan: { ...f.plan, tag: "cli-1.1.0" },
+  });
+  assert.equal(result.tag, "cli-1.1.0");
+  assert.equal(project.version(), "1.1.0");
+  assert.equal(project.packages(result.tag)[0].directory, ".");
+  f.context.sha = f.git("rev-parse", "HEAD");
+  assert.equal(project.currentTag(), "cli-1.1.0");
+});
+
+test("ambiguous version tags require explicit tag recovery", (t) => {
+  const f = fixture(t);
+  f.git("tag", "1.0.0");
+  assert.throws(() => f.project.currentTag(), /Several release tags/);
+  f.context.ref = "refs/tags/1.0.0";
+  assert.equal(f.project.currentTag(), "1.0.0");
+});
+
 test("rejects unsupported layouts, versions, refs and mismatched tags", async (t) => {
   const f = fixture(t);
   assert.throws(
@@ -437,7 +432,7 @@ test("rejects unsupported layouts, versions, refs and mismatched tags", async (t
       new ReleaseProject({
         workspace: f.directory,
         workingDirectory: "..",
-        versioning: "release-please",
+        versioning: "npm",
       }),
     /inside/,
   );
@@ -450,7 +445,7 @@ test("rejects unsupported layouts, versions, refs and mismatched tags", async (t
     () =>
       new ReleaseProject({
         workspace: f.directory,
-        versioning: "release-please",
+        versioning: "npm",
       }),
     /one public package/,
   );

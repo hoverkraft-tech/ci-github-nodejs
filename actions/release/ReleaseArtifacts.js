@@ -54,7 +54,7 @@ class ReleaseArtifacts {
     return true;
   }
 
-  async attachAssets({ github, repo, tag, directory }) {
+  async prepareAssets({ github, repo, tag, directory }) {
     const release = await ReleaseArtifacts.findRelease(github, repo, tag);
     if (!release) throw new Error(`No release found for ${tag}.`);
     const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
@@ -67,6 +67,7 @@ class ReleaseArtifacts {
       .filter((name) => name.endsWith(".tgz"));
     if (!files.length)
       throw new Error("No package tarballs available to attach.");
+    const missing = [];
     for (const name of files) {
       const data = fs.readFileSync(path.join(directory, name));
       const digest = `sha256:${createHash("sha256").update(data).digest("hex")}`;
@@ -80,49 +81,12 @@ class ReleaseArtifacts {
       }
       if (!release.draft)
         throw new Error(`Published release is missing expected asset ${name}.`);
-      await github.rest.repos.uploadReleaseAsset({
-        ...repo,
-        release_id: release.id,
-        name,
-        data,
-        headers: {
-          "content-type": "application/gzip",
-          "content-length": data.length,
-        },
-      });
+      missing.push({ name, data });
     }
-    return release;
-  }
-
-  async markReleaseRequests({ github, context }) {
-    const issues = await github.paginate(github.rest.issues.listForRepo, {
-      ...context.repo,
-      labels: "autorelease: pending",
-      state: "closed",
-      per_page: 100,
-    });
-    for (const issue of issues.filter((item) => item.pull_request)) {
-      const { data } = await github.rest.pulls.get({
-        ...context.repo,
-        pull_number: issue.number,
-      });
-      if (
-        data.merged_at &&
-        data.merge_commit_sha === context.sha &&
-        data.base.ref === context.payload.repository.default_branch
-      ) {
-        await github.rest.issues.addLabels({
-          ...context.repo,
-          issue_number: issue.number,
-          labels: ["autorelease: tagged"],
-        });
-        await github.rest.issues.removeLabel({
-          ...context.repo,
-          issue_number: issue.number,
-          name: "autorelease: pending",
-        });
-      }
-    }
+    const pendingDirectory = fs.mkdtempSync(path.join(directory, "pending-"));
+    for (const { name, data } of missing)
+      fs.writeFileSync(path.join(pendingDirectory, name), data);
+    return { release, pendingDirectory, hasAssets: missing.length > 0 };
   }
 }
 

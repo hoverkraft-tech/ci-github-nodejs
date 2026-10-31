@@ -22,18 +22,18 @@
 
 ## Overview
 
-Prepare a single-package Release Please PR or a fixed-version Lerna release, and dispatch publication from the committed tag.
+Plan with HoverKraft, apply the version and changelog with npm or Lerna, and dispatch publication from the committed tag.
 
 <!-- overview:end -->
 <!-- inputs:start -->
 
 ## Inputs
 
-| **Input**               | **Description**                                                                                                         | **Required** | **Default**           |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------ | --------------------- |
-| **`versioning`**        | Version preparation tool, release-please for one package or lerna for fixed-version workspaces.                         | **false**    | `release-please`      |
-| **`working-directory`** | Project directory relative to the caller repository root.                                                               | **false**    | `.`                   |
-| **`github-token`**      | Token with contents, issues, pull-requests and actions write permissions. An app token allows CI to run on release PRs. | **false**    | `${{ github.token }}` |
+| **Input**               | **Description**                                                                                                                          | **Required** | **Default**           |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------ | --------------------- |
+| **`versioning`**        | Tool applying the HoverKraft release plan, npm for one package or lerna for fixed-version workspaces.                                    | **false**    | `npm`                 |
+| **`working-directory`** | Project directory relative to the caller repository root.                                                                                | **false**    | `.`                   |
+| **`github-token`**      | Token with contents and actions write and pull-requests read permissions. Its identity must be allowed to push release commits and tags. | **false**    | `${{ github.token }}` |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
@@ -42,12 +42,12 @@ Prepare a single-package Release Please PR or a fixed-version Lerna release, and
 
 ## Outputs
 
-| **Output**      | **Description**                                                                                              |
-| --------------- | ------------------------------------------------------------------------------------------------------------ |
-| **`status`**    | One of no-changes, awaiting-review, dispatched, ready or released. Only ready should start publication jobs. |
-| **`tag`**       | Stable release tag, empty when preparation has no release to publish.                                        |
-| **`packages`**  | JSON array of public packages at the committed release version, with name, version, directory and slug.      |
-| **`published`** | Whether the tag already has a published GitHub release.                                                      |
+| **Output**      | **Description**                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------- |
+| **`status`**    | One of no-changes, dispatched, ready or released. Only ready should start publication jobs.             |
+| **`tag`**       | Stable release tag, empty when preparation has no release to publish.                                   |
+| **`packages`**  | JSON array of public packages at the committed release version, with name, version, directory and slug. |
+| **`published`** | Whether the tag already has a published GitHub release.                                                 |
 
 <!-- outputs:end -->
 <!-- contributing:start -->
