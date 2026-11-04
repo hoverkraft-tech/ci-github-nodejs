@@ -1,5 +1,4 @@
 const assert = require("node:assert/strict");
-const glob = require("@actions/glob");
 const { test } = require("node:test");
 const { createHash } = require("node:crypto");
 const fs = require("node:fs");
@@ -15,7 +14,8 @@ function directory(t) {
 function assetsFixture(t) {
   const root = directory(t);
   const data = Buffer.from("published package");
-  fs.writeFileSync(path.join(root, "example-core-1.2.0.tgz"), data);
+  const tarballPath = path.join(root, "downloaded-artifact.tgz");
+  fs.writeFileSync(tarballPath, data);
   const release = { id: 1, draft: true };
   const assets = [];
   const github = {
@@ -32,15 +32,16 @@ function assetsFixture(t) {
     data,
     args: {
       github,
-      glob,
       repo: { owner: "example", repo: "project" },
       tag: "v1.2.0",
-      directory: root,
+      tarballPath,
+      assetName: "example-core-1.2.0.tgz",
+      tempDirectory: root,
     },
   };
 }
 
-test("stages only missing package bytes for HoverKraft upload and skips identical assets", async (t) => {
+test("stages the explicit tarball under its release name and skips identical assets", async (t) => {
   const f = assetsFixture(t);
   const result = await releaseAssets.prepareAssets(f.args);
   assert.equal(result.hasAssets, true);
@@ -50,13 +51,15 @@ test("stages only missing package bytes for HoverKraft upload and skips identica
     ),
     f.data,
   );
+  assert.deepEqual(fs.readdirSync(result.pendingDirectory), [f.args.assetName]);
+  assert.deepEqual(fs.readFileSync(f.args.tarballPath), f.data);
   f.assets.push({
     name: "example-core-1.2.0.tgz",
     digest: `sha256:${createHash("sha256").update(f.data).digest("hex")}`,
   });
   const retry = await releaseAssets.prepareAssets(f.args);
   assert.equal(retry.hasAssets, false);
-  assert.deepEqual(fs.readdirSync(retry.pendingDirectory), []);
+  assert.equal(retry.pendingDirectory, "");
   f.release.draft = false;
   assert.equal((await releaseAssets.prepareAssets(f.args)).hasAssets, false);
 });
@@ -76,42 +79,50 @@ test("does not overwrite mismatched assets or modify an incomplete published rel
   );
 });
 
-test("partial asset recovery passes only missing tarballs to the uploader", async (t) => {
+test("attaches only the requested file even when other tarballs are present", async (t) => {
   const f = assetsFixture(t);
-  const name = "example-cli-1.2.0.tgz";
-  fs.writeFileSync(path.join(f.args.directory, name), "second package");
-  f.assets.push({
-    name: "example-core-1.2.0.tgz",
-    digest: `sha256:${createHash("sha256").update(f.data).digest("hex")}`,
-  });
-  const result = await releaseAssets.prepareAssets(f.args);
-  assert.equal(result.hasAssets, true);
-  assert.deepEqual(fs.readdirSync(result.pendingDirectory), [name]);
-  assert.equal(
-    fs.readFileSync(path.join(result.pendingDirectory, name), "utf8"),
-    "second package",
+  fs.writeFileSync(
+    path.join(f.args.tempDirectory, "unrelated.tgz"),
+    "other package",
   );
+  const result = await releaseAssets.prepareAssets(f.args);
+  assert.deepEqual(fs.readdirSync(result.pendingDirectory), [f.args.assetName]);
 });
 
-test("asset discovery excludes nested tarballs, directories and symbolic links", async (t) => {
+test("rejects asset names that could escape staging or are not tarball filenames", async (t) => {
   const f = assetsFixture(t);
-  const nested = path.join(f.args.directory, "previous-attempt");
-  fs.mkdirSync(nested);
-  fs.writeFileSync(path.join(nested, "ignored.tgz"), "previous attempt");
-  fs.mkdirSync(path.join(f.args.directory, "directory.tgz"));
-  fs.symlinkSync(
-    path.join(nested, "ignored.tgz"),
-    path.join(f.args.directory, "link.tgz"),
-  );
-  const result = await releaseAssets.prepareAssets(f.args);
-  assert.deepEqual(fs.readdirSync(result.pendingDirectory), [
-    "example-core-1.2.0.tgz",
+  for (const assetName of [
+    "",
+    "../outside.tgz",
+    "/outside.tgz",
+    "dir\\outside.tgz",
+    "package.zip",
+    "bad\nname.tgz",
+  ]) {
+    await assert.rejects(
+      releaseAssets.prepareAssets({ ...f.args, assetName }),
+      /asset-name must be a plain .tgz filename/,
+    );
+  }
+  assert.deepEqual(fs.readdirSync(f.args.tempDirectory), [
+    "downloaded-artifact.tgz",
   ]);
-  fs.unlinkSync(path.join(f.args.directory, "example-core-1.2.0.tgz"));
-  await assert.rejects(
-    releaseAssets.prepareAssets(f.args),
-    /No package tarballs/,
-  );
+});
+
+test("rejects missing tarballs, directories and symbolic links", async (t) => {
+  const f = assetsFixture(t);
+  const folder = path.join(f.args.tempDirectory, "directory.tgz");
+  const link = path.join(f.args.tempDirectory, "link.tgz");
+  fs.mkdirSync(folder);
+  fs.symlinkSync(f.args.tarballPath, link);
+  for (const tarballPath of [folder, link]) {
+    await assert.rejects(
+      releaseAssets.prepareAssets({ ...f.args, tarballPath }),
+      /package-tarball-path must point to a regular file/,
+    );
+  }
+  fs.unlinkSync(f.args.tarballPath);
+  await assert.rejects(releaseAssets.prepareAssets(f.args), /ENOENT/);
 });
 
 test("recovers draft assets through release listing and propagates lookup failures", async (t) => {

@@ -80,13 +80,8 @@ jobs:
           version: ${{ fromJSON(inputs.packages)[0].version }}
           recover-existing: "true"
           tag: latest
-      - name: Prepare release asset
-        env:
-          PACKAGE_TARBALL: ${{ steps.publish.outputs.package-tarball-path }}
-          ASSET_NAME: ${{ fromJSON(inputs.packages)[0].slug }}-${{ fromJSON(inputs.packages)[0].version }}.tgz
-        run: |
-          mkdir -p "$RUNNER_TEMP/release-assets"
-          cp "$PACKAGE_TARBALL" "$RUNNER_TEMP/release-assets/$ASSET_NAME"
       - uses: $/actions/release/finalize
         with:
           tag: ${{ github.ref_name }}
+          package-tarball-path: ${{ steps.publish.outputs.package-tarball-path }}
+          asset-name: ${{ fromJSON(inputs.packages)[0].slug }}-${{ fromJSON(inputs.packages)[0].version }}.tgz

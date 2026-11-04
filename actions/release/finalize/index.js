@@ -19,7 +19,21 @@ async function findRelease(github, repo, tag) {
   }
 }
 
-async function prepareAssets({ github, glob, repo, tag, directory }) {
+async function prepareAssets({
+  github,
+  repo,
+  tag,
+  tarballPath,
+  assetName,
+  tempDirectory,
+}) {
+  if (
+    typeof assetName !== "string" ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]*\.tgz$/.test(assetName)
+  )
+    throw new Error("asset-name must be a plain .tgz filename.");
+  if (!fs.lstatSync(tarballPath).isFile())
+    throw new Error("package-tarball-path must point to a regular file.");
   const release = await findRelease(github, repo, tag);
   if (!release) throw new Error(`No release found for ${tag}.`);
   const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
@@ -27,37 +41,25 @@ async function prepareAssets({ github, glob, repo, tag, directory }) {
     release_id: release.id,
     per_page: 100,
   });
-  const globber = await glob.create(path.join(directory, "*.tgz"), {
-    followSymbolicLinks: false,
-    matchDirectories: false,
-    implicitDescendants: false,
-  });
-  const files = (await globber.glob()).filter((file) =>
-    fs.lstatSync(file).isFile(),
-  );
-  if (!files.length)
-    throw new Error("No package tarballs available to attach.");
-  const missing = [];
-  for (const file of files) {
-    const name = path.basename(file);
-    const data = fs.readFileSync(file);
-    const digest = `sha256:${createHash("sha256").update(data).digest("hex")}`;
-    const existing = assets.find((asset) => asset.name === name);
-    if (existing) {
-      if (existing.digest !== digest)
-        throw new Error(
-          `Release asset ${name} has a different or unavailable digest.`,
-        );
-      continue;
-    }
-    if (!release.draft)
-      throw new Error(`Published release is missing expected asset ${name}.`);
-    missing.push({ name, data });
+  const data = fs.readFileSync(tarballPath);
+  const digest = `sha256:${createHash("sha256").update(data).digest("hex")}`;
+  const existing = assets.find((asset) => asset.name === assetName);
+  if (existing) {
+    if (existing.digest !== digest)
+      throw new Error(
+        `Release asset ${assetName} has a different or unavailable digest.`,
+      );
+    return { release, pendingDirectory: "", hasAssets: false };
   }
-  const pendingDirectory = fs.mkdtempSync(path.join(directory, "pending-"));
-  for (const { name, data } of missing)
-    fs.writeFileSync(path.join(pendingDirectory, name), data);
-  return { release, pendingDirectory, hasAssets: missing.length > 0 };
+  if (!release.draft)
+    throw new Error(
+      `Published release is missing expected asset ${assetName}.`,
+    );
+  const pendingDirectory = fs.mkdtempSync(
+    path.join(tempDirectory, "release-pending-"),
+  );
+  fs.writeFileSync(path.join(pendingDirectory, assetName), data);
+  return { release, pendingDirectory, hasAssets: true };
 }
 
 module.exports = { prepareAssets };

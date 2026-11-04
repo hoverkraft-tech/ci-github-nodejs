@@ -1,5 +1,5 @@
 name: Finalize Node.js release
-description: Verify published npm tarballs staged in RUNNER_TEMP/release-assets against existing assets, then upload missing assets and publish the draft with HoverKraft release/update using GITHUB_TOKEN.
+description: Verify a published npm tarball against the named release asset, then stage it only if missing and publish the draft with HoverKraft release/update using GITHUB_TOKEN.
 author: hoverkraft
 branding:
   icon: tag
@@ -7,6 +7,12 @@ branding:
 inputs:
   tag:
     description: Committed release tag.
+    required: true
+  package-tarball-path:
+    description: Local tarball path returned by package/publish, including the original npm bytes restored during recovery.
+    required: true
+  asset-name:
+    description: Plain .tgz filename for the GitHub release asset.
     required: true
 runs:
   using: composite
@@ -16,11 +22,17 @@ runs:
       env:
         ACTION_PATH: ${{ github.action_path }}
         RELEASE_TAG: ${{ inputs.tag }}
-        ASSET_DIRECTORY: ${{ runner.temp }}/release-assets
+        PACKAGE_TARBALL_PATH: ${{ inputs.package-tarball-path }}
+        ASSET_NAME: ${{ inputs.asset-name }}
+        RUNNER_TEMP: ${{ runner.temp }}
       with:
         script: |
           const releaseAssets = require(`${process.env.ACTION_PATH}/index.js`);
-          const { release, pendingDirectory, hasAssets } = await releaseAssets.prepareAssets({ github, glob, repo: context.repo, tag: process.env.RELEASE_TAG, directory: process.env.ASSET_DIRECTORY });
+          const { release, pendingDirectory, hasAssets } = await releaseAssets.prepareAssets({
+            github, repo: context.repo, tag: process.env.RELEASE_TAG,
+            tarballPath: process.env.PACKAGE_TARBALL_PATH, assetName: process.env.ASSET_NAME,
+            tempDirectory: process.env.RUNNER_TEMP,
+          });
           core.setOutput('release-id', release.id);
           core.setOutput('published', String(!release.draft));
           core.setOutput('pending-directory', pendingDirectory);

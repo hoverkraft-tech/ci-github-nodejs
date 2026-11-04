@@ -22,16 +22,18 @@
 
 ## Overview
 
-Verify published npm tarballs staged in RUNNER_TEMP/release-assets against existing assets, then upload missing assets and publish the draft with HoverKraft release/update using GITHUB_TOKEN.
+Verify a published npm tarball against the named release asset, then stage it only if missing and publish the draft with HoverKraft release/update using GITHUB_TOKEN.
 
 <!-- overview:end -->
 <!-- inputs:start -->
 
 ## Inputs
 
-| **Input** | **Description**        | **Required** | **Default** |
-| --------- | ---------------------- | ------------ | ----------- |
-| **`tag`** | Committed release tag. | **true**     | -           |
+| **Input**                  | **Description**                                                                                            | **Required** | **Default** |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
+| **`tag`**                  | Committed release tag.                                                                                     | **true**     | -           |
+| **`package-tarball-path`** | Local tarball path returned by package/publish, including the original npm bytes restored during recovery. | **true**     | -           |
+| **`asset-name`**           | Plain .tgz filename for the GitHub release asset.                                                          | **true**     | -           |
 
 <!-- inputs:end -->
 <!-- secrets:start -->

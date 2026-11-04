@@ -293,3 +293,7 @@ the alternatives and observations below preserve their history, not new validati
   `recover-existing` to describe restoring original registry bytes when resuming a
   release. Keep the default false for standalone publication and enable recovery
   in release workflows. Registry and integrity failures remain errors.
+- **2026-11-04, explicit release asset handoff:** Pass the published or recovered
+  tarball path and its asset name directly to finalization. This supersedes the
+  implicit `RUNNER_TEMP/release-assets` contract and the workflow's extra copy.
+  Finalization stages missing bytes once, preserving digest checks on retries.

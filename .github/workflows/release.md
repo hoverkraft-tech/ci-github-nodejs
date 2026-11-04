@@ -386,6 +386,11 @@ It checks the exact version on every attempt, restores the original registry tar
 when present, skips npm publication, and returns its local path for assets so the
 remaining release steps can resume. Registry and integrity errors still fail the job.
 
+Pass that `package-tarball-path` directly to `release/finalize`, with the desired
+`.tgz` filename as `asset-name`. Finalization checks the existing asset's digest
+and stages the file only if it is missing. Callers do not need to copy the tarball
+into a predefined directory.
+
 npm publication across several packages cannot be atomic. Check exact package
 versions before retrying; published versions cannot be overwritten. Restore original
 published bytes for release assets, verify integrity and existing asset digests, and
