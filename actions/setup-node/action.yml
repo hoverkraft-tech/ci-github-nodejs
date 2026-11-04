@@ -7,7 +7,10 @@ branding:
 
 inputs:
   install-dependencies:
-    description: Install project dependencies after configuring the package manager and Node.js runtime. Set false for packaging an existing CI build.
+    description: |
+      Install project dependencies after configuring Node.js and the package manager.
+      Set false when only tooling is needed, such as packaging prepared build files,
+      or when the caller manages dependency installation separately.
     default: "true"
   ignore-scripts:
     description: |
@@ -102,6 +105,8 @@ runs:
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
+        # Updated by Renovate; keep the fallback version in one place.
+        DEFAULT_PNPM_VERSION: "12.16.1"
       with:
         script: |
           const path = require('node:path');
@@ -114,7 +119,7 @@ runs:
           let packageJsonPath = path.join(workingDirectory, 'package.json');
           if (!fs.existsSync(packageJsonPath)) {
             core.debug(`package.json not found in working directory "${workingDirectory}"; using the supported pnpm default`);
-            core.setOutput('pnpm-version', '12.16.1');
+            core.setOutput('pnpm-version', process.env.DEFAULT_PNPM_VERSION);
             return;
           }
           packageJsonPath = path.resolve(packageJsonPath);
@@ -136,7 +141,7 @@ runs:
           }
 
           core.debug('packageManager field missing; using the supported pnpm default');
-          core.setOutput('pnpm-version', '12.16.1');
+          core.setOutput('pnpm-version', process.env.DEFAULT_PNPM_VERSION);
 
     - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       if: steps.get-package-manager.outputs.package-manager == 'pnpm'

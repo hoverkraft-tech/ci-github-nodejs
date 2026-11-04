@@ -3,8 +3,11 @@
 [Dependabot](../../.github/dependabot.yml) remains the primary updater for npm,
 GitHub Actions, Dockerfiles and development containers.
 [Renovate](../../.github/renovate.json) handles the root
-[`.node-version`](../../.node-version) and `docker://` action references. Other
-dependencies stay disabled in Renovate to avoid duplicate update pull requests.
+[`.node-version`](../../.node-version), `docker://` action references and the
+`DEFAULT_PNPM_VERSION` fallback in [Setup Node.js](../../actions/setup-node/action.yml).
+The pnpm fallback is tracked as an npm dependency through a scoped regular expression manager.
+A project's `package.json.packageManager` takes precedence over this fallback.
+Other dependencies stay disabled in Renovate to avoid duplicate update pull requests.
 Fixture Node version files link to the root file and are not updated separately.
 
 The [Renovate workflow](../../.github/workflows/__renovate.yml) runs every Friday
@@ -20,7 +23,7 @@ to this repository. Renovate creates commits through GitHub's API using the App'
 bot identity, allowing normal PR checks to run.
 
 Renovate waits seven days for releases with a known publication timestamp. It
-proposes Node updates for review without automerging them. Review compatibility
+proposes Node and pnpm fallback updates for review without automerging them. Review compatibility
 and the package-manager integration checks before merging a runtime
 upgrade; a newer major version may exceed a fixture dependency's supported range.
 

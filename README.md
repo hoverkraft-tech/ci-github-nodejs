@@ -60,11 +60,11 @@ _Actions focused on discovering and preparing the Node.js environment._
 
 ### Continuous Integration
 
-- [Continuous Integration](.github/workflows/continuous-integration.md) — documentation for the reusable Node.js CI workflow.
+- [Continuous Integration](.github/workflows/continuous-integration.md): documentation for the reusable Node.js CI workflow.
 
 ### Release
 
-- [Release](.github/workflows/release.md) — publish prepared packages using the package actions and `ci-github-publish`.
+- [Release](.github/workflows/release.md): publish prepared packages using the package actions and `ci-github-publish`.
 
 ## Contributing
 
