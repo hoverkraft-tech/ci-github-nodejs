@@ -33,7 +33,7 @@ jobs:
           persist-credentials: false
 
       - name: Arrange - Configure Node.js version
-        run: echo "lts/*" > .nvmrc
+        run: cp "$GITHUB_WORKSPACE/.node-version" .nvmrc
         working-directory: ${{ matrix.working-directory }}
 
       - name: Act - Run "setup-node" action
@@ -52,3 +52,70 @@ jobs:
             echo "setup-node outputs run-script-command is not valid"
             exit 1
           fi
+
+      - name: Arrange - Local dependency and project with installation hooks
+        id: lifecycle-fixture
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          SOURCE_DIRECTORY: ${{ matrix.working-directory }}
+          RUN_SCRIPT_COMMAND: ${{ steps.act-setup-node.outputs.run-script-command }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const directory = fs.mkdtempSync(path.join(process.env.GITHUB_WORKSPACE, 'install-hooks-'));
+            const dependency = path.join(directory, 'dependency');
+            await io.mkdirP(dependency);
+            const hook = `node -e "require('node:fs').writeFileSync('install-hook-ran', '')"`;
+            fs.writeFileSync(path.join(dependency, 'package.json'), JSON.stringify({
+              name: 'lifecycle-dependency', version: '1.0.0', scripts: { postinstall: hook },
+            }));
+            await exec.exec('npm', ['pack', '--ignore-scripts', '--pack-destination', directory], { cwd: dependency });
+            const source = JSON.parse(fs.readFileSync(path.join(process.env.SOURCE_DIRECTORY, 'package.json'), 'utf8'));
+            fs.writeFileSync(path.join(directory, 'package.json'), JSON.stringify({
+              name: 'lifecycle-project', version: '1.0.0', private: true,
+              packageManager: source.packageManager,
+              dependencies: { 'lifecycle-dependency': 'file:./lifecycle-dependency-1.0.0.tgz' },
+              scripts: { postinstall: hook, build: `node -e "require('node:fs').writeFileSync('build-ran', '')"` },
+            }));
+            await io.cp('.node-version', path.join(directory, '.node-version'));
+            const manager = process.env.RUN_SCRIPT_COMMAND.split(' ')[0];
+            if (manager === 'pnpm') {
+              const { stdout } = await exec.getExecOutput('pnpm', ['--version']);
+              const approval = parseInt(stdout, 10) < 11 ? 'lifecycle-dependency' : 'lifecycle-dependency@file:lifecycle-dependency-1.0.0.tgz';
+              fs.writeFileSync(path.join(directory, 'pnpm-workspace.yaml'), `allowBuilds:\n  ${approval}: true\n`);
+            }
+            const installArgs = ['install', '--ignore-scripts'];
+            if (manager === 'pnpm') installArgs.push('--no-frozen-lockfile');
+            await exec.exec(manager, installArgs, { cwd: directory });
+            await io.rmRF(path.join(directory, 'node_modules'));
+            core.setOutput('directory', directory);
+
+      - name: Act - Install with default script policy
+        id: default-install
+        uses: $/actions/setup-node
+        with:
+          working-directory: ${{ steps.lifecycle-fixture.outputs.directory }}
+
+      - name: Assert - Installation hooks are disabled and explicit builds still run
+        working-directory: ${{ steps.lifecycle-fixture.outputs.directory }}
+        env:
+          RUN_SCRIPT_COMMAND: ${{ steps.default-install.outputs.run-script-command }}
+        run: |
+          test ! -f install-hook-ran
+          test ! -f node_modules/lifecycle-dependency/install-hook-ran
+          $RUN_SCRIPT_COMMAND build
+          test -f build-ran
+          rm -rf node_modules
+
+      - name: Act - Opt in to installation hooks
+        uses: $/actions/setup-node
+        with:
+          working-directory: ${{ steps.lifecycle-fixture.outputs.directory }}
+          ignore-scripts: "false"
+
+      - name: Assert - Project and approved dependency hooks ran
+        working-directory: ${{ steps.lifecycle-fixture.outputs.directory }}
+        run: |
+          test -f install-hook-ran
+          test -f node_modules/lifecycle-dependency/install-hook-ran

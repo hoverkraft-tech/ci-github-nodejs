@@ -10,6 +10,13 @@ name: Node.js Continuous Integration
 on:
   workflow_call:
     inputs:
+      ignore-scripts:
+        description: |
+          Disable project and dependency lifecycle scripts during installation in build, lint and test jobs.
+          Set false to allow installation hooks, subject to the package manager's script approval settings.
+          Explicit commands are unaffected. Does not apply in container mode, which skips installation.
+        type: boolean
+        default: true
       runs-on:
         description: |
           JSON array of runner(s) to use.
@@ -512,6 +519,7 @@ jobs:
       - name: Run lint
         uses: $/actions/lint
         with:
+          ignore-scripts: ${{ inputs.ignore-scripts }}
           working-directory: ${{ needs.setup.outputs.working-directory }}
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           command: ${{ steps.preparel-lint-options.outputs.command }}
@@ -539,6 +547,7 @@ jobs:
         if: needs.setup.outputs.build-commands
         uses: $/actions/build
         with:
+          ignore-scripts: ${{ inputs.ignore-scripts }}
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           working-directory: ${{ needs.setup.outputs.working-directory }}
           build-secrets: ${{ secrets.build-secrets }}
@@ -599,6 +608,7 @@ jobs:
       - name: Run tests
         uses: $/actions/test
         with:
+          ignore-scripts: ${{ inputs.ignore-scripts }}
           working-directory: ${{ needs.setup.outputs.working-directory }}
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           command: ${{ steps.prepare-test-options.outputs.command }}

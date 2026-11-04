@@ -1,4 +1,4 @@
-name: Internal - Tests for "publish" action
+name: Internal - Tests for "package/publish" action
 
 on:
   workflow_call:
@@ -19,9 +19,15 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Arrange - Configure the package runtime
+        uses: $/actions/setup-node
+        with:
+          working-directory: tests/npm
+          install-dependencies: "false"
+
       - id: package
         name: Arrange - Create package tarball
-        uses: $/actions/package
+        uses: $/actions/package/create
         with:
           working-directory: tests/npm
 
@@ -42,8 +48,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Act - Run "publish" action
-        uses: $/actions/publish
+      - name: Act - Run "package/publish" action
+        uses: $/actions/package/publish
         with:
           package-tarball-artifact-id: ${{ needs.package.outputs.package-tarball-artifact-id }}
           tag: ${{ matrix.tag }}
@@ -54,7 +60,7 @@ jobs:
       - id: invalid-artifact
         name: Act - Reject multiple artifact IDs
         continue-on-error: true
-        uses: $/actions/publish
+        uses: $/actions/package/publish
         with:
           package-tarball-artifact-id: "1,2"
           dry-run: "true"
@@ -63,7 +69,7 @@ jobs:
       - id: invalid-dry-run
         name: Act - Reject invalid dry-run input
         continue-on-error: true
-        uses: $/actions/publish
+        uses: $/actions/package/publish
         with:
           package-tarball-artifact-id: ${{ needs.package.outputs.package-tarball-artifact-id }}
           dry-run: "yes"

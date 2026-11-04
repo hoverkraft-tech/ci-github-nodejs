@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["github-actions", "nodenv"],
+  "semanticCommits": "enabled",
+  "minimumReleaseAge": "7 days",
+  "minimumReleaseAgeBehaviour": "timestamp-optional",
+  "pinDigests": true,
+  "packageRules": [
+    {
+      "description": "Dependabot is the primary dependency updater.",
+      "matchPackageNames": ["*"],
+      "enabled": false
+    },
+    {
+      "description": "Update docker:// action references unsupported by Dependabot.",
+      "matchDatasources": ["docker"],
+      "matchDepTypes": ["docker"],
+      "enabled": true
+    },
+    {
+      "description": "Update the shared Node.js runtime from the root version file.",
+      "matchManagers": ["nodenv"],
+      "matchFileNames": [".node-version"],
+      "enabled": true,
+      "automerge": false
+    }
+  ]
+}

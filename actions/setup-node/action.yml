@@ -6,6 +6,15 @@ branding:
   color: blue
 
 inputs:
+  install-dependencies:
+    description: Install project dependencies after configuring the package manager and Node.js runtime. Set false for packaging an existing CI build.
+    default: "true"
+  ignore-scripts:
+    description: |
+      Disable project and dependency lifecycle scripts during installation.
+      Set false to allow installation hooks, subject to the package manager's script approval settings.
+      Explicit commands run after installation are unaffected.
+    default: "true"
   dependencies-cache:
     description: "List of dependencies for which the cache should be managed"
     required: false
@@ -30,6 +39,18 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Validate installation inputs
+      shell: bash
+      env:
+        INSTALL_DEPENDENCIES: ${{ inputs.install-dependencies }}
+        IGNORE_SCRIPTS: ${{ inputs.ignore-scripts }}
+      run: |
+        for value in "$INSTALL_DEPENDENCIES" "$IGNORE_SCRIPTS"; do
+          case "$value" in
+            true|false) ;;
+            *) echo "install-dependencies and ignore-scripts must be true or false." >&2; exit 1 ;;
+          esac
+        done
     # jscpd:ignore-start
     - id: working-directory
       uses: hoverkraft-tech/ci-github-common/actions/working-directory@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
@@ -39,7 +60,6 @@ runs:
     # jscpd:ignore-end
 
     - id: get-package-manager
-      if: inputs.package-manager == ''
       uses: $/actions/get-package-manager
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
@@ -93,8 +113,8 @@ runs:
 
           let packageJsonPath = path.join(workingDirectory, 'package.json');
           if (!fs.existsSync(packageJsonPath)) {
-            core.debug(`package.json not found in working directory "${workingDirectory}"; defaulting pnpm version to latest`);
-            core.setOutput('pnpm-version', 'latest');
+            core.debug(`package.json not found in working directory "${workingDirectory}"; using the supported pnpm default`);
+            core.setOutput('pnpm-version', '12.16.1');
             return;
           }
           packageJsonPath = path.resolve(packageJsonPath);
@@ -115,8 +135,8 @@ runs:
             return;
           }
 
-          core.debug('packageManager field missing; defaulting pnpm version to latest');
-          core.setOutput('pnpm-version', 'latest');
+          core.debug('packageManager field missing; using the supported pnpm default');
+          core.setOutput('pnpm-version', '12.16.1');
 
     - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       if: steps.get-package-manager.outputs.package-manager == 'pnpm'
@@ -128,13 +148,15 @@ runs:
     - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
         node-version-file: ${{ steps.get-node-version-file.outputs.node-version-file }}
-        cache: ${{ steps.get-package-manager.outputs.cache-dependency-path != '' && steps.get-package-manager.outputs.package-manager || '' }}
+        cache: ${{ inputs.install-dependencies != 'false' && steps.get-package-manager.outputs.cache-dependency-path != '' && steps.get-package-manager.outputs.package-manager || '' }}
         cache-dependency-path: ${{ steps.get-package-manager.outputs.cache-dependency-path }}
         registry-url: ${{ inputs.registry-url }}
 
     - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      if: inputs.install-dependencies != 'false'
       env:
         INSTALL_COMMAND: ${{ steps.get-package-manager.outputs.install-command }}
+        IGNORE_SCRIPTS: ${{ inputs.ignore-scripts }}
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
       with:
         script: |
@@ -147,9 +169,10 @@ runs:
           }
 
           const [command, ...args] = installCommand.split(/\s+/);
+          if (process.env.IGNORE_SCRIPTS === 'true') args.push('--ignore-scripts');
           await exec.exec(command, args, { cwd: workingDirectory });
 
-    - if: inputs.dependencies-cache != ''
+    - if: inputs.dependencies-cache != '' && inputs.install-dependencies != 'false'
       uses: $/actions/dependencies-cache
       with:
         dependencies: ${{ inputs.dependencies-cache }}

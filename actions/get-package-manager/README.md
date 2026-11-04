@@ -63,12 +63,15 @@ Action to detect the package manager used. Supports Yarn, pnpm, and npm
 
 ## Outputs
 
-| **Output**                  | **Description**                                       |
-| --------------------------- | ----------------------------------------------------- |
-| **`package-manager`**       | The package manager used.                             |
-| **`cache-dependency-path`** | The path to the dependency file for cache management. |
-| **`install-command`**       | The command to install dependencies.                  |
-| **`run-script-command`**    | The command to run a script in the package.json file. |
+| **Output**                  | **Description**                                                                                     |
+| --------------------------- | --------------------------------------------------------------------------------------------------- |
+| **`package-manager`**       | The package manager used.                                                                           |
+| **`cache-dependency-path`** | The path to the dependency file for cache management.                                               |
+| **`install-command`**       | The command to install dependencies.                                                                |
+| **`run-script-command`**    | The command to run a script in the package.json file.                                               |
+| **`pack-command`**          | Bash command to pack prepared files without lifecycle scripts using npm, pnpm or Yarn Classic.      |
+|                             | Set PACK_DESTINATION to an existing absolute output directory before executing the command.         |
+|                             | Configure the project's package manager first; this command does not install dependencies or build. |
 
 <!-- outputs:end -->
 

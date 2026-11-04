@@ -35,8 +35,15 @@ Action to build Node.js projects with support for custom commands, environment v
 ## Usage
 
 ````yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/build@81a4bca8445b7b273455ff26a9a5c3c31c86b2a1 # 0.25.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/build@<sha>
   with:
+    # Disable project and dependency lifecycle scripts during installation.
+    # Set false to allow installation hooks, subject to the package manager's script approval settings.
+    # Explicit commands are unaffected. Does not apply in container mode, which skips installation.
+    #
+    # Default: `true`
+    ignore-scripts: "true"
+
     # Working directory where the build commands are executed.
     # Can be absolute or relative to the repository root.
     #
@@ -93,6 +100,9 @@ Action to build Node.js projects with support for custom commands, environment v
 
 | **Input**               | **Description**                                                                                                                                          | **Required** | **Default** |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
+| **`ignore-scripts`**    | Disable project and dependency lifecycle scripts during installation.                                                                                    | **false**    | `true`      |
+|                         | Set false to allow installation hooks, subject to the package manager's script approval settings.                                                        |              |             |
+|                         | Explicit commands are unaffected. Does not apply in container mode, which skips installation.                                                            |              |             |
 | **`working-directory`** | Working directory where the build commands are executed.                                                                                                 | **false**    | `.`         |
 |                         | Can be absolute or relative to the repository root.                                                                                                      |              |             |
 | **`build-commands`**    | List of build commands to execute, one per line.                                                                                                         | **true**     | -           |

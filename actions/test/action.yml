@@ -15,6 +15,12 @@ branding:
   color: blue
 
 inputs:
+  ignore-scripts:
+    description: |
+      Disable project and dependency lifecycle scripts during installation.
+      Set false to allow installation hooks, subject to the package manager's script approval settings.
+      Explicit commands are unaffected. Does not apply in container mode, which skips installation.
+    default: "true"
   working-directory:
     description: |
       Working directory where test commands are executed.
@@ -85,6 +91,7 @@ runs:
       uses: $/actions/setup-node
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+        ignore-scripts: ${{ inputs.ignore-scripts }}
         dependencies-cache: |
           nx
           jest
@@ -147,6 +154,7 @@ runs:
       uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
       with:
         title: "Code Coverage Report"
+        token: ${{ inputs.github-token }}
         body: ${{ steps.parse-coverage-reports.outputs.markdown }}
 
     - name: 📊 Upload coverage to Codecov

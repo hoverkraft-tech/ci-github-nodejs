@@ -1,5 +1,9 @@
 name: "Package"
-description: "Action to create and upload an npm package tarball from a Node.js project"
+description: |
+  Create and upload a package tarball from prepared files, optionally restored from a build artifact.
+  Check out the project, configure Node.js and its package manager, and prepare dependencies, versions and build output before calling this action.
+  Uses the project's npm, pnpm or Yarn Classic configuration to select its native pack command.
+  Packaging never installs dependencies, changes versions or runs lifecycle scripts.
 author: hoverkraft
 branding:
   icon: package
@@ -8,15 +12,15 @@ branding:
 inputs:
   working-directory:
     description: |
-      Working directory where dependencies are installed for packaging.
+      Prepared project directory containing the package manager configuration.
       Can be absolute or relative to the repository root.
     required: false
     default: "."
   package-directory:
     description: |
-      Optional package directory to version and pack.
+      Optional prepared package directory to pack.
       Can be absolute or relative to `working-directory`.
-      Useful for monorepos where dependencies are installed at the root.
+      Useful for monorepos with package manager configuration at the root.
     required: false
     default: ""
   build-artifact-id:
@@ -31,12 +35,6 @@ inputs:
       Used to locate the files to be included in the package when a build artifact is downloaded.
     required: false
     default: "${{ github.workspace }}"
-  version:
-    description: |
-      Optional version to apply with `npm version` before packaging.
-      The version is applied without creating a Git tag.
-    required: false
-    default: ""
   artifact-name:
     description: "Name of the uploaded package tarball artifact"
     required: false
@@ -53,9 +51,17 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Validate build artifact ID
+      if: inputs.build-artifact-id != ''
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        BUILD_ARTIFACT_ID: ${{ inputs.build-artifact-id }}
       with:
-        persist-credentials: false
+        script: |
+          const artifactId = process.env.BUILD_ARTIFACT_ID;
+          if (!/^[1-9][0-9]*$/.test(artifactId) || !Number.isSafeInteger(Number(artifactId))) {
+            core.setFailed('Expected one positive build artifact ID.');
+          }
 
     # jscpd:ignore-start
     - id: working-directory
@@ -63,11 +69,6 @@ runs:
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: "false"
-
-    - id: setup-node
-      uses: $/actions/setup-node
-      with:
-        working-directory: ${{ steps.working-directory.outputs.absolute-path }}
     # jscpd:ignore-end
 
     - name: Download build artifacts
@@ -77,13 +78,18 @@ runs:
         artifact-ids: ${{ inputs.build-artifact-id }}
         path: ${{ inputs.build-artifact-path }}
 
+    - id: get-package-manager
+      uses: $/actions/get-package-manager
+      with:
+        working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+
     - id: package
       name: Create package tarball for verification
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
         PACKAGE_DIRECTORY: ${{ inputs.package-directory }}
-        RELEASE_VERSION: ${{ inputs.version }}
+        PACK_COMMAND: ${{ steps.get-package-manager.outputs.pack-command }}
         ARTIFACT_NAME_INPUT: ${{ inputs.artifact-name }}
         GITHUB_RUN_ID: ${{ github.run_id }}
         GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
@@ -101,7 +107,6 @@ runs:
           core.debug(`Package directory: ${packageDirectory}`);
           process.chdir(workingDirectory);
 
-          const releaseVersion = (process.env.RELEASE_VERSION || '').trim();
           const runnerTemp = process.env.RUNNER_TEMP;
 
           const packageJsonPath = path.join(packageDirectory, 'package.json');
@@ -110,66 +115,34 @@ runs:
             return;
           }
 
-          if (releaseVersion) {
-            core.info(`Updating package version to provided release version: ${releaseVersion}`);
-            const npmVersionResult = await exec.getExecOutput(
-              'npm',
-              ['version', releaseVersion, '--no-git-tag-version', '--no-workspaces-update'],
-              {
-                cwd: packageDirectory,
-                ignoreReturnCode: true,
-              },
-            );
-
-            if (npmVersionResult.exitCode !== 0) {
-              core.setFailed(`npm version failed with exit code ${npmVersionResult.exitCode}`);
-              return;
-            }
-          }
-
-          const npmPackResult = await exec.getExecOutput('npm', ['pack', '--json', '--pack-destination', runnerTemp], {
-            cwd: packageDirectory,
-            ignoreReturnCode: true,
-          });
-
-          core.debug(`npm pack stdout: ${npmPackResult.stdout}`);
-          core.debug(`npm pack stderr: ${npmPackResult.stderr}`);
-
-          if (npmPackResult.exitCode !== 0) {
-            core.setFailed(`npm pack failed with exit code ${npmPackResult.exitCode}: ${npmPackResult.stderr}`);
+          const packCommand = process.env.PACK_COMMAND?.trim();
+          if (!packCommand) {
+            core.setFailed('Pack command is empty');
             return;
           }
 
-          let packageInfo;
-          try {
-            packageInfo = JSON.parse(npmPackResult.stdout);
-          } catch (error) {
-            core.setFailed(`Failed to parse npm pack output: ${error.message}`);
-            return;
-          }
-
-          core.debug(`packageInfo: ${JSON.stringify(packageInfo)}`);
-
-          const tarballName = packageInfo?.[0]?.filename;
-          if (!tarballName) {
-            core.setFailed('No tarball filename returned by npm pack');
-            return;
-          }
-
-          const tarballPath = path.join(runnerTemp, tarballName);
-          if (!fs.existsSync(tarballPath)) {
-            core.setFailed(`Tarball was not created at expected path: ${tarballPath}`);
-            return;
-          }
-
+          const packDirectory = fs.mkdtempSync(path.join(runnerTemp, 'package-'));
           const artifactNameInput = (process.env.ARTIFACT_NAME_INPUT || '').trim();
           const artifactName = artifactNameInput || `package-tarball-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}-${randomUUID()}`;
-          const tarballExtension = path.extname(tarballPath) || '.tgz';
           const sanitizedArtifactName = artifactName.replace(/[^a-zA-Z0-9._-]+/g, '-');
-          const uniqueTarballPath = path.join(runnerTemp, `${sanitizedArtifactName}${tarballExtension}`);
+          const uniqueTarballPath = path.join(runnerTemp, `${sanitizedArtifactName}.tgz`);
 
-          if (path.resolve(tarballPath) !== path.resolve(uniqueTarballPath)) {
-            fs.renameSync(tarballPath, uniqueTarballPath);
+          try {
+            await exec.exec('bash', ['-e', '-o', 'pipefail', '-c', packCommand], {
+              cwd: packageDirectory,
+              env: { ...process.env, PACK_DESTINATION: packDirectory },
+            });
+
+            const tarballs = await (await glob.create(`${packDirectory}/*.tgz`, {
+              followSymbolicLinks: false,
+              matchDirectories: false,
+            })).glob();
+            if (tarballs.length !== 1) {
+              throw new Error(`Expected one package tarball, found ${tarballs.length}.`);
+            }
+            await io.mv(tarballs[0], uniqueTarballPath);
+          } finally {
+            await io.rmRF(packDirectory);
           }
 
           core.info(`Generated package tarball: ${uniqueTarballPath}`);

@@ -6,6 +6,12 @@ branding:
   color: blue
 
 inputs:
+  ignore-scripts:
+    description: |
+      Disable project and dependency lifecycle scripts during installation.
+      Set false to allow installation hooks, subject to the package manager's script approval settings.
+      Explicit commands are unaffected. Does not apply in container mode, which skips installation.
+    default: "true"
   working-directory:
     description: |
       Working directory where the build commands are executed.
@@ -78,6 +84,7 @@ runs:
       uses: $/actions/setup-node
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+        ignore-scripts: ${{ inputs.ignore-scripts }}
         dependencies-cache: |
           nx
           gatsby
