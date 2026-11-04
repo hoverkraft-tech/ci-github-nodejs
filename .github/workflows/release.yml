@@ -1,0 +1,87 @@
+# Publish an already validated package tarball without rebuilding, repacking or running tests.
+# Call after successful package validation at the prepared tag, using an artifact from the same run and commit.
+name: Node.js Release
+
+on:
+  workflow_call:
+    inputs:
+      packages:
+        description: JSON array containing one public npm package from prepare-package-release.
+        type: string
+        required: true
+      package-tarball-artifact-id:
+        description: |
+          Validated package tarball artifact ID from this workflow run and the prepared tag's commit. Upload one raw .tgz with archive: false. The caller must depend on successful validation; any job can produce the artifact.
+        type: string
+        required: true
+      working-directory:
+        description: Project directory relative to the caller repository root, matching release preparation.
+        type: string
+        default: .
+      changelog-summary:
+        description: |
+          Optional JSON configuration forwarded unchanged to ci-github-publish/actions/release/create.
+          Supports all upstream summary options. Use the changelog-summary secret when the configuration contains credentials.
+          A non-empty secret overrides this input; omit both to disable summarization. Summary failures stop publication.
+          See https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/create.
+        type: string
+        default: ""
+      environment:
+        description: Optional GitHub environment for release jobs. Leave empty to run without an environment. When set, its protection rules apply; use the same name if restricting npm trusted publishing to an environment.
+        type: string
+        default: ""
+    secrets:
+      changelog-summary:
+        description: Optional complete JSON summary configuration, including provider credentials. Overrides the changelog-summary input and is forwarded unchanged to ci-github-publish/actions/release/create.
+        required: false
+
+permissions: {}
+
+concurrency:
+  group: node-release-publish-${{ github.repository }}-${{ inputs.working-directory }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Release npm package
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: ${{ inputs.environment }}
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: read
+      id-token: write
+    steps:
+      - id: verify
+        uses: $/actions/release/verify
+        with:
+          packages: ${{ inputs.packages }}
+          package-tarball-artifact-id: ${{ inputs.package-tarball-artifact-id }}
+          working-directory: ${{ inputs.working-directory }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hoverkraft-tech/ci-github-publish/actions/release/create@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+        with:
+          tag: ${{ github.ref_name }}
+          target-sha: ${{ github.sha }}
+          working-directory: ${{ inputs.working-directory != '.' && inputs.working-directory || '' }}
+          publish: "false"
+          changelog-summary: ${{ secrets.changelog-summary || inputs.changelog-summary }}
+        name: Create draft and optional AI summary
+        if: steps.verify.outputs.published != 'true'
+      - name: Publish missing npm version
+        id: publish
+        uses: $/actions/package/publish
+        with:
+          package-tarball-artifact-id: ${{ inputs.package-tarball-artifact-id }}
+          name: ${{ fromJSON(inputs.packages)[0].name }}
+          version: ${{ fromJSON(inputs.packages)[0].version }}
+          recover-existing: "true"
+          tag: latest
+      - uses: $/actions/release/finalize
+        with:
+          tag: ${{ github.ref_name }}
+          package-tarball-path: ${{ steps.publish.outputs.package-tarball-path }}
+          asset-name: ${{ fromJSON(inputs.packages)[0].slug }}-${{ fromJSON(inputs.packages)[0].version }}.tgz

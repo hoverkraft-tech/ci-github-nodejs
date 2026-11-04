@@ -24,7 +24,7 @@ bot identity, allowing normal PR checks to run.
 
 Renovate waits seven days for releases with a known publication timestamp. It
 proposes Node and pnpm fallback updates for review without automerging them. Review compatibility
-and the package-manager integration checks before merging a runtime
+and the package-manager and release integration checks before merging a runtime
 upgrade; a newer major version may exceed a fixture dependency's supported range.
 
 When changing the configuration, validate it with the Renovate CLI:

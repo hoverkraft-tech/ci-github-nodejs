@@ -1,0 +1,64 @@
+# Prepare Node.js package versions and lockfiles before building the release.
+# Dispatches the calling workflow at the prepared tag; that run can build and publish.
+# See [the release guide](release.md).
+name: Prepare Node.js Package Release
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Public npm project directory containing its package.json and lockfile.
+        type: string
+        default: .
+      github-app-client-id:
+        description: Optional GitHub App client ID, paired with the github-app-key secret to generate a repository-scoped preparation token.
+        type: string
+        required: false
+    secrets:
+      github-app-key:
+        description: Optional GitHub App private key, paired with the github-app-client-id input. The identity must be permitted by branch and tag rules.
+        required: false
+    outputs:
+      status:
+        description: no-changes, dispatched, released or ready. Only ready should start building and publication in this run.
+        value: ${{ jobs.prepare.outputs.status }}
+      packages:
+        description: JSON package list for the release workflow's packages input. Available when status is ready.
+        value: ${{ jobs.prepare.outputs.packages }}
+
+permissions: {}
+
+concurrency:
+  group: node-release-prepare-${{ github.repository }}-${{ inputs.working-directory }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare package release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HAS_APP_PRIVATE_KEY: ${{ secrets.github-app-key != '' }}
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: read
+    outputs:
+      status: ${{ steps.prepare.outputs.status }}
+      packages: ${{ steps.prepare.outputs.packages }}
+    steps:
+      - name: Generate release App token
+        id: release-token
+        if: inputs.github-app-client-id != '' || env.HAS_APP_PRIVATE_KEY == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ inputs.github-app-client-id }}
+          private-key: ${{ secrets.github-app-key }} # zizmor: ignore[secrets-outside-env] reusable workflow credentials are explicitly supplied by the caller
+          permission-actions: write
+          permission-contents: write
+          permission-pull-requests: read
+      - id: prepare
+        uses: $/actions/release/prepare
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          github-token: ${{ steps.release-token.outputs.token || github.token }}

@@ -1,11 +1,20 @@
 name: "Publish"
-description: "Publish a CI-produced Node.js package tarball to an npm-compatible registry"
+description: "Publish an existing Node.js package tarball to an npm-compatible registry"
 author: hoverkraft
 branding:
   icon: upload-cloud
   color: blue
 
 inputs:
+  name:
+    description: Expected package name, paired with version to reject an unintended release tarball before publication.
+    default: ""
+  version:
+    description: Expected package version, paired with name to reject an unintended release tarball before publication.
+    default: ""
+  recover-existing:
+    description: Recover an existing npmjs.org version by restoring its original tarball instead of publishing again. Checks the registry on every attempt.
+    default: "false"
   package-tarball-artifact-id:
     description: "Artifact ID of one package tarball uploaded by the package action"
     required: true
@@ -34,6 +43,11 @@ inputs:
     required: false
     default: ${{ github.token }}
 
+outputs:
+  package-tarball-path:
+    description: Local path to the published tarball, restored from npm when recover-existing finds an existing version.
+    value: ${{ steps.package-tarball.outputs.path }}
+
 runs:
   using: "composite"
   steps:
@@ -45,12 +59,19 @@ runs:
         ACCESS: ${{ inputs.access }}
         PROVENANCE: ${{ inputs.provenance }}
         DRY_RUN: ${{ inputs.dry-run }}
+        RECOVER_EXISTING: ${{ inputs.recover-existing }}
         REGISTRY_URL: ${{ inputs.registry-url }}
         RUNNER_TEMP: ${{ runner.temp }}
+        EXPECTED_NAME: ${{ inputs.name }}
+        EXPECTED_VERSION: ${{ inputs.version }}
       with:
         script: |
           const fs = require('node:fs');
           const path = require('node:path');
+
+          if (Boolean(process.env.EXPECTED_NAME) !== Boolean(process.env.EXPECTED_VERSION)) {
+            return core.setFailed('name and version must be provided together.');
+          }
 
           if (!/^[1-9][0-9]*$/.test(process.env.PACKAGE_TARBALL_ARTIFACT_ID || '')) {
             return core.setFailed('package-tarball-artifact-id must be a single positive artifact ID');
@@ -60,7 +81,7 @@ runs:
             return core.setFailed('access must be public, restricted, or empty');
           }
 
-          for (const input of ['PROVENANCE', 'DRY_RUN']) {
+          for (const input of ['PROVENANCE', 'DRY_RUN', 'RECOVER_EXISTING']) {
             if (!['true', 'false'].includes(process.env[input])) {
               return core.setFailed(`${input.toLowerCase().replaceAll('_', '-')} must be true or false`);
             }
@@ -68,6 +89,9 @@ runs:
 
           try {
             const registry = new URL(process.env.REGISTRY_URL);
+            if (process.env.RECOVER_EXISTING === 'true' && registry.origin !== 'https://registry.npmjs.org') {
+              return core.setFailed('recover-existing requires the public npm registry.');
+            }
             if (!['https:', 'http:'].includes(registry.protocol)) {
               return core.setFailed('registry-url must use HTTP or HTTPS');
             }
@@ -128,7 +152,44 @@ runs:
           core.info(`Package tarball: ${packageTarballPaths[0]}`);
           core.setOutput('path', packageTarballPaths[0]);
 
+    - id: package-identity
+      name: Verify package identity
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        PACKAGE_TARBALL_PATH: ${{ steps.package-tarball.outputs.path }}
+        EXPECTED_NAME: ${{ inputs.name }}
+        EXPECTED_VERSION: ${{ inputs.version }}
+      with:
+        script: |
+          const tarballPath = process.env.PACKAGE_TARBALL_PATH;
+          const { stdout } = await exec.getExecOutput('tar', ['-xOf', tarballPath, 'package/package.json'], { silent: true });
+          const manifest = JSON.parse(stdout);
+          const { name, version } = manifest;
+          if (typeof name !== 'string' || !name || typeof version !== 'string' || !version || manifest.private) {
+            return core.setFailed('Publication requires a named, versioned, non-private package.');
+          }
+          if (process.env.EXPECTED_NAME && (name !== process.env.EXPECTED_NAME || version !== process.env.EXPECTED_VERSION)) {
+            return core.setFailed('Package tarball must match the expected release name and version.');
+          }
+          for (const field of ['dependencies', 'optionalDependencies', 'peerDependencies']) {
+            if (Object.values(manifest[field] || {}).some(value => typeof value === 'string' && value.startsWith('workspace:'))) {
+              return core.setFailed('Package tarball contains unresolved workspace dependency references.');
+            }
+          }
+          core.setOutput('name', name);
+          core.setOutput('version', version);
+
+    - id: existing
+      name: Recover an existing npm version
+      if: inputs.recover-existing == 'true'
+      uses: $/actions/package/restore
+      with:
+        name: ${{ steps.package-identity.outputs.name }}
+        version: ${{ steps.package-identity.outputs.version }}
+        tarball-path: ${{ steps.package-tarball.outputs.path }}
+
     - name: Publish package
+      if: steps.existing.outputs.published != 'true'
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         PACKAGE_TARBALL_PATH: ${{ steps.package-tarball.outputs.path }}

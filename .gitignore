@@ -4,3 +4,5 @@
 /tests/yarn/package-lock.json
 /dist
 .pnpm-store
+/actions/**/node_modules
+/actions/**/coverage

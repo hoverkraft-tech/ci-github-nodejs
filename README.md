@@ -38,7 +38,15 @@ _Actions for continuous integration steps: build, lint, and test._
 ### Package Actions
 
 - [Create a package tarball](actions/package/create/README.md)
+- [Test a package tarball](actions/package/test/README.md)
 - [Publish a package tarball](actions/package/publish/README.md)
+- [Restore a published package](actions/package/restore/README.md)
+
+### Release Actions
+
+- [Prepare a package release](actions/release/prepare/README.md)
+- [Verify a prepared release](actions/release/verify/README.md)
+- [Finalize a release](actions/release/finalize/README.md)
 
 ### Dependencies
 
@@ -64,7 +72,7 @@ _Actions focused on discovering and preparing the Node.js environment._
 
 ### Release
 
-- [Release](.github/workflows/release.md): publish prepared packages using the package actions and `ci-github-publish`.
+- [Release packages](.github/workflows/release.md): setup, manual and scheduled releases, recovery and workflow reference.
 
 ## Contributing
 

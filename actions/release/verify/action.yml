@@ -1,0 +1,37 @@
+name: Verify release inputs
+description: Verify the prepared npm package and package tarball artifact source before creating release state.
+author: hoverkraft
+branding:
+  icon: check-circle
+  color: blue
+inputs:
+  packages:
+    description: JSON array containing one public root package from release preparation.
+    required: true
+  package-tarball-artifact-id:
+    description: Package tarball artifact ID from this run and prepared commit, regardless of the producing job.
+    required: true
+  working-directory:
+    description: Project directory relative to the repository root, matching release preparation.
+    default: .
+outputs:
+  published:
+    description: Whether this tag already has a published GitHub release.
+    value: ${{ steps.verify.outputs.published }}
+runs:
+  using: composite
+  steps:
+    - id: verify
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        PACKAGES: ${{ inputs.packages }}
+        PACKAGE_ARTIFACT_ID: ${{ inputs.package-tarball-artifact-id }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      with:
+        script: |
+          const releaseVerification = require(`${process.env.ACTION_PATH}/index.js`);
+          const packages = releaseVerification.parsePackages(process.env.PACKAGES);
+          await releaseVerification.verifyArtifact({ github, context, artifactId: process.env.PACKAGE_ARTIFACT_ID });
+          const releases = await releaseVerification.verifyReleases({ github, context, packages, workingDirectory: process.env.WORKING_DIRECTORY });
+          core.setOutput('published', String(releases[0].published));

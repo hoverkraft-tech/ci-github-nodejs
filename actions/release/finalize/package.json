@@ -1,0 +1,8 @@
+{
+  "name": "release-finalize-tests",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "test:ci": "node --test"
+  }
+}

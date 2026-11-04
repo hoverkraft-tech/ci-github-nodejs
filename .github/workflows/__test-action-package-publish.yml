@@ -75,14 +75,26 @@ jobs:
           dry-run: "yes"
           provenance: "false"
 
+      - id: wrong-identity
+        name: Act - Reject an unintended release package
+        continue-on-error: true
+        uses: $/actions/package/publish
+        with:
+          package-tarball-artifact-id: ${{ needs.package.outputs.package-tarball-artifact-id }}
+          name: another-package
+          version: 0.1.0
+          dry-run: "true"
+          provenance: "false"
+
       - name: Assert - Invalid inputs fail before publishing
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           INVALID_ARTIFACT_OUTCOME: ${{ steps.invalid-artifact.outcome }}
+          WRONG_IDENTITY_OUTCOME: ${{ steps.wrong-identity.outcome }}
           INVALID_DRY_RUN_OUTCOME: ${{ steps.invalid-dry-run.outcome }}
         with:
           script: |
-            for (const outcome of [process.env.INVALID_ARTIFACT_OUTCOME, process.env.INVALID_DRY_RUN_OUTCOME]) {
+            for (const outcome of [process.env.INVALID_ARTIFACT_OUTCOME, process.env.INVALID_DRY_RUN_OUTCOME, process.env.WRONG_IDENTITY_OUTCOME]) {
               if (outcome !== 'failure') {
                 core.setFailed('Expected invalid publish inputs to fail');
               }

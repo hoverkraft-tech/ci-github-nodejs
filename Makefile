@@ -19,10 +19,10 @@ lint-fix: ## Execute linting and fix
 		-e FIX_BIOME_FORMAT=true \
 	)
 
-deps-install: ## Install dependencies for all package.json files under tests/
+deps-install: ## Install dependencies for action and fixture packages
 	@sh scripts/test-packages.sh install
 
-deps-update-interactive: ## Interactively update dependencies under tests/
+deps-update-interactive: ## Interactively update action and fixture dependencies
 	@sh scripts/test-packages.sh update-interactive
 
 deps-audit-fix: ## Execute dependency audit fix
