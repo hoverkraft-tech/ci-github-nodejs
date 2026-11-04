@@ -13,7 +13,7 @@ responsibilities, while reactionable-cli used Release Please. HoverKraft already
 provides Conventional Commit release planning and GitHub publication actions.
 
 Consumers need one shared release composition with clear ownership: preparation
-changes versions, CI builds and tests, and release packages and publishes. Build
+changes versions, CI builds, packages and tests, and release publishes. Build
 output can embed a version, so CI must run after the version commit. Consumers
 should configure their existing commands and permissions without writing release
 orchestration scripts.
