@@ -17,6 +17,14 @@ jobs:
       security-events: write
     with:
       working-directory: tests/npm
+      package: true
+      package-tests: |
+        tar -xOf "$PACKAGE_TARBALL_PATH" package/dist/test.txt > "$RUNNER_TEMP/package-build.txt"
+        test "$(cat "$RUNNER_TEMP/package-build.txt")" = 'build test'
+        test "$PACKAGE_NAME" = test-for-ci-with-npm
+        consumer=$(mktemp -d)
+        npm install --prefix "$consumer" --ignore-scripts --offline --no-audit --no-fund "$PACKAGE_TARBALL_PATH"
+        test -f "$consumer/node_modules/$PACKAGE_NAME/dist/test.txt"
       code-ql: |
         {
           "languages": "javascript-typescript",
@@ -45,6 +53,22 @@ jobs:
 
       - name: Check the build artifacts
         run: test -f tests/npm/dist/test.txt
+
+      - name: Act - Consume the validated CI package without repacking
+        id: validated-package
+        uses: $/actions/package/publish
+        with:
+          package-tarball-artifact-id: ${{ needs.act-without-container.outputs.package-tarball-artifact-id }}
+          name: test-for-ci-with-npm
+          version: 0.1.0
+          dry-run: "true"
+          provenance: "false"
+      - name: Assert - The CI package contains the compiled output
+        env:
+          TARBALL: ${{ steps.validated-package.outputs.package-tarball-path }}
+        run: |
+          tar -xOf "$TARBALL" package/dist/test.txt > "$RUNNER_TEMP/ci-packaged-build.txt"
+          cmp tests/npm/dist/test.txt "$RUNNER_TEMP/ci-packaged-build.txt"
 
       - name: Arrange packaging hooks that must not run
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -87,8 +111,6 @@ jobs:
         with:
           working-directory: tests/npm
           tarball-path: ${{ steps.package.outputs.package-tarball-path }}
-          name: prepared-fixture
-          version: 1.2.3
           commands: |
             node <<'NODE'
             const assert = require('node:assert/strict');
@@ -128,6 +150,16 @@ jobs:
       test: |
         {"coverage": "github"}
     # jscpd:ignore-end
+
+  assert-package-disabled:
+    name: Assert - Package creation is opt-in
+    needs: act-without-container-and-github-reports
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          PACKAGE_ARTIFACT_ID: ${{ needs.act-without-container-and-github-reports.outputs.package-tarball-artifact-id }}
+        run: test -z "$PACKAGE_ARTIFACT_ID"
 
   arrange-with-container:
     name: Arrange - Build container image for CI workflow

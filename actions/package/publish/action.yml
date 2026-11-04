@@ -1,11 +1,17 @@
 name: "Publish"
-description: "Publish a CI-produced Node.js package tarball to an npm-compatible registry"
+description: "Publish an existing Node.js package tarball to an npm-compatible registry"
 author: hoverkraft
 branding:
   icon: upload-cloud
   color: blue
 
 inputs:
+  name:
+    description: Expected package name, paired with version to reject an unintended release tarball before publication.
+    default: ""
+  version:
+    description: Expected package version, paired with name to reject an unintended release tarball before publication.
+    default: ""
   skip-existing:
     description: Skip existing npmjs.org versions and restore their original tarball for release assets. Checks the registry again on every retry.
     default: "false"
@@ -56,10 +62,16 @@ runs:
         SKIP_EXISTING: ${{ inputs.skip-existing }}
         REGISTRY_URL: ${{ inputs.registry-url }}
         RUNNER_TEMP: ${{ runner.temp }}
+        EXPECTED_NAME: ${{ inputs.name }}
+        EXPECTED_VERSION: ${{ inputs.version }}
       with:
         script: |
           const fs = require('node:fs');
           const path = require('node:path');
+
+          if (Boolean(process.env.EXPECTED_NAME) !== Boolean(process.env.EXPECTED_VERSION)) {
+            return core.setFailed('name and version must be provided together.');
+          }
 
           if (!/^[1-9][0-9]*$/.test(process.env.PACKAGE_TARBALL_ARTIFACT_ID || '')) {
             return core.setFailed('package-tarball-artifact-id must be a single positive artifact ID');
@@ -141,16 +153,29 @@ runs:
           core.setOutput('path', packageTarballPaths[0]);
 
     - id: package-identity
-      name: Read package identity for recovery
-      if: inputs.skip-existing == 'true'
+      name: Verify package identity
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         PACKAGE_TARBALL_PATH: ${{ steps.package-tarball.outputs.path }}
+        EXPECTED_NAME: ${{ inputs.name }}
+        EXPECTED_VERSION: ${{ inputs.version }}
       with:
         script: |
           const tarballPath = process.env.PACKAGE_TARBALL_PATH;
           const { stdout } = await exec.getExecOutput('tar', ['-xOf', tarballPath, 'package/package.json'], { silent: true });
-          const { name, version } = JSON.parse(stdout);
+          const manifest = JSON.parse(stdout);
+          const { name, version } = manifest;
+          if (typeof name !== 'string' || !name || typeof version !== 'string' || !version || manifest.private) {
+            return core.setFailed('Publication requires a named, versioned, non-private package.');
+          }
+          if (process.env.EXPECTED_NAME && (name !== process.env.EXPECTED_NAME || version !== process.env.EXPECTED_VERSION)) {
+            return core.setFailed('Package tarball must match the expected release name and version.');
+          }
+          for (const field of ['dependencies', 'optionalDependencies', 'peerDependencies']) {
+            if (Object.values(manifest[field] || {}).some(value => typeof value === 'string' && value.startsWith('workspace:'))) {
+              return core.setFailed('Package tarball contains unresolved workspace dependency references.');
+            }
+          }
           core.setOutput('name', name);
           core.setOutput('version', version);
 

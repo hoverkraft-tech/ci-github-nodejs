@@ -19,10 +19,10 @@ const artifact = {
   expired: false,
   workflow_run: { id: 42, head_sha: context.sha },
 };
-const verifyBuild = (data = artifact, buildArtifactId = "10") =>
-  releaseVerification.verifyBuild({
+const verifyArtifact = (data = artifact, artifactId = "10") =>
+  releaseVerification.verifyArtifact({
     context,
-    buildArtifactId,
+    artifactId,
     github: {
       rest: {
         actions: {
@@ -81,31 +81,31 @@ test("release verifies the source tag, committed version and publication state",
   await assert.rejects(verify(), /prepared source commit/);
 });
 
-test("release accepts a build artifact from this run and prepared commit, including reruns", async () => {
-  await assert.doesNotReject(verifyBuild());
+test("release accepts a package tarball artifact from this run and prepared commit, including reruns", async () => {
+  await assert.doesNotReject(verifyArtifact());
 });
 
-test("rejects expired builds, other runs, older commits and unavailable source identity", async () => {
+test("rejects expired artifacts, other runs, older commits and unavailable source identity", async () => {
   for (const data of [
     { ...artifact, expired: true },
     { ...artifact, workflow_run: { id: 41, head_sha: context.sha } },
     { ...artifact, workflow_run: { id: 42, head_sha: "old" } },
     { ...artifact, workflow_run: undefined },
   ]) {
-    await assert.rejects(verifyBuild(data), /this run and prepared commit/);
+    await assert.rejects(verifyArtifact(data), /this run and prepared commit/);
   }
 });
 
-test("rejects missing, multiple or invalid build artifact IDs before downloading", async () => {
+test("rejects missing, multiple or invalid package tarball artifact IDs before downloading", async () => {
   for (const id of ["", "0", "1,2", "NaN", "-1", "9007199254740992"]) {
     await assert.rejects(
-      verifyBuild(artifact, id),
-      /positive build artifact ID/,
+      verifyArtifact(artifact, id),
+      /positive package tarball artifact ID/,
     );
   }
 });
 
-test("missing or inaccessible build artifacts stop release", async () => {
+test("missing or inaccessible package tarball artifacts stop release", async () => {
   const github = {
     rest: {
       actions: {
@@ -116,12 +116,12 @@ test("missing or inaccessible build artifacts stop release", async () => {
     },
   };
   await assert.rejects(
-    releaseVerification.verifyBuild({ github, context, buildArtifactId: "10" }),
+    releaseVerification.verifyArtifact({ github, context, artifactId: "10" }),
     /Artifact not found/,
   );
 });
 
-test("release accepts one prepared npm package without CI packaging metadata", () => {
+test("release accepts one prepared npm package with its prepared identity", () => {
   assert.deepEqual(
     releaseVerification.parsePackages(JSON.stringify([item]), item.version),
     [item],

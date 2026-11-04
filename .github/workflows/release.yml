@@ -1,5 +1,5 @@
-# Package an existing build artifact and publish a Node.js release without rebuilding.
-# Call at the prepared tag with a build artifact from the same workflow run and commit.
+# Publish an already validated package tarball without rebuilding, repacking or running tests.
+# Call after successful package validation at the prepared tag, using an artifact from the same run and commit.
 name: Node.js Release
 
 on:
@@ -9,18 +9,15 @@ on:
         description: JSON array containing one public npm package from prepare-package-release.
         type: string
         required: true
-      build-artifact-id:
-        description: Build artifact ID from this workflow run and the prepared tag's commit. The artifact must be unexpired and contain every generated package file with absolute paths preserved for the default Ubuntu runner layout. Any job can produce it.
+      package-tarball-artifact-id:
+        description: |
+          Validated package tarball artifact ID from this workflow run and the prepared tag's commit. Upload one raw .tgz with archive: false. The caller must depend on successful validation; any job can produce the artifact.
         type: string
         required: true
       working-directory:
-        description: Project directory relative to the caller repository root, matching release preparation and the build artifact's source directory.
+        description: Project directory relative to the caller repository root, matching release preparation.
         type: string
         default: .
-      package-tests:
-        description: Shell commands testing the tarball before publication. Runs from working-directory with PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION.
-        type: string
-        default: ""
       changelog-summary:
         description: |
           Optional JSON configuration forwarded unchanged to ci-github-publish/actions/release/create.
@@ -60,7 +57,7 @@ jobs:
         uses: $/actions/release/verify
         with:
           packages: ${{ inputs.packages }}
-          build-artifact-id: ${{ inputs.build-artifact-id }}
+          package-tarball-artifact-id: ${{ inputs.package-tarball-artifact-id }}
           working-directory: ${{ inputs.working-directory }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -74,44 +71,13 @@ jobs:
           changelog-summary: ${{ secrets.changelog-summary || inputs.changelog-summary }}
         name: Create draft and optional AI summary
         if: steps.verify.outputs.published != 'true'
-      - name: Configure the package runtime
-        id: setup-node
-        uses: $/actions/setup-node
-        with:
-          working-directory: ${{ inputs.working-directory }}
-          install-dependencies: "false"
-      - name: Package the build artifact
-        id: package
-        uses: $/actions/package/create
-        with:
-          working-directory: ${{ inputs.working-directory }}
-          build-artifact-id: ${{ inputs.build-artifact-id }}
-          build-artifact-path: /
-          artifact-name: npm-${{ fromJSON(inputs.packages)[0].slug }}-${{ github.run_id }}-${{ github.run_attempt }}
-      - uses: $/actions/package/restore
-        with:
-          name: ${{ fromJSON(inputs.packages)[0].name }}
-          version: ${{ fromJSON(inputs.packages)[0].version }}
-          tarball-path: ${{ steps.package.outputs.package-tarball-path }}
-      - name: Test installed package behavior
-        uses: $/actions/package/test
-        with:
-          commands: ${{ inputs.package-tests }}
-          working-directory: ${{ inputs.working-directory }}
-          tarball-path: ${{ steps.package.outputs.package-tarball-path }}
-          name: ${{ fromJSON(inputs.packages)[0].name }}
-          version: ${{ fromJSON(inputs.packages)[0].version }}
-      - name: Validate publication
-        uses: $/actions/package/publish
-        with:
-          package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
-          dry-run: "true"
-          provenance: "false"
       - name: Publish missing npm version
         id: publish
         uses: $/actions/package/publish
         with:
-          package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
+          package-tarball-artifact-id: ${{ inputs.package-tarball-artifact-id }}
+          name: ${{ fromJSON(inputs.packages)[0].name }}
+          version: ${{ fromJSON(inputs.packages)[0].version }}
           skip-existing: "true"
           tag: latest
       - name: Prepare release asset

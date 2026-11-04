@@ -17,7 +17,7 @@
 
 ## Overview
 
-Publish a CI-produced Node.js package tarball to an npm-compatible registry
+Publish an existing Node.js package tarball to an npm-compatible registry
 
 <!-- overview:end -->
 <!-- usage:start -->
@@ -27,6 +27,12 @@ Publish a CI-produced Node.js package tarball to an npm-compatible registry
 ```yaml
 - uses: hoverkraft-tech/ci-github-nodejs/actions/package/publish@<sha>
   with:
+    # Expected package name, paired with version to reject an unintended release tarball before publication.
+    name: ""
+
+    # Expected package version, paired with name to reject an unintended release tarball before publication.
+    version: ""
+
     # Skip existing npmjs.org versions and restore their original tarball for release assets. Checks the registry again on every retry.
     # Default: `false`
     skip-existing: "false"
@@ -66,6 +72,8 @@ Publish a CI-produced Node.js package tarball to an npm-compatible registry
 
 | **Input**                         | **Description**                                                                                                                   | **Required** | **Default**                  |
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------- |
+| **`name`**                        | Expected package name, paired with version to reject an unintended release tarball before publication.                            | **false**    | -                            |
+| **`version`**                     | Expected package version, paired with name to reject an unintended release tarball before publication.                            | **false**    | -                            |
 | **`skip-existing`**               | Skip existing npmjs.org versions and restore their original tarball for release assets. Checks the registry again on every retry. | **false**    | `false`                      |
 | **`package-tarball-artifact-id`** | Artifact ID of one package tarball uploaded by the package action                                                                 | **true**     | -                            |
 | **`registry-url`**                | Registry URL used by npm publish                                                                                                  | **false**    | `https://registry.npmjs.org` |

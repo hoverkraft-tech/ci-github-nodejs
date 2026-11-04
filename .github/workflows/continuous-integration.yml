@@ -53,6 +53,20 @@ on:
         type: string
         required: false
         default: "build"
+      package:
+        description: |
+          Create and validate an npm package from the checked-out source and build output.
+          Disabled by default for projects that do not distribute npm packages.
+          Requires non-container CI with the default Ubuntu artifact layout.
+        type: boolean
+        default: false
+      package-tests:
+        description: |
+          Optional shell commands testing the packed tarball when package is enabled.
+          Runs from working-directory with PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION.
+          Install consumer test dependencies explicitly. Commands must not modify the tarball.
+        type: string
+        default: ""
       checks:
         description: "Optional flag to enable check steps."
         type: boolean
@@ -195,6 +209,9 @@ on:
           Defaults to `GITHUB_TOKEN` if not provided.
         required: false
     outputs:
+      package-tarball-artifact-id:
+        description: Artifact ID of the package validated by the packaging job. Available when package is enabled and validation succeeds.
+        value: ${{ jobs.package.outputs.artifact-id }}
       build-artifact-id:
         description: "ID of the build artifact) uploaded during the build step."
         value: ${{ jobs.build.outputs.artifact-id }}
@@ -221,8 +238,16 @@ jobs:
           CONTAINER_INPUT: ${{ inputs.container }}
           CONTAINER_PASSWORD: ${{ secrets.container-password }}
           WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          PACKAGE_ENABLED: ${{ inputs.package }}
+          PACKAGE_TESTS: ${{ inputs.package-tests }}
         with:
           script: |
+            if (process.env.PACKAGE_TESTS.trim() && process.env.PACKAGE_ENABLED !== 'true') {
+              return core.setFailed('package-tests requires package: true.');
+            }
+            if (process.env.PACKAGE_ENABLED === 'true' && process.env.CONTAINER_INPUT.trim()) {
+              return core.setFailed('Package validation requires non-container CI with the default Ubuntu artifact layout.');
+            }
             const containerInput = process.env.CONTAINER_INPUT.trim();
             if (!containerInput) {
               return;
@@ -616,3 +641,41 @@ jobs:
           report-file: ${{ steps.prepare-test-options.outputs.report-file }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
           github-token: ${{ secrets.github-token || github.token }}
+
+  package:
+    name: Validate package
+    if: inputs.checks == true && inputs.package
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/actions/setup-node
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          install-dependencies: "false"
+      - name: Package prepared files
+        id: package
+        uses: $/actions/package/create
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          build-artifact-id: ${{ needs.build.outputs.artifact-id }}
+          build-artifact-path: /
+      - name: Test the package as a consumer
+        uses: $/actions/package/test
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          tarball-path: ${{ steps.package.outputs.package-tarball-path }}
+          commands: ${{ inputs.package-tests }}
+      - name: Validate npm publication without publishing
+        uses: $/actions/package/publish
+        with:
+          package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
+          dry-run: "true"
+          provenance: "false"
+          github-token: ""

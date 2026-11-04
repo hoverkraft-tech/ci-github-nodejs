@@ -22,18 +22,18 @@
 
 ## Overview
 
-Verify the prepared npm package and build artifact source before creating release state.
+Verify the prepared npm package and package tarball artifact source before creating release state.
 
 <!-- overview:end -->
 <!-- inputs:start -->
 
 ## Inputs
 
-| **Input**               | **Description**                                                                       | **Required** | **Default** |
-| ----------------------- | ------------------------------------------------------------------------------------- | ------------ | ----------- |
-| **`packages`**          | JSON array containing one public root package from release preparation.               | **true**     | -           |
-| **`build-artifact-id`** | Build artifact ID from this run and prepared commit, regardless of the producing job. | **true**     | -           |
-| **`working-directory`** | Project directory relative to the repository root, matching release preparation.      | **false**    | `.`         |
+| **Input**                         | **Description**                                                                                 | **Required** | **Default** |
+| --------------------------------- | ----------------------------------------------------------------------------------------------- | ------------ | ----------- |
+| **`packages`**                    | JSON array containing one public root package from release preparation.                         | **true**     | -           |
+| **`package-tarball-artifact-id`** | Package tarball artifact ID from this run and prepared commit, regardless of the producing job. | **true**     | -           |
+| **`working-directory`**           | Project directory relative to the repository root, matching release preparation.                | **false**    | `.`         |
 
 <!-- inputs:end -->
 <!-- secrets:start -->

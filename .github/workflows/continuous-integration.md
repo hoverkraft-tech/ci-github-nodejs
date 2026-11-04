@@ -123,6 +123,16 @@ jobs:
       # Default: `build`
       build: build
 
+      # Create and validate an npm package from the checked-out source and build output.
+      # Disabled by default for projects that do not distribute npm packages.
+      # Requires non-container CI with the default Ubuntu artifact layout.
+      package: false
+
+      # Optional shell commands testing the packed tarball when package is enabled.
+      # Runs from working-directory with PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION.
+      # Install consumer test dependencies explicitly. Commands must not modify the tarball.
+      package-tests: ""
+
       # Optional flag to enable check steps.
       # Default: `true`
       checks: true
@@ -262,6 +272,12 @@ jobs:
 |                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
 |                         | Example:                                                                                                                                                                                                                                                                                                                                                                                            |              |             |                     |
 |                         | <!-- textlint-disable --><pre lang="json">{&#13; "commands": [&#13; "build",&#13; "generate-artifacts"&#13; ],&#13; "env": {&#13; "CUSTOM_ENV_VAR": "value"&#13; },&#13; "artifact": [&#13; "dist/",&#13; "packages/package-a/build/"&#13; ]&#13;}</pre><!-- textlint-enable -->                                                                                                                    |              |             |                     |
+| **`package`**           | Create and validate an npm package from the checked-out source and build output.                                                                                                                                                                                                                                                                                                                    | **false**    | **boolean** | `false`             |
+|                         | Disabled by default for projects that do not distribute npm packages.                                                                                                                                                                                                                                                                                                                               |              |             |                     |
+|                         | Requires non-container CI with the default Ubuntu artifact layout.                                                                                                                                                                                                                                                                                                                                  |              |             |                     |
+| **`package-tests`**     | Optional shell commands testing the packed tarball when package is enabled.                                                                                                                                                                                                                                                                                                                         | **false**    | **string**  | -                   |
+|                         | Runs from working-directory with PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION.                                                                                                                                                                                                                                                                                                            |              |             |                     |
+|                         | Install consumer test dependencies explicitly. Commands must not modify the tarball.                                                                                                                                                                                                                                                                                                                |              |             |                     |
 | **`checks`**            | Optional flag to enable check steps.                                                                                                                                                                                                                                                                                                                                                                | **false**    | **boolean** | `true`              |
 | **`lint`**              | Whether to enable linting.                                                                                                                                                                                                                                                                                                                                                                          | **false**    | **string**  | `true`              |
 |                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                                                                                                                                                  |              |             |                     |
@@ -404,9 +420,10 @@ When specified, steps will execute inside this container instead of checking out
 
 ## Outputs
 
-| **Output**              | **Description**                                           |
-| ----------------------- | --------------------------------------------------------- |
-| **`build-artifact-id`** | ID of the build artifact) uploaded during the build step. |
+| **Output**                        | **Description**                                                                                                       |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **`package-tarball-artifact-id`** | Artifact ID of the package validated by the packaging job. Available when package is enabled and validation succeeds. |
+| **`build-artifact-id`**           | ID of the build artifact) uploaded during the build step.                                                             |
 
 <!-- outputs:end -->
 

@@ -93,15 +93,15 @@ async function verifyReleases({
   return [{ tag: sourceTag, published: Boolean(release && !release.draft) }];
 }
 
-async function verifyBuild({ github, context, buildArtifactId }) {
+async function verifyArtifact({ github, context, artifactId }) {
   if (
-    !/^[1-9][0-9]*$/.test(buildArtifactId) ||
-    !Number.isSafeInteger(Number(buildArtifactId))
+    !/^[1-9][0-9]*$/.test(artifactId) ||
+    !Number.isSafeInteger(Number(artifactId))
   )
-    throw new Error("Expected one positive build artifact ID.");
+    throw new Error("Expected one positive package tarball artifact ID.");
   const { data: artifact } = await github.rest.actions.getArtifact({
     ...context.repo,
-    artifact_id: Number(buildArtifactId),
+    artifact_id: Number(artifactId),
   });
   if (
     artifact.expired ||
@@ -109,8 +109,8 @@ async function verifyBuild({ github, context, buildArtifactId }) {
     artifact.workflow_run?.head_sha !== context.sha
   )
     throw new Error(
-      "Build artifact must be unexpired and belong to this run and prepared commit.",
+      "Package tarball artifact must be unexpired and belong to this run and prepared commit.",
     );
 }
 
-module.exports = { parsePackages, verifyReleases, verifyBuild };
+module.exports = { parsePackages, verifyReleases, verifyArtifact };

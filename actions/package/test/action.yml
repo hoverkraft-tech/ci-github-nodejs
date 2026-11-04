@@ -1,5 +1,5 @@
-name: Test release package
-description: Run consumer smoke tests against the release tarball and reject changes to its bytes.
+name: Test package
+description: Run consumer smoke tests against the package tarball and reject changes to its bytes.
 author: hoverkraft
 branding:
   icon: check-circle
@@ -12,13 +12,7 @@ inputs:
     description: Project or workspace root used by package tests.
     default: .
   tarball-path:
-    description: Absolute path to the release tarball.
-    required: true
-  name:
-    description: Expected package name.
-    required: true
-  version:
-    description: Expected package version.
+    description: Absolute path to the package tarball.
     required: true
 runs:
   using: composite
@@ -29,8 +23,6 @@ runs:
         PACKAGE_TEST_COMMANDS: ${{ inputs.commands }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
         PACKAGE_TARBALL_PATH: ${{ inputs.tarball-path }}
-        PACKAGE_NAME: ${{ inputs.name }}
-        PACKAGE_VERSION: ${{ inputs.version }}
       with:
         script: |
           const fs = require('node:fs');
@@ -40,8 +32,13 @@ runs:
           const tarball = path.resolve(process.env.PACKAGE_TARBALL_PATH);
           const digest = () => createHash('sha256').update(fs.readFileSync(tarball)).digest('hex');
           const expected = digest();
+          const { stdout } = await exec.getExecOutput('tar', ['-xOf', tarball, 'package/package.json'], { silent: true });
+          const { name, version } = JSON.parse(stdout);
+          if (typeof name !== 'string' || !name || typeof version !== 'string' || !version) {
+            throw new Error('Package tarball must declare its name and version.');
+          }
           await exec.exec('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', process.env.PACKAGE_TEST_COMMANDS], {
             cwd: path.resolve(process.env.GITHUB_WORKSPACE, process.env.WORKING_DIRECTORY),
-            env: { ...process.env, PACKAGE_TARBALL_PATH: tarball },
+            env: { ...process.env, PACKAGE_TARBALL_PATH: tarball, PACKAGE_NAME: name, PACKAGE_VERSION: version },
           });
-          if (digest() !== expected) throw new Error('Package tests must not modify the release tarball.');
+          if (digest() !== expected) throw new Error('Package tests must not modify the package tarball.');

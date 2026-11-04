@@ -21,8 +21,8 @@
 
 ## Overview
 
-Package an existing build artifact and publish a Node.js release without rebuilding.
-Call at the prepared tag with a build artifact from the same workflow run and commit.
+Publish an already validated package tarball without rebuilding, repacking or running tests.
+Call after successful package validation at the prepared tag, using an artifact from the same run and commit.
 
 ### Permissions
 
@@ -35,12 +35,13 @@ Call at the prepared tag with a build artifact from the same workflow run and co
 
 ## Release guide
 
-Connect **prepare → build → release**. The caller owns manual and scheduled triggers
-and chooses the job that produces the build artifact. The examples use the shared
-CI workflow for building and testing; any job meeting the artifact requirements can
-replace it. HoverKraft selects the version from Conventional Commits and generates
-GitHub release notes. The release workflow packages the build output, tests the
-tarball, publishes to npm and finalizes the GitHub release, with an optional AI summary. Consumers need no custom release scripts.
+Connect **prepare -> validate -> release**. The caller owns manual and scheduled
+triggers and chooses the job that produces and validates the package tarball. The
+examples use the shared CI workflow for building, testing and packaging; any job
+meeting the artifact requirements can replace it. HoverKraft selects the version
+from Conventional Commits. Release publishes the validated tarball and finalizes
+the GitHub release, with an optional AI summary. It never builds, repacks or runs
+consumer test commands.
 
 [`prepare-package-release.yml`](prepare-package-release.md) updates package versions and lockfiles before building.
 The separate [`ci-github-publish` preparation workflow](https://github.com/hoverkraft-tech/ci-github-publish/blob/main/.github/workflows/prepare-release.yml)
@@ -105,7 +106,7 @@ jobs:
     secrets:
       github-app-key: ${{ secrets.CI_BOT_APP_PRIVATE_KEY }}
 
-  build:
+  ci:
     needs: prepare
     if: needs.prepare.outputs.status == 'ready'
     uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@<sha>
@@ -117,9 +118,10 @@ jobs:
       id-token: write
     with:
       build: '{"commands":["build"],"artifact":["dist"]}'
+      package: true
 
   release:
-    needs: [prepare, build]
+    needs: [prepare, ci]
     uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@<sha>
     permissions:
       actions: read
@@ -128,13 +130,15 @@ jobs:
       id-token: write
     with:
       packages: ${{ needs.prepare.outputs.packages }}
-      build-artifact-id: ${{ needs.build.outputs.build-artifact-id }}
+      package-tarball-artifact-id: ${{ needs.ci.outputs.package-tarball-artifact-id }}
 ```
 
 The caller concurrency group serializes the whole pipeline. Keep it distinct from
-those used by the reusable workflows. Any build producer can replace the example's
+those used by the reusable workflows. Any package validation job can replace the example's
 shared CI job if it meets the [artifact requirements](#build-once-and-test-the-package).
-Shared CI wrappers can expose `build-artifact-id`; CI has no release package inputs.
+Shared CI wrappers expose `package-tarball-artifact-id` for release and can retain
+`build-artifact-id` for documentation or other build outputs. CI has no release
+version-planning inputs and does not publish packages.
 The `packages` output contains exactly one package for the release workflow.
 
 The caller chooses where to store App credentials and maps them explicitly as shown.
@@ -233,44 +237,50 @@ or summary generation failures stop publication. Already published notes are pre
 
 ## Build once and test the package
 
-Build from the prepared tag because artifacts built earlier can embed an old
-version. Include every generated package file in the artifact and preserve absolute
-paths for the **default Ubuntu runner without a build container**. The shared CI
-workflow already produces this layout; custom build jobs must provide the same
-layout. Release verifies the artifact's run, source SHA and expiration, without
-inspecting the producing job's name or workflow. Wire `needs` to the artifact
-producer and any checks required by your project. Cross-run artifact reuse is unsupported.
-Include generated declarations, static files copied into package output and any
-needed documentation output. Remove npm publication from push CI when enabling
-this manual and scheduled release caller.
+Build and pack from the prepared tag because earlier artifacts can embed an old
+version. Enable `package: true` on the shared CI workflow to create a tarball,
+run optional `package-tests`, and validate it with `npm publish --dry-run`.
+The packaging job has read-only repository permissions, no release environment
+and no publication credentials. The option is disabled by default for applications
+and other projects that do not distribute npm packages. Supplying `package-tests`
+without enabling packaging is an error.
+
+Include every generated package file in the build artifact, preserving absolute
+paths for the default Ubuntu runner without a build container. Shared CI already
+produces this layout. Its packaging job restores those files without rebuilding,
+installing project dependencies or running lifecycle hooks. Include files normally
+generated by `prepare` or `prepack` in the build. CI packaging does not support
+container mode; custom validation jobs can use the standalone package actions.
 
 Dependency installation skips project and dependency lifecycle scripts by default.
-If your build needs installation hooks, set `ignore-scripts: false` on the build
-workflow or action and configure any script approvals required by your package
-manager. Explicit build, lint and test commands still run. Preparation and
-release packaging always disable lifecycle scripts; this opt-in cannot enable them.
+If your build needs installation hooks, set `ignore-scripts: false` and configure
+any script approvals required by your package manager. Explicit build, lint and
+test commands still run. Packaging always disables lifecycle scripts.
 
-Release configures Node.js and calls [Package](../../actions/package/create/README.md)
-to restore the build output and run `npm pack` without installing dependencies,
-changing versions or running lifecycle hooks. Include files normally generated by
-`prepare` or `prepack` in the build artifact. The tarball manifest must match the
-expected public package and version.
-
-Use `package-tests` for installed-package checks. Commands run from
-`working-directory` with `PACKAGE_TARBALL_PATH`, `PACKAGE_NAME` and `PACKAGE_VERSION`:
+Configure consumer checks on **CI**, not on the release workflow:
 
 ```yaml
 with:
+  package: true
   package-tests: |
     test_project=$(mktemp -d)
     npm install --prefix "$test_project" --ignore-scripts "$PACKAGE_TARBALL_PATH"
     "$test_project/node_modules/.bin/my-cli" --help
 ```
 
-Install test dependencies explicitly. Tests may build a fixture consuming the package,
-but must not change the release tarball. Package tests, `npm publish --dry-run` and
-optional AI summaries all finish before npm publication. A dry run does not validate
-npm authentication.
+Commands run from `working-directory`; `PACKAGE_TARBALL_PATH`, `PACKAGE_NAME` and
+`PACKAGE_VERSION` describe the actual tarball. Install consumer test dependencies
+explicitly. Tests must not change the tarball bytes. A failed check or dry run
+fails CI, preventing dependent release jobs from starting. A dry run does not
+validate npm authentication. Use this same CI configuration on pull requests.
+
+Pass the validated artifact ID through `package-tarball-artifact-id` and require
+successful validation through `needs`. Release accepts one raw `.tgz` uploaded
+with `archive: false`, verifies its run, source SHA and expiration, and checks its
+public package name and version against preparation before publication. It does
+not inspect the producing job's identity or infer that tests passed from artifact
+existence. Cross-run artifact reuse is unsupported. Custom producers can use any
+build layout because release downloads only the finished tarball.
 
 ## Run and resume releases
 
@@ -287,11 +297,12 @@ The release job succeeds only after npm publication and GitHub release assets
 succeed. Use `needs.release.result == 'success'` for dependent jobs. Preparation
 success alone is not publication.
 
-Rerun a failed release job to reuse the existing build artifact and repeat validation.
+Rerun a failed release job to reuse the validated tarball without rebuilding,
+repacking or repeating consumer tests. Artifact and package identity checks still run.
 Every attempt checks npm again. Already published versions are skipped, and their
 original tarballs are restored with SHA-512 verification for GitHub assets. Existing
 assets must have matching SHA-256 digests. Conflicts, missing digests and expired
-build artifacts fail rather than overwriting data or selecting another run.
+package artifacts fail rather than overwriting data or selecting another run.
 Published release notes are preserved.
 
 To build again and resume the same version, dispatch the caller at its original tag:
@@ -324,7 +335,7 @@ handles this for one public npm package and dispatches the caller at the tag.
 
 ### Packaging and publication
 
-For a custom release job, check out the prepared source tag and configure Node.js
+For a custom package validation job, check out the prepared source tag and configure Node.js
 and the package manager before calling the [Package action](../../actions/package/create/README.md).
 Prepare the version, dependencies and build files first. The action uses the existing
 checkout and never installs dependencies, changes versions or runs lifecycle scripts.
@@ -337,10 +348,11 @@ folder, so packaging does not depend on the manager's console output format.
 
 Include generated files normally produced by `prepare` or `prepack` in that build.
 
-The shared release workflow requires absolute artifact paths and restores them with
-`build-artifact-path: /` on the default Ubuntu runner layout. The shared CI workflow
-produces that layout; a custom producer must preserve the same paths. Standalone
-Package calls can choose a different restoration path or omit the artifact inputs.
+The shared CI packaging job restores build files with `build-artifact-path: /`
+on the default Ubuntu runner layout. Standalone Package calls can choose a
+different restoration path or omit the build artifact inputs. Run consumer tests
+and a publication dry run in this validation job, then pass the tarball artifact
+ID to a separate publication job that depends on validation succeeding.
 
 The [Publish action](../../actions/package/publish/README.md) consumes the resulting tarball
 artifact ID. A dry run validates `npm publish` inputs but does not prove registry
@@ -363,7 +375,7 @@ publishing an npm library. Keep these consumers on the appropriate
 and container tooling. Attach their build artifacts or deployment jobs to the release
 caller. Do not introduce an npm package just to use shared release automation.
 
-For custom package checks, [Test release package](../../actions/package/test/README.md)
+For custom package checks, [Test package](../../actions/package/test/README.md)
 exposes the tarball path and rejects tests that change its bytes. Complete package
 checks before publication.
 
@@ -394,7 +406,7 @@ npm ci --ignore-scripts --prefix actions/release/prepare
 npm test --prefix actions/release/prepare
 ```
 
-`release/verify/index.test.js` checks release tags and build artifact
+`release/verify/index.test.js` checks release tags and package artifact
 run/commit/expiration. `package/restore/PackageRecovery.test.js` checks tarball
 manifests, registry integrity and recovery. `release/finalize/index.test.js` checks
 asset recovery without overwriting published assets. Each imports its action's
@@ -417,11 +429,14 @@ The [release test workflow](__test-release.yml) is called
 by [shared CI](__shared-ci.yml). It runs the unit tests through
 the existing Node.js CI workflow in a separate matrix job per action and invokes the actual release actions in separate
 Arrange, Act and Assert steps. Integration checks cover private-package rejection,
-invalid artifact IDs, mismatched tarball versions, the unpublished registry output,
+invalid package artifact IDs, mismatched tarball versions, the unpublished registry output,
 installed CLI behavior, failed smoke commands and modified tarball bytes. Assertions
 read action outputs and step outcomes; they do not extract scripts from YAML.
 An npm publication dry run with `skip-existing` enabled checks that `publish`
 correctly composes `package/restore` and preserves unpublished package bytes.
+The CI workflow tests exercise optional packaging, installed-package checks and
+consuming the validated tarball in a separate job. Publish action tests reject
+unexpected package identities before publication.
 
 The [CI workflow integration test](__test-workflow-continuous-integration.yml)
 checks real artifact restoration and packaging of prepared files with failing lifecycle hooks
@@ -447,17 +462,16 @@ serves as its template; regeneration preserves that authored content.
 
 ### Workflow Call Inputs
 
-| **Input**               | **Description**                                                                                                                                                                                                                             | **Required** | **Type**   | **Default** |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------- | ----------- |
-| **`packages`**          | JSON array containing one public npm package from prepare-package-release.                                                                                                                                                                  | **true**     | **string** | -           |
-| **`build-artifact-id`** | Build artifact ID from this workflow run and the prepared tag's commit. The artifact must be unexpired and contain every generated package file with absolute paths preserved for the default Ubuntu runner layout. Any job can produce it. | **true**     | **string** | -           |
-| **`working-directory`** | Project directory relative to the caller repository root, matching release preparation and the build artifact's source directory.                                                                                                           | **false**    | **string** | `.`         |
-| **`package-tests`**     | Shell commands testing the tarball before publication. Runs from working-directory with PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION.                                                                                             | **false**    | **string** | -           |
-| **`changelog-summary`** | Optional JSON configuration forwarded unchanged to ci-github-publish/actions/release/create.                                                                                                                                                | **false**    | **string** | -           |
-|                         | Supports all upstream summary options. Use the changelog-summary secret when the configuration contains credentials.                                                                                                                        |              |            |             |
-|                         | A non-empty secret overrides this input; omit both to disable summarization. Summary failures stop publication.                                                                                                                             |              |            |             |
-|                         | See <https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/create>.                                                                                                                                                |              |            |             |
-| **`environment`**       | Optional GitHub environment for release jobs. Leave empty to run without an environment. When set, its protection rules apply; use the same name if restricting npm trusted publishing to an environment.                                   | **false**    | **string** | -           |
+| **Input**                         | **Description**                                                                                                                                                                                                         | **Required** | **Type**   | **Default** |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------- | ----------- |
+| **`packages`**                    | JSON array containing one public npm package from prepare-package-release.                                                                                                                                              | **true**     | **string** | -           |
+| **`package-tarball-artifact-id`** | Validated package tarball artifact ID from this workflow run and the prepared tag's commit. Upload one raw .tgz with archive: false. The caller must depend on successful validation; any job can produce the artifact. | **true**     | **string** | -           |
+| **`working-directory`**           | Project directory relative to the caller repository root, matching release preparation.                                                                                                                                 | **false**    | **string** | `.`         |
+| **`changelog-summary`**           | Optional JSON configuration forwarded unchanged to ci-github-publish/actions/release/create.                                                                                                                            | **false**    | **string** | -           |
+|                                   | Supports all upstream summary options. Use the changelog-summary secret when the configuration contains credentials.                                                                                                    |              |            |             |
+|                                   | A non-empty secret overrides this input; omit both to disable summarization. Summary failures stop publication.                                                                                                         |              |            |             |
+|                                   | See <https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/create>.                                                                                                                            |              |            |             |
+| **`environment`**                 | Optional GitHub environment for release jobs. Leave empty to run without an environment. When set, its protection rules apply; use the same name if restricting npm trusted publishing to an environment.               | **false**    | **string** | -           |
 
 <!-- inputs:end -->
 <!-- secrets:start -->

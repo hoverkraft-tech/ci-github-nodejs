@@ -75,13 +75,13 @@ jobs:
             core.setOutput('digest', createHash('sha256').update(fs.readFileSync(tarball)).digest('hex'));
             core.setOutput('packages', [{ name, slug: name, version: '1.2.3', tag: 'v1.2.3', directory: '.' }]);
 
-      - name: Act - Reject an invalid CI artifact ID
+      - name: Act - Reject an invalid package artifact ID
         id: invalid-artifact
         continue-on-error: true
         uses: $/actions/release/verify
         with:
           packages: ${{ steps.fixture.outputs.packages }}
-          build-artifact-id: "0"
+          package-tarball-artifact-id: "0"
       - name: Act - Reject a mismatched tarball version
         id: mismatched-version
         continue-on-error: true
@@ -145,8 +145,6 @@ jobs:
         with:
           working-directory: actions/package/test
           tarball-path: ${{ steps.fixture.outputs.tarball }}
-          name: ${{ steps.fixture.outputs.name }}
-          version: 1.2.3
           commands: |
             test "$PWD" = "$GITHUB_WORKSPACE/actions/package/test"
             test "$PACKAGE_NAME" = "$EXPECTED_PACKAGE_NAME"
@@ -161,8 +159,6 @@ jobs:
         uses: $/actions/package/test
         with:
           tarball-path: ${{ steps.fixture.outputs.tarball }}
-          name: ${{ steps.fixture.outputs.name }}
-          version: 1.2.3
           commands: exit 7
       - name: Act - Reject modified tarball bytes
         id: modified-tarball
@@ -170,8 +166,6 @@ jobs:
         uses: $/actions/package/test
         with:
           tarball-path: ${{ steps.fixture.outputs.tarball }}
-          name: ${{ steps.fixture.outputs.name }}
-          version: 1.2.3
           commands: printf changed >> "$PACKAGE_TARBALL_PATH"
       - name: Assert - Smoke checks ran and rejected both failures
         env:
