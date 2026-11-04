@@ -3,7 +3,6 @@ name: Internal - Pull request - Continuous Integration
 on:
   merge_group:
   pull_request:
-    branches: [main]
 
 permissions: {}
 
