@@ -1,0 +1,185 @@
+name: Internal - Tests for package and release actions
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  continuous-integration:
+    name: Unit tests for ${{ matrix.action }}
+    strategy:
+      fail-fast: false
+      matrix:
+        action:
+          [package/restore, release/prepare, release/verify, release/finalize]
+    uses: $/.github/workflows/continuous-integration.yml
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: write
+      security-events: write
+    with:
+      working-directory: actions/${{ matrix.action }}
+      build: null
+      lint: null
+      test: '{ "coverage": null }'
+
+  integration-tests:
+    name: Test release action inputs, outputs and failures
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Arrange - Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/actions/setup-node
+        with:
+          working-directory: actions/release/prepare
+          install-dependencies: "false"
+
+      - name: Act - Reject preparation of a private package
+        id: private-project
+        continue-on-error: true
+        uses: $/actions/release/prepare
+        with:
+          working-directory: actions/release/prepare
+      - name: Assert - Preparation failed
+        env:
+          OUTCOME: ${{ steps.private-project.outcome }}
+        run: test "$OUTCOME" = failure
+
+      - name: Arrange - Create an installable release tarball
+        id: fixture
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { createHash } = require('node:crypto');
+            const directory = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP, 'release-fixture-'));
+            const name = `hoverkraft-release-test-${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}`;
+            fs.writeFileSync(path.join(directory, 'package.json'), JSON.stringify({
+              name, version: '1.2.3', bin: { 'release-fixture': 'cli.js' },
+              scripts: { prepare: 'exit 91', prepack: 'exit 91', postpack: 'exit 91' },
+            }));
+            fs.writeFileSync(path.join(directory, 'cli.js'), '#!/usr/bin/env node\nconsole.log("1.2.3");\n', { mode: 0o755 });
+            const { stdout } = await exec.getExecOutput('npm', ['pack', '--json', '--ignore-scripts'], { cwd: directory });
+            const tarball = path.join(directory, JSON.parse(stdout)[0].filename);
+            core.setOutput('name', name);
+            core.setOutput('tarball', tarball);
+            core.setOutput('digest', createHash('sha256').update(fs.readFileSync(tarball)).digest('hex'));
+            core.setOutput('packages', [{ name, slug: name, version: '1.2.3', tag: 'v1.2.3', directory: '.' }]);
+
+      - name: Act - Reject an invalid CI artifact ID
+        id: invalid-artifact
+        continue-on-error: true
+        uses: $/actions/release/verify
+        with:
+          packages: ${{ steps.fixture.outputs.packages }}
+          build-artifact-id: "0"
+      - name: Act - Reject a mismatched tarball version
+        id: mismatched-version
+        continue-on-error: true
+        uses: $/actions/package/restore
+        with:
+          name: ${{ steps.fixture.outputs.name }}
+          version: 9.9.9
+          tarball-path: ${{ steps.fixture.outputs.tarball }}
+      - name: Act - Check an unpublished npm version
+        id: registry
+        uses: $/actions/package/restore
+        with:
+          name: ${{ steps.fixture.outputs.name }}
+          version: 1.2.3
+          tarball-path: ${{ steps.fixture.outputs.tarball }}
+      - name: Assert - Rejections and registry output
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ARTIFACT_OUTCOME: ${{ steps.invalid-artifact.outcome }}
+          VERSION_OUTCOME: ${{ steps.mismatched-version.outcome }}
+          PUBLISHED: ${{ steps.registry.outputs.published }}
+          TARBALL: ${{ steps.fixture.outputs.tarball }}
+          EXPECTED_DIGEST: ${{ steps.fixture.outputs.digest }}
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            const { createHash } = require('node:crypto');
+            assert.equal(process.env.ARTIFACT_OUTCOME, 'failure');
+            assert.equal(process.env.VERSION_OUTCOME, 'failure');
+            assert.equal(process.env.PUBLISHED, 'false');
+            assert.equal(createHash('sha256').update(fs.readFileSync(process.env.TARBALL)).digest('hex'), process.env.EXPECTED_DIGEST);
+
+      - name: Arrange - Upload the unpublished package
+        id: unpublished-package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unpublished-package-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.fixture.outputs.tarball }}
+          archive: false
+          if-no-files-found: error
+      - name: Act - Publish dry run with package recovery enabled
+        id: publish
+        uses: $/actions/package/publish
+        with:
+          package-tarball-artifact-id: ${{ steps.unpublished-package.outputs.artifact-id }}
+          skip-existing: "true"
+          dry-run: "true"
+          provenance: "false"
+      - name: Assert - Publish preserved the unpublished tarball
+        env:
+          ORIGINAL_TARBALL: ${{ steps.fixture.outputs.tarball }}
+          PUBLISH_TARBALL: ${{ steps.publish.outputs.package-tarball-path }}
+        run: cmp "$ORIGINAL_TARBALL" "$PUBLISH_TARBALL"
+
+      - name: Act - Install and run the release package
+        id: smoke
+        uses: $/actions/package/test
+        env:
+          EXPECTED_PACKAGE_NAME: ${{ steps.fixture.outputs.name }}
+        with:
+          working-directory: actions/package/test
+          tarball-path: ${{ steps.fixture.outputs.tarball }}
+          name: ${{ steps.fixture.outputs.name }}
+          version: 1.2.3
+          commands: |
+            test "$PWD" = "$GITHUB_WORKSPACE/actions/package/test"
+            test "$PACKAGE_NAME" = "$EXPECTED_PACKAGE_NAME"
+            test "$PACKAGE_VERSION" = 1.2.3
+            consumer=$(mktemp -d)
+            npm install --prefix "$consumer" --ignore-scripts --offline --no-audit --no-fund "$PACKAGE_TARBALL_PATH"
+            test "$("$consumer/node_modules/.bin/release-fixture")" = "$PACKAGE_VERSION"
+            touch "$RUNNER_TEMP/release-smoke-ran"
+      - name: Act - Reject a failing package command
+        id: failing-command
+        continue-on-error: true
+        uses: $/actions/package/test
+        with:
+          tarball-path: ${{ steps.fixture.outputs.tarball }}
+          name: ${{ steps.fixture.outputs.name }}
+          version: 1.2.3
+          commands: exit 7
+      - name: Act - Reject modified tarball bytes
+        id: modified-tarball
+        continue-on-error: true
+        uses: $/actions/package/test
+        with:
+          tarball-path: ${{ steps.fixture.outputs.tarball }}
+          name: ${{ steps.fixture.outputs.name }}
+          version: 1.2.3
+          commands: printf changed >> "$PACKAGE_TARBALL_PATH"
+      - name: Assert - Smoke checks ran and rejected both failures
+        env:
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          COMMAND_OUTCOME: ${{ steps.failing-command.outcome }}
+          TARBALL_OUTCOME: ${{ steps.modified-tarball.outcome }}
+        run: |
+          test "$SMOKE_OUTCOME" = success
+          test -f "$RUNNER_TEMP/release-smoke-ran"
+          test "$COMMAND_OUTCOME" = failure
+          test "$TARBALL_OUTCOME" = failure

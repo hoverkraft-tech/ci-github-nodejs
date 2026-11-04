@@ -134,7 +134,7 @@ run_audit_fix_for_pm() {
 }
 
 run_for_each_test_package() {
-	packages="$(find tests -type f -name package.json -not -path '*/node_modules/*' -print | sort)"
+	packages="$(find tests actions -type f -name package.json -not -path '*/node_modules/*' -print | sort)"
 
 	for pkg in $packages; do
 		pkg_dir="$(dirname "$pkg")"
@@ -167,13 +167,13 @@ run_for_each_test_package() {
 
 case "$action" in
 install)
-	echo "Installing dependencies for package.json files under tests/ ..."
+	echo "Installing dependencies for package.json files under tests/ and actions/ ..."
 	;;
 update-interactive)
-	echo "Running interactive dependency updates for package.json files under tests/ ..."
+	echo "Running interactive dependency updates for package.json files under tests/ and actions/ ..."
 	;;
 audit-fix)
-	echo "Running dependency audit/fix for package.json files under tests/ ..."
+	echo "Running dependency audit/fix for package.json files under tests/ and actions/ ..."
 	;;
 *)
 	echo "Unsupported action: $action" >&2

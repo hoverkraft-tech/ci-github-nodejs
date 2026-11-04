@@ -1,0 +1,159 @@
+name: Prepare Node.js package release
+description: Apply the HoverKraft Conventional Commit plan to one public npm package and dispatch publication from the committed tag.
+author: hoverkraft
+branding:
+  icon: git-commit
+  color: blue
+inputs:
+  working-directory:
+    description: Public npm project directory containing its package.json and lockfile.
+    default: .
+  github-token:
+    description: Token with contents and actions write and pull-requests read permissions. Its identity must be allowed to push release commits and tags.
+    default: ${{ github.token }}
+outputs:
+  status:
+    description: One of no-changes, dispatched, ready or released. Only ready should start building, followed by publication.
+    value: ${{ steps.inspect.outputs.status || (steps.dispatch.outcome == 'success' && 'dispatched') || 'no-changes' }}
+  packages:
+    description: JSON array containing the public npm package at the committed release version.
+    value: ${{ steps.inspect.outputs.packages || '[]' }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+        token: ${{ inputs.github-token }}
+        persist-credentials: true
+    - name: Inspect release project and existing tag
+      id: inspect
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        CALLER_WORKFLOW_REF: ${{ github.workflow_ref }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const releasePackage = require(`${process.env.ACTION_PATH}/index.js`);
+          const workspace = fs.realpathSync(process.env.GITHUB_WORKSPACE);
+          const directory = fs.realpathSync(path.resolve(workspace, process.env.WORKING_DIRECTORY));
+          const relativeDirectory = path.relative(workspace, directory);
+          if (relativeDirectory.startsWith('..') || path.isAbsolute(relativeDirectory)) throw new Error('Release directory must be inside the repository.');
+          const manifest = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
+          if (manifest.private || manifest.workspaces || !['package-lock.json', 'npm-shrinkwrap.json'].some(file => fs.existsSync(path.join(directory, file))) || (manifest.packageManager && !manifest.packageManager.startsWith('npm@')) || ['lerna.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'yarn.lock'].some(file => fs.existsSync(path.join(directory, file)))) {
+            throw new Error('Release preparation requires one public npm package with its own lockfile.');
+          }
+          const { name, version } = manifest;
+          const item = { name, version, directory: '.', slug: typeof name === 'string' ? name.replace(/^@/, '').replace('/', '-') : '' };
+          releasePackage.parsePackages(JSON.stringify([item]));
+          const versionFromTag = tag => releasePackage.versionFromTag(tag, directory, relativeDirectory);
+          let tag;
+          if (context.ref.startsWith('refs/tags/')) {
+            tag = context.ref.slice('refs/tags/'.length);
+            if (versionFromTag(tag) !== version) throw new Error('Release tag must match the committed package version.');
+            core.setOutput('status', 'ready');
+            core.setOutput('packages', [{ ...item, tag }]);
+          } else {
+            if (context.ref !== `refs/heads/${context.payload.repository.default_branch}`) throw new Error('Run releases from the default branch or an existing release tag.');
+            const { stdout } = await exec.getExecOutput('git', ['tag', '--points-at', context.sha], { cwd: directory });
+            const tags = stdout.trim().split('\n').filter(candidate => {
+              try { return versionFromTag(candidate) === version; } catch { return false; }
+            });
+            if (tags.length > 1) throw new Error('Several release tags match this commit; resume the intended tag explicitly.');
+            tag = tags[0];
+            const prefix = `${context.repo.owner}/${context.repo.repo}/`;
+            const workflow = process.env.CALLER_WORKFLOW_REF?.startsWith(prefix) ? process.env.CALLER_WORKFLOW_REF.slice(prefix.length).split('@')[0] : '';
+            if (!/^\.github\/workflows\/[^/]+\.ya?ml$/.test(workflow)) throw new Error('Cannot determine the caller workflow for publication dispatch.');
+            core.setOutput('workflow', workflow);
+          }
+          if (tag) {
+            const release = await releasePackage.findRelease(github, context.repo, tag);
+            if (!context.ref.startsWith('refs/tags/') && release && !release.draft) core.setOutput('status', 'released');
+          }
+          core.setOutput('tag', tag || '');
+          core.setOutput('version', version);
+    - name: Plan release with HoverKraft
+      id: plan
+      if: steps.inspect.outputs.tag == ''
+      uses: hoverkraft-tech/ci-github-publish/actions/release/plan@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+      with:
+        github-token: ${{ inputs.github-token }}
+        target-sha: ${{ github.sha }}
+        working-directory: ${{ inputs.working-directory != '.' && inputs.working-directory || '' }}
+    - name: Restore source checkout for version preparation
+      if: steps.plan.outputs.has-changes == 'true'
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+        token: ${{ inputs.github-token }}
+        persist-credentials: true
+    - uses: $/actions/setup-node
+      if: steps.plan.outputs.has-changes == 'true'
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        ignore-scripts: "true"
+    - name: Validate planned version
+      id: version
+      if: steps.plan.outputs.has-changes == 'true'
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        RELEASE_TAG: ${{ steps.plan.outputs.tag }}
+        CURRENT_VERSION: ${{ steps.inspect.outputs.version }}
+      with:
+        script: |
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const releasePackage = require(`${process.env.ACTION_PATH}/index.js`);
+          const workspace = fs.realpathSync(process.env.GITHUB_WORKSPACE);
+          const directory = fs.realpathSync(path.resolve(workspace, process.env.WORKING_DIRECTORY));
+          const version = releasePackage.versionFromTag(process.env.RELEASE_TAG, directory, path.relative(workspace, directory));
+          releasePackage.validateVersion(version, process.env.CURRENT_VERSION);
+          const existing = await exec.getExecOutput('git', ['show-ref', '--verify', '--quiet', `refs/tags/${process.env.RELEASE_TAG}`], { cwd: directory, ignoreReturnCode: true });
+          if (existing.exitCode === 0) throw new Error(`Existing tag ${process.env.RELEASE_TAG} must not be overwritten.`);
+          if (existing.exitCode !== 1) throw new Error('Could not check the planned release tag.');
+          core.setOutput('version', version);
+    - name: Apply the planned version
+      if: steps.plan.outputs.has-changes == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        RELEASE_VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        git switch --force-create "$DEFAULT_BRANCH" "$GITHUB_SHA"
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "Release source must be clean before applying the planned version." >&2
+          exit 1
+        fi
+        npm version "$RELEASE_VERSION" --allow-same-version --no-git-tag-version --ignore-scripts
+        git add --all -- .
+    - name: Push the signed release commit and tag atomically
+      if: steps.plan.outputs.has-changes == 'true'
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        RELEASE_TAG: ${{ steps.plan.outputs.tag }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const path = require('node:path');
+          const { pushRelease } = require(`${process.env.ACTION_PATH}/index.js`);
+          await pushRelease({ github, context, exec, directory: path.resolve(process.env.GITHUB_WORKSPACE, process.env.WORKING_DIRECTORY), tags: [process.env.RELEASE_TAG] });
+    - name: Dispatch the caller at the prepared tag
+      id: dispatch
+      if: steps.inspect.outputs.status == '' && (steps.inspect.outputs.tag != '' || steps.plan.outputs.has-changes == 'true')
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        CALLER_WORKFLOW: ${{ steps.inspect.outputs.workflow }}
+        RELEASE_TAG: ${{ steps.inspect.outputs.tag || steps.plan.outputs.tag }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          await github.rest.actions.createWorkflowDispatch({ ...context.repo, workflow_id: process.env.CALLER_WORKFLOW, ref: process.env.RELEASE_TAG });

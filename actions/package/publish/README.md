@@ -27,6 +27,10 @@ Publish a CI-produced Node.js package tarball to an npm-compatible registry
 ```yaml
 - uses: hoverkraft-tech/ci-github-nodejs/actions/package/publish@<sha>
   with:
+    # Skip existing npmjs.org versions and restore their original tarball for release assets. Checks the registry again on every retry.
+    # Default: `false`
+    skip-existing: "false"
+
     # Artifact ID of one package tarball uploaded by the package action
     # This input is required.
     package-tarball-artifact-id: ""
@@ -60,15 +64,16 @@ Publish a CI-produced Node.js package tarball to an npm-compatible registry
 
 ## Inputs
 
-| **Input**                         | **Description**                                                                                 | **Required** | **Default**                  |
-| --------------------------------- | ----------------------------------------------------------------------------------------------- | ------------ | ---------------------------- |
-| **`package-tarball-artifact-id`** | Artifact ID of one package tarball uploaded by the package action                               | **true**     | -                            |
-| **`registry-url`**                | Registry URL used by npm publish                                                                | **false**    | `https://registry.npmjs.org` |
-| **`access`**                      | Package access: public, restricted, or empty to use npm defaults                                | **false**    | `public`                     |
-| **`tag`**                         | npm distribution tag, such as latest, next, or canary; empty uses npm defaults                  | **false**    | -                            |
-| **`provenance`**                  | Whether to request provenance for npmjs.org publishes (true or false)                           | **false**    | `true`                       |
-| **`dry-run`**                     | Validate publishing without uploading the package (true or false)                               | **false**    | `false`                      |
-| **`github-token`**                | GitHub token for downloading the artifact; registry authentication uses NODE_AUTH_TOKEN or OIDC | **false**    | `${{ github.token }}`        |
+| **Input**                         | **Description**                                                                                                                   | **Required** | **Default**                  |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------- |
+| **`skip-existing`**               | Skip existing npmjs.org versions and restore their original tarball for release assets. Checks the registry again on every retry. | **false**    | `false`                      |
+| **`package-tarball-artifact-id`** | Artifact ID of one package tarball uploaded by the package action                                                                 | **true**     | -                            |
+| **`registry-url`**                | Registry URL used by npm publish                                                                                                  | **false**    | `https://registry.npmjs.org` |
+| **`access`**                      | Package access: public, restricted, or empty to use npm defaults                                                                  | **false**    | `public`                     |
+| **`tag`**                         | npm distribution tag, such as latest, next, or canary; empty uses npm defaults                                                    | **false**    | -                            |
+| **`provenance`**                  | Whether to request provenance for npmjs.org publishes (true or false)                                                             | **false**    | `true`                       |
+| **`dry-run`**                     | Validate publishing without uploading the package (true or false)                                                                 | **false**    | `false`                      |
+| **`github-token`**                | GitHub token for downloading the artifact; registry authentication uses NODE_AUTH_TOKEN or OIDC                                   | **false**    | `${{ github.token }}`        |
 
 <!-- inputs:end -->
 <!-- examples:start -->
@@ -148,6 +153,13 @@ Publish only after the checks for that exact artifact succeed. Re-running a succ
 <!-- secrets:start -->
 <!-- secrets:end -->
 <!-- outputs:start -->
+
+## Outputs
+
+| **Output**                 | **Description**                                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **`package-tarball-path`** | Local path to the published tarball, restored from npm when skip-existing finds an existing version. |
+
 <!-- outputs:end -->
 
 <!--

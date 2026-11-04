@@ -35,6 +35,7 @@ updates:
     versioning-strategy: increase
     directories:
       - "/"
+      - "/actions/**/*"
       - "/tests/npm"
       - "/tests/pnpm"
       - "/tests/pnpm-package-manager"

@@ -1,0 +1,11 @@
+{
+  "name": "package-restore-tests",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "test:ci": "node --test"
+  },
+  "devDependencies": {
+    "@actions/exec": "^1.1.1"
+  }
+}

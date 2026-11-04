@@ -6,6 +6,9 @@ branding:
   color: blue
 
 inputs:
+  skip-existing:
+    description: Skip existing npmjs.org versions and restore their original tarball for release assets. Checks the registry again on every retry.
+    default: "false"
   package-tarball-artifact-id:
     description: "Artifact ID of one package tarball uploaded by the package action"
     required: true
@@ -34,6 +37,11 @@ inputs:
     required: false
     default: ${{ github.token }}
 
+outputs:
+  package-tarball-path:
+    description: Local path to the published tarball, restored from npm when skip-existing finds an existing version.
+    value: ${{ steps.package-tarball.outputs.path }}
+
 runs:
   using: "composite"
   steps:
@@ -45,6 +53,7 @@ runs:
         ACCESS: ${{ inputs.access }}
         PROVENANCE: ${{ inputs.provenance }}
         DRY_RUN: ${{ inputs.dry-run }}
+        SKIP_EXISTING: ${{ inputs.skip-existing }}
         REGISTRY_URL: ${{ inputs.registry-url }}
         RUNNER_TEMP: ${{ runner.temp }}
       with:
@@ -60,7 +69,7 @@ runs:
             return core.setFailed('access must be public, restricted, or empty');
           }
 
-          for (const input of ['PROVENANCE', 'DRY_RUN']) {
+          for (const input of ['PROVENANCE', 'DRY_RUN', 'SKIP_EXISTING']) {
             if (!['true', 'false'].includes(process.env[input])) {
               return core.setFailed(`${input.toLowerCase().replaceAll('_', '-')} must be true or false`);
             }
@@ -68,6 +77,9 @@ runs:
 
           try {
             const registry = new URL(process.env.REGISTRY_URL);
+            if (process.env.SKIP_EXISTING === 'true' && registry.origin !== 'https://registry.npmjs.org') {
+              return core.setFailed('skip-existing requires the public npm registry.');
+            }
             if (!['https:', 'http:'].includes(registry.protocol)) {
               return core.setFailed('registry-url must use HTTP or HTTPS');
             }
@@ -128,7 +140,31 @@ runs:
           core.info(`Package tarball: ${packageTarballPaths[0]}`);
           core.setOutput('path', packageTarballPaths[0]);
 
+    - id: package-identity
+      name: Read package identity for recovery
+      if: inputs.skip-existing == 'true'
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        PACKAGE_TARBALL_PATH: ${{ steps.package-tarball.outputs.path }}
+      with:
+        script: |
+          const tarballPath = process.env.PACKAGE_TARBALL_PATH;
+          const { stdout } = await exec.getExecOutput('tar', ['-xOf', tarballPath, 'package/package.json'], { silent: true });
+          const { name, version } = JSON.parse(stdout);
+          core.setOutput('name', name);
+          core.setOutput('version', version);
+
+    - id: existing
+      name: Recover an existing npm version
+      if: inputs.skip-existing == 'true'
+      uses: $/actions/package/restore
+      with:
+        name: ${{ steps.package-identity.outputs.name }}
+        version: ${{ steps.package-identity.outputs.version }}
+        tarball-path: ${{ steps.package-tarball.outputs.path }}
+
     - name: Publish package
+      if: steps.existing.outputs.published != 'true'
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         PACKAGE_TARBALL_PATH: ${{ steps.package-tarball.outputs.path }}

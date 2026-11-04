@@ -1,0 +1,40 @@
+name: Finalize Node.js release
+description: Verify published npm tarballs staged in RUNNER_TEMP/release-assets against existing assets, then upload missing assets and publish the draft with HoverKraft release/update using GITHUB_TOKEN.
+author: hoverkraft
+branding:
+  icon: tag
+  color: blue
+inputs:
+  tag:
+    description: Committed release tag.
+    required: true
+runs:
+  using: composite
+  steps:
+    - id: assets
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        RELEASE_TAG: ${{ inputs.tag }}
+        ASSET_DIRECTORY: ${{ runner.temp }}/release-assets
+      with:
+        script: |
+          const releaseAssets = require(`${process.env.ACTION_PATH}/index.js`);
+          const { release, pendingDirectory, hasAssets } = await releaseAssets.prepareAssets({ github, glob, repo: context.repo, tag: process.env.RELEASE_TAG, directory: process.env.ASSET_DIRECTORY });
+          core.setOutput('release-id', release.id);
+          core.setOutput('published', String(!release.draft));
+          core.setOutput('pending-directory', pendingDirectory);
+          core.setOutput('has-assets', String(hasAssets));
+    - id: pending-assets
+      if: steps.assets.outputs.has-assets == 'true'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: release-pending-assets-${{ steps.assets.outputs.release-id }}-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ steps.assets.outputs.pending-directory }}/*.tgz
+        if-no-files-found: error
+    - uses: hoverkraft-tech/ci-github-publish/actions/release/update@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+      if: steps.assets.outputs.published != 'true'
+      with:
+        tag: ${{ inputs.tag }}
+        publish: "true"
+        release-artifact-id: ${{ steps.pending-assets.outputs.artifact-id }}

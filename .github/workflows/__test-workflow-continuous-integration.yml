@@ -82,6 +82,24 @@ jobs:
           tar -xOf "$TARBALL" package/dist/test.txt > "$RUNNER_TEMP/packaged-build.txt"
           cmp "$RUNNER_TEMP/prepared-fixture/dist/test.txt" "$RUNNER_TEMP/packaged-build.txt"
           test ! -d tests/npm/node_modules
+      - name: Run package smoke checks with the project runtime
+        uses: $/actions/package/test
+        with:
+          working-directory: tests/npm
+          tarball-path: ${{ steps.package.outputs.package-tarball-path }}
+          name: prepared-fixture
+          version: 1.2.3
+          commands: |
+            node <<'NODE'
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            const expected = fs.readFileSync('.node-version', 'utf8').trim().split('.');
+            assert.deepEqual(process.versions.node.split('.').slice(0, expected.length), expected);
+            NODE
+            test "$PACKAGE_NAME" = prepared-fixture
+            test "$PACKAGE_VERSION" = 1.2.3
+            tar -xOf "$PACKAGE_TARBALL_PATH" package/dist/test.txt > "$RUNNER_TEMP/smoke-output.txt"
+            cmp "$RUNNER_TEMP/prepared-fixture/dist/test.txt" "$RUNNER_TEMP/smoke-output.txt"
       - name: Validate publishing the prepared tarball
         uses: $/actions/package/publish
         with:

@@ -17,6 +17,17 @@ jobs:
       security-events: write
       statuses: write
 
+  test-release:
+    name: Test release preparation and recovery
+    uses: $/.github/workflows/__test-release.yml
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: write
+      security-events: write
+
   test-action-dependencies-cache:
     name: Test action "dependencies-cache"
     needs: linter
