@@ -289,3 +289,7 @@ the alternatives and observations below preserve their history, not new validati
   retains source/identity checks and retry recovery. This avoids testing a
   different package from the one published and removes consumer commands from
   the job with publication credentials. The PR CI entry point remains unchanged.
+- **2026-11-04, recovery input naming:** Rename Publish's `skip-existing` input to
+  `recover-existing` to describe restoring original registry bytes when resuming a
+  release. Keep the default false for standalone publication and enable recovery
+  in release workflows. Registry and integrity failures remain errors.

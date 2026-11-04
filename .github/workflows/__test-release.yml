@@ -128,7 +128,7 @@ jobs:
         uses: $/actions/package/publish
         with:
           package-tarball-artifact-id: ${{ steps.unpublished-package.outputs.artifact-id }}
-          skip-existing: "true"
+          recover-existing: "true"
           dry-run: "true"
           provenance: "false"
       - name: Assert - Publish preserved the unpublished tarball

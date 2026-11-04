@@ -78,7 +78,7 @@ jobs:
           package-tarball-artifact-id: ${{ inputs.package-tarball-artifact-id }}
           name: ${{ fromJSON(inputs.packages)[0].name }}
           version: ${{ fromJSON(inputs.packages)[0].version }}
-          skip-existing: "true"
+          recover-existing: "true"
           tag: latest
       - name: Prepare release asset
         env:

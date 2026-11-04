@@ -12,8 +12,8 @@ inputs:
   version:
     description: Expected package version, paired with name to reject an unintended release tarball before publication.
     default: ""
-  skip-existing:
-    description: Skip existing npmjs.org versions and restore their original tarball for release assets. Checks the registry again on every retry.
+  recover-existing:
+    description: Recover an existing npmjs.org version by restoring its original tarball instead of publishing again. Checks the registry on every attempt.
     default: "false"
   package-tarball-artifact-id:
     description: "Artifact ID of one package tarball uploaded by the package action"
@@ -45,7 +45,7 @@ inputs:
 
 outputs:
   package-tarball-path:
-    description: Local path to the published tarball, restored from npm when skip-existing finds an existing version.
+    description: Local path to the published tarball, restored from npm when recover-existing finds an existing version.
     value: ${{ steps.package-tarball.outputs.path }}
 
 runs:
@@ -59,7 +59,7 @@ runs:
         ACCESS: ${{ inputs.access }}
         PROVENANCE: ${{ inputs.provenance }}
         DRY_RUN: ${{ inputs.dry-run }}
-        SKIP_EXISTING: ${{ inputs.skip-existing }}
+        RECOVER_EXISTING: ${{ inputs.recover-existing }}
         REGISTRY_URL: ${{ inputs.registry-url }}
         RUNNER_TEMP: ${{ runner.temp }}
         EXPECTED_NAME: ${{ inputs.name }}
@@ -81,7 +81,7 @@ runs:
             return core.setFailed('access must be public, restricted, or empty');
           }
 
-          for (const input of ['PROVENANCE', 'DRY_RUN', 'SKIP_EXISTING']) {
+          for (const input of ['PROVENANCE', 'DRY_RUN', 'RECOVER_EXISTING']) {
             if (!['true', 'false'].includes(process.env[input])) {
               return core.setFailed(`${input.toLowerCase().replaceAll('_', '-')} must be true or false`);
             }
@@ -89,8 +89,8 @@ runs:
 
           try {
             const registry = new URL(process.env.REGISTRY_URL);
-            if (process.env.SKIP_EXISTING === 'true' && registry.origin !== 'https://registry.npmjs.org') {
-              return core.setFailed('skip-existing requires the public npm registry.');
+            if (process.env.RECOVER_EXISTING === 'true' && registry.origin !== 'https://registry.npmjs.org') {
+              return core.setFailed('recover-existing requires the public npm registry.');
             }
             if (!['https:', 'http:'].includes(registry.protocol)) {
               return core.setFailed('registry-url must use HTTP or HTTPS');
@@ -181,7 +181,7 @@ runs:
 
     - id: existing
       name: Recover an existing npm version
-      if: inputs.skip-existing == 'true'
+      if: inputs.recover-existing == 'true'
       uses: $/actions/package/restore
       with:
         name: ${{ steps.package-identity.outputs.name }}

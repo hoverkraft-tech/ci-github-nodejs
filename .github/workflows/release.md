@@ -381,9 +381,10 @@ checks before publication.
 
 ### Recovery
 
-The Publish action supports `skip-existing: "true"` for the public npm registry.
+The Publish action supports `recover-existing: "true"` for the public npm registry.
 It checks the exact version on every attempt, restores the original registry tarball
-when present, and returns its local path for assets.
+when present, skips npm publication, and returns its local path for assets so the
+remaining release steps can resume. Registry and integrity errors still fail the job.
 
 npm publication across several packages cannot be atomic. Check exact package
 versions before retrying; published versions cannot be overwritten. Restore original
@@ -432,7 +433,7 @@ Arrange, Act and Assert steps. Integration checks cover private-package rejectio
 invalid package artifact IDs, mismatched tarball versions, the unpublished registry output,
 installed CLI behavior, failed smoke commands and modified tarball bytes. Assertions
 read action outputs and step outcomes; they do not extract scripts from YAML.
-An npm publication dry run with `skip-existing` enabled checks that `publish`
+An npm publication dry run with `recover-existing` enabled checks that `publish`
 correctly composes `package/restore` and preserves unpublished package bytes.
 The CI workflow tests exercise optional packaging, installed-package checks and
 consuming the validated tarball in a separate job. Publish action tests reject

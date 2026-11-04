@@ -33,9 +33,9 @@ Publish an existing Node.js package tarball to an npm-compatible registry
     # Expected package version, paired with name to reject an unintended release tarball before publication.
     version: ""
 
-    # Skip existing npmjs.org versions and restore their original tarball for release assets. Checks the registry again on every retry.
+    # Recover an existing npmjs.org version by restoring its original tarball instead of publishing again. Checks the registry on every attempt.
     # Default: `false`
-    skip-existing: "false"
+    recover-existing: "false"
 
     # Artifact ID of one package tarball uploaded by the package action
     # This input is required.
@@ -70,18 +70,18 @@ Publish an existing Node.js package tarball to an npm-compatible registry
 
 ## Inputs
 
-| **Input**                         | **Description**                                                                                                                   | **Required** | **Default**                  |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------- |
-| **`name`**                        | Expected package name, paired with version to reject an unintended release tarball before publication.                            | **false**    | -                            |
-| **`version`**                     | Expected package version, paired with name to reject an unintended release tarball before publication.                            | **false**    | -                            |
-| **`skip-existing`**               | Skip existing npmjs.org versions and restore their original tarball for release assets. Checks the registry again on every retry. | **false**    | `false`                      |
-| **`package-tarball-artifact-id`** | Artifact ID of one package tarball uploaded by the package action                                                                 | **true**     | -                            |
-| **`registry-url`**                | Registry URL used by npm publish                                                                                                  | **false**    | `https://registry.npmjs.org` |
-| **`access`**                      | Package access: public, restricted, or empty to use npm defaults                                                                  | **false**    | `public`                     |
-| **`tag`**                         | npm distribution tag, such as latest, next, or canary; empty uses npm defaults                                                    | **false**    | -                            |
-| **`provenance`**                  | Whether to request provenance for npmjs.org publishes (true or false)                                                             | **false**    | `true`                       |
-| **`dry-run`**                     | Validate publishing without uploading the package (true or false)                                                                 | **false**    | `false`                      |
-| **`github-token`**                | GitHub token for downloading the artifact; registry authentication uses NODE_AUTH_TOKEN or OIDC                                   | **false**    | `${{ github.token }}`        |
+| **Input**                         | **Description**                                                                                                                            | **Required** | **Default**                  |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ---------------------------- |
+| **`name`**                        | Expected package name, paired with version to reject an unintended release tarball before publication.                                     | **false**    | -                            |
+| **`version`**                     | Expected package version, paired with name to reject an unintended release tarball before publication.                                     | **false**    | -                            |
+| **`recover-existing`**            | Recover an existing npmjs.org version by restoring its original tarball instead of publishing again. Checks the registry on every attempt. | **false**    | `false`                      |
+| **`package-tarball-artifact-id`** | Artifact ID of one package tarball uploaded by the package action                                                                          | **true**     | -                            |
+| **`registry-url`**                | Registry URL used by npm publish                                                                                                           | **false**    | `https://registry.npmjs.org` |
+| **`access`**                      | Package access: public, restricted, or empty to use npm defaults                                                                           | **false**    | `public`                     |
+| **`tag`**                         | npm distribution tag, such as latest, next, or canary; empty uses npm defaults                                                             | **false**    | -                            |
+| **`provenance`**                  | Whether to request provenance for npmjs.org publishes (true or false)                                                                      | **false**    | `true`                       |
+| **`dry-run`**                     | Validate publishing without uploading the package (true or false)                                                                          | **false**    | `false`                      |
+| **`github-token`**                | GitHub token for downloading the artifact; registry authentication uses NODE_AUTH_TOKEN or OIDC                                            | **false**    | `${{ github.token }}`        |
 
 <!-- inputs:end -->
 <!-- examples:start -->
@@ -164,9 +164,9 @@ Publish only after the checks for that exact artifact succeed. Re-running a succ
 
 ## Outputs
 
-| **Output**                 | **Description**                                                                                      |
-| -------------------------- | ---------------------------------------------------------------------------------------------------- |
-| **`package-tarball-path`** | Local path to the published tarball, restored from npm when skip-existing finds an existing version. |
+| **Output**                 | **Description**                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **`package-tarball-path`** | Local path to the published tarball, restored from npm when recover-existing finds an existing version. |
 
 <!-- outputs:end -->
 
