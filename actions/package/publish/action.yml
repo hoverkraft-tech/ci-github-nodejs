@@ -108,24 +108,13 @@ runs:
             return core.setFailed(`Package tarball download path does not exist: ${downloadPath}`);
           }
 
-          function findTarballs(directory) {
-            return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-              const entryPath = path.join(directory, entry.name);
-
-              if (entry.isDirectory()) {
-                return findTarballs(entryPath);
-              }
-
-              if (entry.isFile() && entry.name.endsWith('.tgz')) {
-                return [entryPath];
-              }
-
-              return [];
-            });
-          }
-
+          const globber = await glob.create(path.join(downloadPath, '**/*.tgz'), {
+            followSymbolicLinks: false,
+            matchDirectories: false,
+            implicitDescendants: false,
+          });
           const packageTarballPaths = fs.statSync(downloadPath).isDirectory()
-            ? findTarballs(downloadPath)
+            ? (await globber.glob()).filter(file => fs.lstatSync(file).isFile())
             : downloadPath.endsWith('.tgz') ? [downloadPath] : [];
 
           if (packageTarballPaths.length === 0) {

@@ -20,6 +20,7 @@ jobs:
             cache-dependency-path: "tests/npm/**/package-lock.json"
             install-command: npm ci
             run-script-command: npm run
+            pack-command: 'npm pack --ignore-scripts --pack-destination "${PACK_DESTINATION:?PACK_DESTINATION is required}"'
 
           - working-directory: tests/pnpm
             package-manager: pnpm
@@ -27,6 +28,7 @@ jobs:
             cache-dependency-path: "tests/pnpm/**/pnpm-lock.yaml"
             install-command: pnpm install --frozen-lockfile
             run-script-command: pnpm
+            pack-command: 'pnpm pack --config.ignore-scripts=true --pack-destination "${PACK_DESTINATION:?PACK_DESTINATION is required}"'
 
           - working-directory: tests/pnpm-package-manager
             package-manager: pnpm
@@ -34,6 +36,7 @@ jobs:
             cache-dependency-path: "tests/pnpm-package-manager/**/pnpm-lock.yaml"
             install-command: pnpm install --frozen-lockfile
             run-script-command: pnpm
+            pack-command: 'pnpm pack --config.ignore-scripts=true --pack-destination "${PACK_DESTINATION:?PACK_DESTINATION is required}"'
 
           - working-directory: tests/yarn
             package-manager: yarn
@@ -41,6 +44,7 @@ jobs:
             cache-dependency-path: "tests/yarn/**/yarn.lock"
             install-command: yarn install --frozen-lockfile
             run-script-command: yarn
+            pack-command: 'yarn pack --ignore-scripts --filename "${PACK_DESTINATION:?PACK_DESTINATION is required}/package.tgz"'
     steps:
       - name: Arrange - Checkout sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,6 +67,8 @@ jobs:
           EXPECTED_INSTALL_COMMAND: ${{ matrix.install-command }}
           ACTUAL_RUN_SCRIPT_COMMAND: ${{ steps.act-get-package-manager.outputs.run-script-command }}
           EXPECTED_RUN_SCRIPT_COMMAND: ${{ matrix.run-script-command }}
+          ACTUAL_PACK_COMMAND: ${{ steps.act-get-package-manager.outputs.pack-command }}
+          EXPECTED_PACK_COMMAND: ${{ matrix.pack-command }}
         run: |
           if [ "$ACTUAL_PACKAGE_MANAGER" != "$EXPECTED_PACKAGE_MANAGER" ]; then
             echo "get-package-manager outputs result is not valid"
@@ -81,5 +87,10 @@ jobs:
 
           if [ "$ACTUAL_RUN_SCRIPT_COMMAND" != "$EXPECTED_RUN_SCRIPT_COMMAND" ]; then
             echo "get-package-manager outputs run-script-command is not valid"
+            exit 1
+          fi
+
+          if [ "$ACTUAL_PACK_COMMAND" != "$EXPECTED_PACK_COMMAND" ]; then
+            echo "get-package-manager output pack-command is not valid"
             exit 1
           fi

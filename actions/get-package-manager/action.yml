@@ -26,6 +26,12 @@ outputs:
   run-script-command:
     description: "The command to run a script in the package.json file."
     value: ${{ steps.get-package-manager.outputs.run-script-command }}
+  pack-command:
+    description: |
+      Bash command to pack prepared files without lifecycle scripts using npm, pnpm or Yarn Classic.
+      Set PACK_DESTINATION to an existing absolute output directory before executing the command.
+      Configure the project's package manager first; this command does not install dependencies or build.
+    value: ${{ steps.get-package-manager.outputs.pack-command }}
 
 runs:
   using: "composite"
@@ -149,16 +155,19 @@ runs:
               cacheDependencyPath: cacheDependencyPathPrefix ? `${cacheDependencyPathPrefix}/**/yarn.lock` : '',
               installCommand: 'yarn install --frozen-lockfile',
               runScriptCommand: 'yarn',
+              packCommand: 'yarn pack --ignore-scripts --filename "${PACK_DESTINATION:?PACK_DESTINATION is required}/package.tgz"',
             },
             pnpm: {
               cacheDependencyPath: cacheDependencyPathPrefix ? `${cacheDependencyPathPrefix}/**/pnpm-lock.yaml` : '',
               installCommand: 'pnpm install --frozen-lockfile',
               runScriptCommand: 'pnpm',
+              packCommand: 'pnpm pack --config.ignore-scripts=true --pack-destination "${PACK_DESTINATION:?PACK_DESTINATION is required}"',
             },
             npm: {
               cacheDependencyPath: cacheDependencyPathPrefix ? `${cacheDependencyPathPrefix}/**/package-lock.json` : '',
               installCommand: 'npm ci',
               runScriptCommand: 'npm run',
+              packCommand: 'npm pack --ignore-scripts --pack-destination "${PACK_DESTINATION:?PACK_DESTINATION is required}"',
             },
           };
 
@@ -173,4 +182,5 @@ runs:
           core.setOutput('cache-dependency-path', managerConfig.cacheDependencyPath);
           core.setOutput('install-command', managerConfig.installCommand);
           core.setOutput('run-script-command', managerConfig.runScriptCommand);
+          core.setOutput('pack-command', managerConfig.packCommand);
         # jscpd:ignore-end

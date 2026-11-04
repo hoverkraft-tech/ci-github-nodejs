@@ -31,13 +31,14 @@ _Actions for continuous integration steps: build, lint, and test._
 
 #### - [Codecov](actions/codecov/README.md)
 
-#### - [Package](actions/package/README.md)
-
 #### - [Lint](actions/lint/README.md)
 
 #### - [Test](actions/test/README.md)
 
-#### - [Publish](actions/publish/README.md)
+### Package Actions
+
+- [Create a package tarball](actions/package/create/README.md)
+- [Publish a package tarball](actions/package/publish/README.md)
 
 ### Dependencies
 
@@ -59,11 +60,11 @@ _Actions focused on discovering and preparing the Node.js environment._
 
 ### Continuous Integration
 
-- [Continuous Integration](.github/workflows/continuous-integration.md) — documentation for the reusable Node.js CI workflow.
+- [Continuous Integration](.github/workflows/continuous-integration.md): documentation for the reusable Node.js CI workflow.
 
 ### Release
 
-- [Release](.github/workflows/release.md) — guide to Node.js project releases using `ci-github-publish` release actions and the package/publish actions.
+- [Release](.github/workflows/release.md): publish prepared packages using the package actions and `ci-github-publish`.
 
 ## Contributing
 

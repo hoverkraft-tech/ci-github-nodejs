@@ -38,10 +38,10 @@ jobs:
     permissions:
       contents: read
 
-  test-action-package:
-    name: Test action "package"
+  test-action-package-create:
+    name: Test action "package/create"
     needs: linter
-    uses: $/.github/workflows/__test-action-package.yml
+    uses: $/.github/workflows/__test-action-package-create.yml
     permissions:
       contents: read
 
@@ -52,10 +52,10 @@ jobs:
     permissions:
       contents: read
 
-  test-action-publish:
-    name: Test action "publish"
+  test-action-package-publish:
+    name: Test action "package/publish"
     needs: linter
-    uses: $/.github/workflows/__test-action-publish.yml
+    uses: $/.github/workflows/__test-action-package-publish.yml
     permissions:
       actions: read
       contents: read
@@ -65,6 +65,7 @@ jobs:
     needs: linter
     uses: $/.github/workflows/__test-workflow-continuous-integration.yml
     permissions:
+      actions: read
       attestations: write
       contents: read
       packages: write

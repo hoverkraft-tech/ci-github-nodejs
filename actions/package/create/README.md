@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItcGFja2FnZSIgY29sb3I9ImJsdWUiPjxsaW5lIHgxPSIxNi41IiB5MT0iOS40IiB4Mj0iNy41IiB5Mj0iNC4yMSI+PC9saW5lPjxwYXRoIGQ9Ik0yMSAxNlY4YTIgMiAwIDAgMC0xLTEuNzNsLTctNGEyIDIgMCAwIDAtMiAwbC03IDRBMiAyIDAgMCAwIDMgOHY4YTIgMiAwIDAgMCAxIDEuNzNsNyA0YTIgMiAwIDAgMCAyIDBsNy00QTIgMiAwIDAgMCAyMSAxNnoiPjwvcGF0aD48cG9seWxpbmUgcG9pbnRzPSIzLjI3IDYuOTYgMTIgMTIuMDEgMjAuNzMgNi45NiI+PC9wb2x5bGluZT48bGluZSB4MT0iMTIiIHkxPSIyMi4wOCIgeDI9IjEyIiB5Mj0iMTIiPjwvbGluZT48L3N2Zz4=) GitHub Action: Package
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/d3cfc8b5e0d32c7bbee8e143f24dda679c080d2de26953e5a85b8ea744ddf609/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Package" />
+  <img src="https://opengraph.githubassets.com/5e6e6522b2be37aede8ce1464ef3152618d5ae56afc61474ac0df95cbf35ec3d/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Package" />
 </div>
 
 ---
@@ -16,7 +16,6 @@
 [![License](https://img.shields.io/github/license/hoverkraft-tech/ci-github-nodejs)](http://choosealicense.com/licenses/mit/)
 [![Stars](https://img.shields.io/github/stars/hoverkraft-tech/ci-github-nodejs?style=social)](https://img.shields.io/github/stars/hoverkraft-tech/ci-github-nodejs?style=social)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/hoverkraft-tech/ci-github-nodejs/blob/main/CONTRIBUTING.md)
-![GitHub Verified Creator](https://img.shields.io/badge/GitHub-Verified%20Creator-4493F8?logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiIgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSJyZ2IoNjgsIDE0NywgMjQ4KSI+CiAgPHBhdGggZD0ibTkuNTg1LjUyLjkyOS42OGMuMTUzLjExMi4zMzEuMTg2LjUxOC4yMTVsMS4xMzguMTc1YTIuNjc4IDIuNjc4IDAgMCAxIDIuMjQgMi4yNGwuMTc0IDEuMTM5Yy4wMjkuMTg3LjEwMy4zNjUuMjE1LjUxOGwuNjguOTI4YTIuNjc3IDIuNjc3IDAgMCAxIDAgMy4xN2wtLjY4LjkyOGExLjE3NCAxLjE3NCAwIDAgMC0uMjE1LjUxOGwtLjE3NSAxLjEzOGEyLjY3OCAyLjY3OCAwIDAgMS0yLjI0MSAyLjI0MWwtMS4xMzguMTc1YTEuMTcgMS4xNyAwIDAgMC0uNTE4LjIxNWwtLjkyOC42OGEyLjY3NyAyLjY3NyAwIDAgMS0zLjE3IDBsLS45MjgtLjY4YTEuMTc0IDEuMTc0IDAgMCAwLS41MTgtLjIxNUwzLjgzIDE0LjQxYTIuNjc4IDIuNjc4IDAgMCAxLTIuMjQtMi4yNGwtLjE3NS0xLjEzOGExLjE3IDEuMTcgMCAwIDAtLjIxNS0uNTE4bC0uNjgtLjkyOGEyLjY3NyAyLjY3NyAwIDAgMSAwLTMuMTdsLjY4LS45MjhjLjExMi0uMTUzLjE4Ni0uMzMxLjIxNS0uNTE4bC4xNzUtMS4xNGEyLjY3OCAyLjY3OCAwIDAgMSAyLjI0LTIuMjRsMS4xMzktLjE3NWMuMTg3LS4wMjkuMzY1LS4xMDMuNTE4LS4yMTVsLjkyOC0uNjhhMi42NzcgMi42NzcgMCAwIDEgMy4xNyAwWk03LjMwMyAxLjcyOGwtLjkyNy42OGEyLjY3IDIuNjcgMCAwIDEtMS4xOC40ODlsLTEuMTM3LjE3NGExLjE3OSAxLjE3OSAwIDAgMC0uOTg3Ljk4N2wtLjE3NCAxLjEzNmEyLjY3NyAyLjY3NyAwIDAgMS0uNDg5IDEuMThsLS42OC45MjhhMS4xOCAxLjE4IDAgMCAwIDAgMS4zOTRsLjY4LjkyN2MuMjU2LjM0OC40MjQuNzUzLjQ4OSAxLjE4bC4xNzQgMS4xMzdjLjA3OC41MDkuNDc4LjkwOS45ODcuOTg3bDEuMTM2LjE3NGEyLjY3IDIuNjcgMCAwIDEgMS4xOC40ODlsLjkyOC42OGMuNDE0LjMwNS45NzkuMzA1IDEuMzk0IDBsLjkyNy0uNjhhMi42NyAyLjY3IDAgMCAxIDEuMTgtLjQ4OWwxLjEzNy0uMTc0YTEuMTggMS4xOCAwIDAgMCAuOTg3LS45ODdsLjE3NC0xLjEzNmEyLjY3IDIuNjcgMCAwIDEgLjQ4OS0xLjE4bC42OC0uOTI4YTEuMTc2IDEuMTc2IDAgMCAwIDAtMS4zOTRsLS42OC0uOTI3YTIuNjg2IDIuNjg2IDAgMCAxLS40ODktMS4xOGwtLjE3NC0xLjEzN2ExLjE3OSAxLjE3OSAwIDAgMC0uOTg3LS45ODdsLTEuMTM2LS4xNzRhMi42NzcgMi42NzcgMCAwIDEtMS4xOC0uNDg5bC0uOTI4LS42OGExLjE3NiAxLjE3NiAwIDAgMC0xLjM5NCAwWk0xMS4yOCA2Ljc4bC0zLjc1IDMuNzVhLjc1Ljc1IDAgMCAxLTEuMDYgMEw0LjcyIDguNzhhLjc1MS43NTEgMCAwIDEgLjAxOC0xLjA0Mi43NTEuNzUxIDAgMCAxIDEuMDQyLS4wMThMNyA4Ljk0bDMuMjItMy4yMmEuNzUxLjc1MSAwIDAgMSAxLjA0Mi4wMTguNzUxLjc1MSAwIDAgMSAuMDE4IDEuMDQyWiI+PC9wYXRoPgo8L3N2Zz4K)
 
 <!-- badges:end -->
 <!--
@@ -26,7 +25,10 @@
 
 ## Overview
 
-Action to create and upload an npm package tarball from a Node.js project
+Create and upload a package tarball from prepared files, optionally restored from a build artifact.
+Check out the project, configure Node.js and its package manager, and prepare dependencies, versions and build output before calling this action.
+Uses the project's npm, pnpm or Yarn Classic configuration to select its native pack command.
+Packaging never installs dependencies, changes versions or runs lifecycle scripts.
 
 <!-- overview:end -->
 <!-- usage:start -->
@@ -34,17 +36,17 @@ Action to create and upload an npm package tarball from a Node.js project
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/package@81a4bca8445b7b273455ff26a9a5c3c31c86b2a1 # 0.25.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/package/create@<sha>
   with:
-    # Working directory where dependencies are installed for packaging.
+    # Prepared project directory containing the package manager configuration.
     # Can be absolute or relative to the repository root.
     #
     # Default: `.`
     working-directory: .
 
-    # Optional package directory to version and pack.
+    # Optional prepared package directory to pack.
     # Can be absolute or relative to `working-directory`.
-    # Useful for monorepos where dependencies are installed at the root.
+    # Useful for monorepos with package manager configuration at the root.
     package-directory: ""
 
     # Optional build artifact ID to download before packaging.
@@ -57,10 +59,6 @@ Action to create and upload an npm package tarball from a Node.js project
     # Default: `${{ github.workspace }}`
     build-artifact-path: ${{ github.workspace }}
 
-    # Optional version to apply with `npm version` before packaging.
-    # The version is applied without creating a Git tag.
-    version: ""
-
     # Name of the uploaded package tarball artifact
     artifact-name: ""
 ```
@@ -72,17 +70,15 @@ Action to create and upload an npm package tarball from a Node.js project
 
 | **Input**                 | **Description**                                                                             | **Required** | **Default**               |
 | ------------------------- | ------------------------------------------------------------------------------------------- | ------------ | ------------------------- |
-| **`working-directory`**   | Working directory where dependencies are installed for packaging.                           | **false**    | `.`                       |
+| **`working-directory`**   | Prepared project directory containing the package manager configuration.                    | **false**    | `.`                       |
 |                           | Can be absolute or relative to the repository root.                                         |              |                           |
-| **`package-directory`**   | Optional package directory to version and pack.                                             | **false**    | -                         |
+| **`package-directory`**   | Optional prepared package directory to pack.                                                | **false**    | -                         |
 |                           | Can be absolute or relative to `working-directory`.                                         |              |                           |
-|                           | Useful for monorepos where dependencies are installed at the root.                          |              |                           |
+|                           | Useful for monorepos with package manager configuration at the root.                        |              |                           |
 | **`build-artifact-id`**   | Optional build artifact ID to download before packaging.                                    | **false**    | -                         |
 |                           | When provided, the artifact will be downloaded to the workspace.                            |              |                           |
 | **`build-artifact-path`** | Optional path to the build artifact contents relative to the workspace root.                | **false**    | `${{ github.workspace }}` |
 |                           | Used to locate the files to be included in the package when a build artifact is downloaded. |              |                           |
-| **`version`**             | Optional version to apply with `npm version` before packaging.                              | **false**    | -                         |
-|                           | The version is applied without creating a Git tag.                                          |              |                           |
 | **`artifact-name`**       | Name of the uploaded package tarball artifact                                               | **false**    | -                         |
 
 <!-- inputs:end -->
@@ -102,9 +98,11 @@ Action to create and upload an npm package tarball from a Node.js project
 
 ## Examples
 
+Replace `<sha>` with a supported commit containing these action paths.
+
 Use the [Publish action](../publish/README.md) to publish the resulting tarball.
 
-See the [release guide](../../.github/workflows/release.md) for version planning and GitHub release orchestration.
+See the [release guide](../../../.github/workflows/release.md) for version planning and GitHub release orchestration.
 
 ```yaml
 jobs:
@@ -114,7 +112,7 @@ jobs:
       package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
     steps:
       - id: package
-        uses: hoverkraft-tech/ci-github-nodejs/actions/package@81a4bca8445b7b273455ff26a9a5c3c31c86b2a1 # 0.25.0
+        uses: hoverkraft-tech/ci-github-nodejs/actions/package/create@<sha>
 
   consume:
     needs: package

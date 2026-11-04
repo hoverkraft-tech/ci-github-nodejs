@@ -1,4 +1,4 @@
-name: Internal - Tests for "package" action
+name: Internal - Tests for "package/create" action
 
 on:
   workflow_call:
@@ -7,7 +7,7 @@ permissions: {}
 
 jobs:
   test:
-    name: Test "package" (${{ matrix.working-directory }})
+    name: Test "package/create" (${{ matrix.working-directory }})
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -21,26 +21,84 @@ jobs:
         include:
           - working-directory: tests/npm
             artifact-suffix: npm
+            package-manager: npm
           - working-directory: tests/pnpm
             artifact-suffix: pnpm
+            package-manager: pnpm
           - working-directory: tests/pnpm-package-manager
             artifact-suffix: pnpm-package-manager
+            package-manager: pnpm
           - working-directory: tests/yarn
             artifact-suffix: yarn
+            package-manager: yarn
     steps:
       - name: Arrange - Checkout sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Act - Run "package" action
+      - name: Arrange - Configure the package runtime
+        uses: $/actions/setup-node
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          install-dependencies: "false"
+
+      - name: Arrange - Record native package manager calls
+        env:
+          PACKAGE_MANAGER: ${{ matrix.package-manager }}
+        run: |
+          wrapper_directory="$(mktemp -d)"
+          echo "NATIVE_PACKAGE_MANAGER=$(command -v "$PACKAGE_MANAGER")" >> "$GITHUB_ENV"
+          echo "PACK_COMMAND_LOG=$wrapper_directory/pack.log" >> "$GITHUB_ENV"
+          cat > "$wrapper_directory/$PACKAGE_MANAGER" <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          printf '%s\n' "$*" >> "$PACK_COMMAND_LOG"
+          exec "$NATIVE_PACKAGE_MANAGER" "$@"
+          SH
+          chmod +x "$wrapper_directory/$PACKAGE_MANAGER"
+          echo "$wrapper_directory" >> "$GITHUB_PATH"
+
+      - name: Arrange - Prepare files and hooks that must not run
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          WORKING_DIRECTORY: ${{ matrix.working-directory }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const directory = process.env.WORKING_DIRECTORY;
+            const manifestPath = path.join(directory, 'package.json');
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            manifest.version = '1.2.3';
+            manifest.files = ['dist'];
+            manifest.scripts = Object.fromEntries(['preinstall', 'install', 'postinstall', 'preversion', 'version', 'postversion', 'prepare', 'prepack', 'postpack'].map(name => [name, 'exit 91']));
+            manifest.devDependencies = { 'must-not-install': 'file:./missing' };
+            fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+            if (manifest.packageManager) fs.writeFileSync(path.join(directory, 'yarn.lock'), '# Conflicting lockfile: packageManager takes precedence.\n');
+            await io.mkdirP(path.join(directory, 'dist'));
+            fs.writeFileSync(path.join(directory, 'dist/prepared.txt'), 'prepared before packaging\n');
+
+      - name: Act - Reject an invalid artifact ID
+        id: invalid-artifact
+        continue-on-error: true
+        uses: $/actions/package/create
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          build-artifact-id: "0"
+      - name: Assert - Reject the artifact before packaging
+        env:
+          OUTCOME: ${{ steps.invalid-artifact.outcome }}
+        run: test "$OUTCOME" = failure
+
+      - name: Act - Run "package/create" action
         id: act-package
-        uses: $/actions/package
+        uses: $/actions/package/create
         with:
           working-directory: ${{ matrix.working-directory }}
           artifact-name: package-tarball-${{ github.job }}-${{ matrix.artifact-suffix }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-      - name: Assert - Check "package" outputs
+      - name: Assert - Check "package/create" outputs
         env:
           PACKAGE_TARBALL_PATH: ${{ steps.act-package.outputs.package-tarball-path }}
           PACKAGE_TARBALL_ARTIFACT_ID: ${{ steps.act-package.outputs.package-tarball-artifact-id }}
@@ -60,6 +118,26 @@ jobs:
             exit 1
           fi
 
+      - name: Assert - Preserve prepared files and the source version
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          WORKING_DIRECTORY: ${{ matrix.working-directory }}
+          TARBALL: ${{ steps.act-package.outputs.package-tarball-path }}
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const directory = process.env.WORKING_DIRECTORY;
+            assert.match(fs.readFileSync(process.env.PACK_COMMAND_LOG, 'utf8'), /^pack /m);
+            const { stdout: contents } = await exec.getExecOutput('tar', ['-xOf', process.env.TARBALL, 'package/dist/prepared.txt']);
+            const { stdout: manifest } = await exec.getExecOutput('tar', ['-xOf', process.env.TARBALL, 'package/package.json']);
+            assert.equal(contents, 'prepared before packaging\n');
+            assert.equal(fs.readFileSync(path.join(directory, 'dist/prepared.txt'), 'utf8'), contents);
+            assert.equal(JSON.parse(manifest).version, '1.2.3');
+            assert.equal(JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8')).version, '1.2.3');
+            assert.equal(fs.existsSync(path.join(directory, 'node_modules')), false);
+
       - id: package-tarball-artifact
         name: Arrange - Export package tarball artifact ID
         env:
@@ -78,19 +156,19 @@ jobs:
         include:
           - working-directory: tests/npm
             artifact-suffix: npm
-            install-command: npm install --force --legacy-peer-deps --no-audit --no-fund --loglevel=warn
+            install-command: npm install --ignore-scripts --force --legacy-peer-deps --no-audit --no-fund --loglevel=warn
             package-tarball-artifact-id: ${{ needs.test.outputs['package-tarball-artifact-id-npm'] }}
           - working-directory: tests/pnpm
             artifact-suffix: pnpm
-            install-command: pnpm install
+            install-command: pnpm install --ignore-scripts
             package-tarball-artifact-id: ${{ needs.test.outputs['package-tarball-artifact-id-pnpm'] }}
           - working-directory: tests/pnpm-package-manager
             artifact-suffix: pnpm-package-manager
-            install-command: pnpm install
+            install-command: pnpm install --ignore-scripts
             package-tarball-artifact-id: ${{ needs.test.outputs['package-tarball-artifact-id-pnpm-package-manager'] }}
           - working-directory: tests/yarn
             artifact-suffix: yarn
-            install-command: yarn add
+            install-command: yarn add --ignore-scripts
             package-tarball-artifact-id: ${{ needs.test.outputs['package-tarball-artifact-id-yarn'] }}
     steps:
       - name: Arrange - Checkout sources
@@ -99,7 +177,7 @@ jobs:
           persist-credentials: false
 
       - name: Arrange - Configure Node.js version
-        run: echo "lts/*" > .nvmrc
+        run: cp "$GITHUB_WORKSPACE/.node-version" .nvmrc
         working-directory: ${{ matrix.working-directory }}
 
       - name: Arrange - Setup Node.js runtime
@@ -107,6 +185,7 @@ jobs:
         uses: $/actions/setup-node
         with:
           working-directory: ${{ matrix.working-directory }}
+          install-dependencies: "false"
 
       - name: Assert - Check package tarball artifact ID
         env:
