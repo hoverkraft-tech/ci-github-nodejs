@@ -7,9 +7,9 @@
     "test:ci": "node --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test"
   },
   "devDependencies": {
-    "@actions/exec": "^1.1.1",
+    "@actions/exec": "^3.0.0",
     "lerna": "10.1.1",
-    "pnpm": "12.16.1",
+    "pnpm": "12.17.0",
     "pnpm10": "npm:pnpm@10.33.0"
   }
 }
