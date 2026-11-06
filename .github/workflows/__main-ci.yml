@@ -14,6 +14,8 @@ on:
             test-failure,
             missing-directory,
             disabled,
+            workspace-boundary,
+            cancel,
           ]
         default: benchmark
       container:
