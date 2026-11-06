@@ -6,6 +6,6 @@
     "test:ci": "node --test"
   },
   "devDependencies": {
-    "@actions/exec": "^1.1.1"
+    "@actions/exec": "^3.0.0"
   }
 }
