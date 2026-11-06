@@ -1,0 +1,11 @@
+{
+  "name": "ci-source-package-fixture",
+  "version": "1.0.0",
+  "main": "index.cjs",
+  "files": [
+    "index.cjs"
+  ],
+  "scripts": {
+    "build": "node -e \"process.exit(1)\""
+  }
+}
