@@ -42,7 +42,7 @@ jobs:
       test: '{"coverage":""}'
 
   candidate:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@40b3b81d5774c44b82662dfdf63f1bfe63d1351e
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@5bccd49fb33a6c04d5332cb32754b28261b12103
     permissions:
       contents: read
       id-token: write
@@ -51,8 +51,8 @@ jobs:
       security-events: write
     with:
       checks: ${{ inputs.scenario != 'disabled' }}
-      container: ${{ inputs.container }}
-      working-directory: ${{ inputs.scenario == 'missing-directory' && '/not-mounted/application' || '/usr/src/app' }}
+      container: ${{ inputs.scenario != 'workspace-boundary' && inputs.container || '' }}
+      working-directory: ${{ inputs.scenario == 'workspace-boundary' && '/tmp' || inputs.scenario == 'missing-directory' && '/not-mounted/application' || '/usr/src/app' }}
       build: ${{ inputs.scenario == 'preparation-failure' && '{"commands":false}' || inputs.scenario == 'build-failure' && 'does-not-exist' || '' }}
       code-ql: ""
       dependency-review: false
