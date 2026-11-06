@@ -6,6 +6,83 @@ on:
 permissions: {}
 
 jobs:
+  act-without-build:
+    name: Act - Run contract tests without a build
+    uses: $/.github/workflows/continuous-integration.yml
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: write
+      security-events: write
+    with:
+      working-directory: tests/continuous-integration
+      build: ""
+      lint: ""
+      code-ql: ""
+      dependency-review: false
+      test: '{"coverage":""}'
+
+  act-with-checks-disabled:
+    name: Act - Disable all application checks without starting a container
+    uses: $/.github/workflows/continuous-integration.yml
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: write
+      security-events: write
+    with:
+      checks: false
+      container: invalid.example.invalid/must-not-be-pulled:latest
+      working-directory: /unmounted/application
+
+  assert-without-build:
+    name: Assert - Disabled builds produce no artifact
+    needs: [act-without-build, act-with-checks-disabled]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          BUILD_ARTIFACT: ${{ needs.act-without-build.outputs.build-artifact-id }}
+          DISABLED_ARTIFACT: ${{ needs.act-with-checks-disabled.outputs.build-artifact-id }}
+        run: |
+          test -z "$BUILD_ARTIFACT"
+          test -z "$DISABLED_ARTIFACT"
+
+  act-package-without-build:
+    name: Act - Validate a source package without a build
+    uses: $/.github/workflows/continuous-integration.yml
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: write
+      security-events: write
+    with:
+      working-directory: tests/npm
+      build: ""
+      lint: ""
+      test: ""
+      code-ql: ""
+      dependency-review: false
+      package: true
+      package-tests: |
+        tar -tf "$PACKAGE_TARBALL_PATH" | grep '^package/src/index.js$'
+
+  assert-package-without-build:
+    name: Assert - Packaging runs when compilation is omitted
+    needs: act-package-without-build
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          PACKAGE_ARTIFACT: ${{ needs.act-package-without-build.outputs.package-tarball-artifact-id }}
+          BUILD_ARTIFACT: ${{ needs.act-package-without-build.outputs.build-artifact-id }}
+        run: |
+          test -n "$PACKAGE_ARTIFACT"
+          test -z "$BUILD_ARTIFACT"
+
   act-without-container:
     name: Act - Run the continuous integration workflow (without container)
     uses: $/.github/workflows/continuous-integration.yml
@@ -205,6 +282,24 @@ jobs:
         }
       test: |
         {"coverage": "codecov"}
+
+  act-with-container-without-build:
+    name: Act - Run container checks without a build
+    uses: $/.github/workflows/continuous-integration.yml
+    needs: arrange-with-container
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: write
+      security-events: write
+    with:
+      container: ${{ fromJSON(needs.arrange-with-container.outputs.built-images).ci-npm.images[0] }}
+      working-directory: /usr/src/app/
+      build: ""
+      code-ql: ""
+      dependency-review: false
+      test: '{"coverage":""}'
 
   assert-with-container:
     name: Assert - Ensure build artifact has been uploaded (with container)
