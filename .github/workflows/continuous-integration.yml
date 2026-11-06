@@ -348,7 +348,7 @@ jobs:
           script: |
             const path = require('node:path');
 
-            const workingDirectory = path.normalize(process.env.WORKING_DIRECTORY.trim() || '.');
+            const workingDirectory = path.normalize(process.env.WORKING_DIRECTORY || '.');
             core.setOutput('working-directory', workingDirectory);
             const buildInput = process.env.BUILD_INPUT.trim();
             if (!buildInput) {
