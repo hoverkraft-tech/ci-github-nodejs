@@ -45,6 +45,7 @@ updates:
     directories:
       - "/"
       - "/actions/**/*"
+      - "/tests/continuous-integration"
       - "/tests/npm"
       - "/tests/pnpm"
       - "/tests/pnpm-package-manager"
