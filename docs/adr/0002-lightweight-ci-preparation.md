@@ -6,7 +6,7 @@
 
 ## Context
 
-The CI workflow starts an application container only to resolve paths and build
+For application callers, CI starts a container only to resolve paths and build
 options. An empty build then starts another container before tests can run. These
 jobs perform no application validation and delay callers with prebuilt images.
 
@@ -30,6 +30,12 @@ Use an explicit cancellation-aware condition so an intentional skip does not
 propagate to these jobs. A failed, cancelled or unexpectedly skipped requested
 build must block them. Lint remains independent of build and test results.
 
+Public-package discovery needs the checked-out source. Run it in a separate host
+job only when packaging is enabled, in parallel with compilation. Package matrix
+validation requires successful discovery and the build condition above. Collect
+results only after successful package validation. Preserve workspace selection,
+consumer tests and artifact outputs without adding discovery to application CI.
+
 Do not change application commands, report handling, build-secret delivery or
 CodeQL/dependency-review policy. Preserve package validation when no compilation
 is needed. No additional runtime dependency or public workflow input is needed.
@@ -47,7 +53,7 @@ empty build jobs changes emitted check names/statuses: callers requiring those
 individual jobs must update their required checks when adopting the release.
 Rollback restores the previous workflow pin and corresponding required checks.
 
-## Implementation evidence: 2026-11-06
+## Initial implementation evidence: 2026-11-06
 
 The [implementation CI](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42282825359)
 passed on `5bccd49fb33a6c04d5332cb32754b28261b12103`. The 56 contract tests
@@ -90,3 +96,49 @@ and empty build; both versions still execute lint and the same test.
 These measurements isolate reusable-workflow overhead. They do not establish a
 Pleey end-to-end improvement or a cold-cache guarantee. A reviewed release and
 consumer CI remain required before adopting its immutable SHA in Pleey.
+
+## Upstream integration: 2026-11-06
+
+Main advanced to `55afe8ef3c9b59932f87a99cb2620226f18b2062` during review
+preparation, adding workspace packaging and updating shared action pins. Retain
+that package API and move its source-dependent discovery out of the removed
+setup job. The adapted suite has 60 contract tests, including discovery failure
+and validation-result collection when compilation is omitted. The existing
+source-package integration case also checks the resulting artifact output.
+
+The initial measurements above retain their exact revisions and are historical
+evidence for the pre-integration implementation. Validation against updated main
+is recorded separately; do not treat that series as measurements of a later SHA.
+
+The [integrated CI](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42288071590)
+passed at `2f87ce61c0641934d24c39162732660b90451004`, including requested-build
+artifact transfer and source packaging without compilation. Its workflow/action
+sources equal the measured candidate `540c5f4`. All eight failure, disabled-check
+and cancellation probes also matched their expected outcomes on that candidate.
+
+The preceding [integration run](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42286746512)
+exposed a fixture collision: upstream package-result collection groups reports by
+project directory. Two test calls packaged `tests/npm`, yielding duplicate results
+for one project. The no-build test now uses `tests/source-package`, whose build
+command deliberately fails if invoked. This isolates the two cases; it does not
+change the upstream collector's grouping contract.
+
+Five consecutive updated pairs after priming all passed. The
+[integrated measurement record](evidence/0002-ci-integration.json) and
+[job timestamps](evidence/0002-ci-integration-job-timings.csv) retain the same
+metric definitions as the initial series, run links, source revisions and all
+probe outcomes. All 48 sampled job logs again used runner `2.338.2` and Ubuntu
+image `20261101.186.1`; both variants used the recorded immutable fixture digest
+and passed the same one-suite, one-test inventory.
+
+| Metric                                 | Baseline median (range) | Candidate median (range) | Median change |
+| -------------------------------------- | ----------------------- | ------------------------ | ------------- |
+| Elapsed from preparation               | 101s (89–107s)          | 52s (50–58s)             | −48.51%       |
+| Preparation to first validation action | 61s (58–68s)            | 31s (29–36s)             | −49.18%       |
+| Summed job time                        | 135s (121–149s)         | 90s (77–91s)             | −33.33%       |
+| Initial queue                          | 4s (4–4s)               | 4s (3–4s)                | 0.00%         |
+
+This confirms the reduction for the controlled application fixture against the
+workspace-aware upstream implementation. Package-discovery jobs remain skipped
+for this caller. The same scope limits apply: Pleey adoption and end-to-end
+measurement require a reviewed release.
