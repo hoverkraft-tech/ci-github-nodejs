@@ -60,14 +60,14 @@ jobs:
       pull-requests: write
       security-events: write
     with:
-      working-directory: tests/npm
+      working-directory: tests/source-package
       build: ""
       lint: ""
       test: ""
       code-ql: ""
       dependency-review: false
       package: |
-        {"tests":"test -f \"$PACKAGE_INSTALL_PATH/src/index.js\""}
+        {"tests":"test -f \"$PACKAGE_INSTALL_PATH/index.cjs\""}
 
   assert-package-without-build:
     name: Assert - Packaging runs when compilation is omitted
