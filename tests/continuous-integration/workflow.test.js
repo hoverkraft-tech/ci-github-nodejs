@@ -181,6 +181,7 @@ for (const directory of [
   "apps/frontend",
   "/usr/src/app",
   "/missing/unmounted/app",
+  " directory with spaces ",
 ]) {
   test(`prepares ${directory} without inspecting the host filesystem`, async () => {
     const result = await runScript("prepare", "build-variables", {
