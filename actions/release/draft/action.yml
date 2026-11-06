@@ -1,0 +1,93 @@
+name: Draft Node.js release
+description: Create scoped release notes and an optional AI summary with HoverKraft, preserving independent package tag history.
+author: hoverkraft
+branding:
+  icon: edit
+  color: blue
+inputs:
+  release-config:
+    description: |
+      Optional partial release configuration as a YAML or JSON mapping, forwarded to ci-github-publish/actions/release/create.
+      See https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/create for supported settings and override behavior.
+      Use the same configuration as release preparation.
+    default: ""
+  tag:
+    description: Prepared release tag.
+    required: true
+  working-directory:
+    description: Release notes scope relative to the repository root.
+    default: .
+  package-name:
+    description: Package name for an independent Lerna release. Empty for repository-wide releases.
+    default: ""
+  changelog-summary:
+    description: |
+      Optional complete JSON summary configuration forwarded unchanged to ci-github-publish/actions/release/create.
+      Supports all upstream provider, model, credential, model configuration, working directory and template options.
+      An empty value disables summarization. See https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/create.
+    default: ""
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - id: configuration
+      if: inputs.package-name != ''
+      uses: hoverkraft-tech/ci-github-publish/actions/release/get-configuration@f06e0e72a76bfca57c34d08d03e5c1914275fd4c # 2.0.0
+      with:
+        working-directory: ${{ inputs.working-directory }}
+    - id: independent-configuration
+      if: inputs.package-name != ''
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        PACKAGE_NAME: ${{ inputs.package-name }}
+        CONFIGURATION_PATH: ${{ steps.configuration.outputs.config-path }}
+      with:
+        script: |
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const workspace = process.env.GITHUB_WORKSPACE;
+          const workingDirectory = process.env.WORKING_DIRECTORY;
+          const packageName = process.env.PACKAGE_NAME;
+          const configurationPath = process.env.CONFIGURATION_PATH;
+          if (!/^(?:@[a-z0-9-]+\/)?[a-z0-9][a-z0-9._-]*$/.test(packageName))
+            throw new Error("Expected a valid independent package name.");
+          const slug = path
+            .basename(workingDirectory)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+          const destination = path.join(
+            workspace,
+            ".github",
+            "release-configs",
+            `${slug}.yml`,
+          );
+          // A caller's release configuration always takes precedence.
+          if (fs.existsSync(destination)) return;
+          const source = fs.readFileSync(
+            path.resolve(workspace, ".github", configurationPath),
+            "utf8",
+          );
+          const configuration = source
+            .replaceAll(
+              `${slug}-$RESOLVED_VERSION`,
+              `${packageName}@$RESOLVED_VERSION`,
+            )
+            .replace(/^tag-prefix:.*$/m, `tag-prefix: "${packageName}@"`)
+            .replace(
+              /^tag-template:.*$/m,
+              `tag-template: "${packageName}@$RESOLVED_VERSION"`,
+            );
+          await io.mkdirP(path.dirname(destination));
+          fs.writeFileSync(destination, configuration);
+    - uses: hoverkraft-tech/ci-github-publish/actions/release/create@f06e0e72a76bfca57c34d08d03e5c1914275fd4c # 2.0.0
+      with:
+        release-config: ${{ inputs.release-config }}
+        tag: ${{ inputs.tag }}
+        target-sha: ${{ github.sha }}
+        working-directory: ${{ inputs.working-directory != '.' && inputs.working-directory || '' }}
+        publish: "false"
+        changelog-summary: ${{ inputs.changelog-summary }}

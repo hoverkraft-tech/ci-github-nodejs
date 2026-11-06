@@ -1,5 +1,5 @@
 name: Finalize Node.js release
-description: Verify a published npm tarball against the named release asset, then stage it only if missing and publish the draft with HoverKraft release/update using GITHUB_TOKEN.
+description: Verify published npm tarballs against release assets, then stage only missing files and publish the draft with HoverKraft release/update using GITHUB_TOKEN.
 author: hoverkraft
 branding:
   icon: tag
@@ -9,11 +9,11 @@ inputs:
     description: Committed release tag.
     required: true
   package-tarball-path:
-    description: Local tarball path returned by package/publish, including the original npm bytes restored during recovery.
+    description: Local tarball path returned by package/publish, or a glob matching downloaded workspace tarballs. Use the original npm bytes restored during recovery.
     required: true
   asset-name:
-    description: Plain .tgz filename for the GitHub release asset.
-    required: true
+    description: Plain .tgz filename for a single tarball. Leave empty to preserve matched tarball filenames.
+    default: ""
 runs:
   using: composite
   steps:
@@ -29,7 +29,7 @@ runs:
         script: |
           const releaseAssets = require(`${process.env.ACTION_PATH}/index.js`);
           const { release, pendingDirectory, hasAssets } = await releaseAssets.prepareAssets({
-            github, repo: context.repo, tag: process.env.RELEASE_TAG,
+            github, glob, repo: context.repo, tag: process.env.RELEASE_TAG,
             tarballPath: process.env.PACKAGE_TARBALL_PATH, assetName: process.env.ASSET_NAME,
             tempDirectory: process.env.RUNNER_TEMP,
           });
@@ -44,7 +44,7 @@ runs:
         name: release-pending-assets-${{ steps.assets.outputs.release-id }}-${{ github.run_id }}-${{ github.run_attempt }}
         path: ${{ steps.assets.outputs.pending-directory }}/*.tgz
         if-no-files-found: error
-    - uses: hoverkraft-tech/ci-github-publish/actions/release/update@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
+    - uses: hoverkraft-tech/ci-github-publish/actions/release/update@f06e0e72a76bfca57c34d08d03e5c1914275fd4c # 2.0.0
       if: steps.assets.outputs.published != 'true'
       with:
         tag: ${{ inputs.tag }}

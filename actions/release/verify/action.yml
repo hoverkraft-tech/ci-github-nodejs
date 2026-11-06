@@ -6,32 +6,63 @@ branding:
   color: blue
 inputs:
   packages:
-    description: JSON array containing one public root package from release preparation.
+    description: JSON package list from release preparation.
     required: true
   package-tarball-artifact-id:
     description: Package tarball artifact ID from this run and prepared commit, regardless of the producing job.
-    required: true
+    default: ""
+  package-tarball-artifacts:
+    description: JSON object mapping prepared package directories to validated tarball artifact IDs. Supply this or package-tarball-artifact-id.
+    default: ""
   working-directory:
     description: Project directory relative to the repository root, matching release preparation.
     default: .
 outputs:
-  published:
-    description: Whether this tag already has a published GitHub release.
-    value: ${{ steps.verify.outputs.published }}
+  packages:
+    description: Prepared packages paired with their validated tarball artifact IDs.
+    value: ${{ steps.verify.outputs.packages }}
+  releases:
+    description: Verified release identities, note scopes and asset selectors for publication.
+    value: ${{ steps.verify.outputs.releases }}
 runs:
   using: composite
   steps:
-    - id: verify
+    - id: prepare
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         ACTION_PATH: ${{ github.action_path }}
         PACKAGES: ${{ inputs.packages }}
+        PACKAGE_ARTIFACTS: ${{ inputs.package-tarball-artifacts }}
         PACKAGE_ARTIFACT_ID: ${{ inputs.package-tarball-artifact-id }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
       with:
         script: |
           const releaseVerification = require(`${process.env.ACTION_PATH}/index.js`);
-          const packages = releaseVerification.parsePackages(process.env.PACKAGES);
-          await releaseVerification.verifyArtifact({ github, context, artifactId: process.env.PACKAGE_ARTIFACT_ID });
-          const releases = await releaseVerification.verifyReleases({ github, context, packages, workingDirectory: process.env.WORKING_DIRECTORY });
-          core.setOutput('published', String(releases[0].published));
+          const packages = releaseVerification.bindArtifacts(releaseVerification.parsePackages(process.env.PACKAGES), process.env.PACKAGE_ARTIFACT_ID, process.env.PACKAGE_ARTIFACTS);
+          const releases = releaseVerification.prepareReleases({ context, packages, workingDirectory: process.env.WORKING_DIRECTORY });
+          core.setOutput('artifact-ids', packages.map(item => item.artifactId));
+          core.setOutput('tags', releases.map(release => release.tag));
+          core.setOutput('releases', releases);
+          core.setOutput('packages', packages);
+    - id: identity
+      uses: hoverkraft-tech/ci-github-publish/actions/release/verify@fe4393361d3f5d9f2443ba1ff61d86d5c94c7a63
+      with:
+        artifact-ids: ${{ steps.prepare.outputs.artifact-ids }}
+        tags: ${{ steps.prepare.outputs.tags }}
+        require-tags: "true"
+    - id: verify
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        PACKAGES: ${{ steps.prepare.outputs.packages }}
+        RELEASES: ${{ steps.prepare.outputs.releases }}
+        VERIFIED_RELEASES: ${{ steps.identity.outputs.releases }}
+      with:
+        script: |
+          const verified = new Map(JSON.parse(process.env.VERIFIED_RELEASES).map(release => [release.tag, release.published]));
+          const releases = JSON.parse(process.env.RELEASES).map(release => {
+            const published = verified.get(release.tag);
+            if (typeof published !== 'boolean') throw new Error('Missing verified release state for ' + release.tag);
+            return { ...release, published };
+          });
+          core.setOutput('releases', releases);
+          core.setOutput('packages', JSON.parse(process.env.PACKAGES));

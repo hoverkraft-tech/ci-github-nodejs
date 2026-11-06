@@ -35,7 +35,7 @@ inputs:
     required: false
     default: "true"
   dry-run:
-    description: "Validate publishing without uploading the package (true or false)"
+    description: "Validate the tarball without uploading (true or false). Enables npm force mode only during dry runs so CI can check already-published versions. Live publication keeps npm's version checks."
     required: false
     default: "false"
   github-token:
@@ -224,7 +224,9 @@ runs:
           }
 
           if (dryRun) {
-            args.push('--dry-run');
+            // CI validates committed versions that can already exist on npm.
+            // Keep registry conflict checks enabled for actual publication.
+            args.push('--dry-run', '--force');
           }
 
           core.info(`Publishing ${path.basename(packageTarballPath)} to ${registryUrl} with npm ${args.join(' ')}`);

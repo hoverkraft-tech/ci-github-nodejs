@@ -5,4 +5,3 @@
 /dist
 .pnpm-store
 /actions/**/node_modules
-/actions/**/coverage

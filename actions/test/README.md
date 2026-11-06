@@ -2,12 +2,6 @@
 
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stc3F1YXJlIiBjb2xvcj0iYmx1ZSI+PHBvbHlsaW5lIHBvaW50cz0iOSAxMSAxMiAxNCAyMiA0Ij48L3BvbHlsaW5lPjxwYXRoIGQ9Ik0yMSAxMnY3YTIgMiAwIDAgMS0yIDJINWEyIDIgMCAwIDEtMi0yVjVhMiAyIDAgMCAxIDItMmgxMSI+PC9wYXRoPjwvc3ZnPg==) GitHub Action: Test
 
-<div align="center">
-  <img src="https://opengraph.githubassets.com/3fb447d0403952a43eebe2b03f436945955c160699ea2bb62cb2abc5229c52cb/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Test" />
-</div>
-
----
-
 <!-- header:end -->
 <!-- badges:start -->
 
@@ -42,7 +36,7 @@ permissions:
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/test@97f64bc080b78daca8fb3ece49de448aaac83429 # 1.1.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/test@<commit-sha>
   with:
     # Disable project and dependency lifecycle scripts during installation.
     # Set false to allow installation hooks, subject to the package manager's script approval settings.
@@ -72,14 +66,14 @@ permissions:
     command: test:ci
 
     # Code coverage reporter to use. Supported values:
-    # - `github`: Parse coverage reports via [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/parse-ci-reports) action, with GitHub summaries/PR comments
+    # - `github`: Parse coverage reports via [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action, with GitHub summaries/PR comments
     # - `codecov`: Upload coverage to Codecov
     # - `""` or `null`: No coverage reporting
     #
     # Default: `github`
     coverage: github
 
-    # Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/parse-ci-reports) action.
+    # Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.
     # Supports multiple formats (Cobertura, OpenCover, lcov, etc.).
     # Provide absolute paths or paths relative to the working directory.
     # Multiple entries can be separated by newlines, commas, or semicolons.
@@ -87,7 +81,7 @@ permissions:
     report-file: ""
 
     # Optional path mapping to adjust file paths in test and coverage reports.
-    # See the [parse-ci-reports documentation](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) for details.
+    # See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.
     path-mapping: ""
 
     # GitHub token for coverage PR comments.
@@ -104,37 +98,37 @@ permissions:
 
 ## Inputs
 
-| **Input**               | **Description**                                                                                                                                                                             | **Required** | **Default** |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
-| **`ignore-scripts`**    | Disable project and dependency lifecycle scripts during installation.                                                                                                                       | **false**    | `true`      |
-|                         | Set false to allow installation hooks, subject to the package manager's script approval settings.                                                                                           |              |             |
-|                         | Explicit commands are unaffected. Does not apply in container mode, which skips installation.                                                                                               |              |             |
-| **`working-directory`** | Working directory where test commands are executed.                                                                                                                                         | **false**    | `.`         |
-|                         | Can be absolute or relative to the repository root.                                                                                                                                         |              |             |
-| **`container`**         | Whether running in container mode (skips checkout and node setup)                                                                                                                           | **false**    | `false`     |
-| **`command`**           | npm/pnpm/Yarn script command to run for testing.                                                                                                                                            | **false**    | `test:ci`   |
-|                         | This should be a script defined in your `package.json`.                                                                                                                                     |              |             |
-|                         | The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).                                                                                         |              |             |
-|                         |                                                                                                                                                                                             |              |             |
-|                         | Vitest: `vitest run --reporter=default --reporter=junit --outputFile=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`                                        |              |             |
-|                         | Jest: `jest --ci --reporters=default --reporters=jest-junit --coverage`                                                                                                                     |              |             |
-| **`coverage`**          | Code coverage reporter to use. Supported values:                                                                                                                                            | **false**    | `github`    |
-|                         | - `github`: Parse coverage reports via [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/parse-ci-reports) action, with GitHub summaries/PR comments |              |             |
-|                         | - `codecov`: Upload coverage to Codecov                                                                                                                                                     |              |             |
-|                         | - `""` or `null`: No coverage reporting                                                                                                                                                     |              |             |
-| **`report-file`**       | Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/parse-ci-reports) action.                 | **false**    | -           |
-|                         | Supports multiple formats (Cobertura, OpenCover, lcov, etc.).                                                                                                                               |              |             |
-|                         | Provide absolute paths or paths relative to the working directory.                                                                                                                          |              |             |
-|                         | Multiple entries can be separated by newlines, commas, or semicolons.                                                                                                                       |              |             |
-|                         | When omitted, the action falls back to `auto:test,auto:coverage` detection.                                                                                                                 |              |             |
-| **`path-mapping`**      | Optional path mapping to adjust file paths in test and coverage reports.                                                                                                                    | **false**    | -           |
-|                         | See the [parse-ci-reports documentation](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) for details.                                                                    |              |             |
-| **`github-token`**      | GitHub token for coverage PR comments.                                                                                                                                                      | **false**    | -           |
-|                         | Required when coverage is set to `github`.                                                                                                                                                  |              |             |
-|                         | Requires permissions to create and update PR comments:                                                                                                                                      |              |             |
-|                         |                                                                                                                                                                                             |              |             |
-|                         | - `issues: write`                                                                                                                                                                           |              |             |
-|                         | - `pull-requests: write`                                                                                                                                                                    |              |             |
+| **Input**               | **Description**                                                                                                                                                                                     | **Required** | **Default** |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
+| **`ignore-scripts`**    | Disable project and dependency lifecycle scripts during installation.                                                                                                                               | **false**    | `true`      |
+|                         | Set false to allow installation hooks, subject to the package manager's script approval settings.                                                                                                   |              |             |
+|                         | Explicit commands are unaffected. Does not apply in container mode, which skips installation.                                                                                                       |              |             |
+| **`working-directory`** | Working directory where test commands are executed.                                                                                                                                                 | **false**    | `.`         |
+|                         | Can be absolute or relative to the repository root.                                                                                                                                                 |              |             |
+| **`container`**         | Whether running in container mode (skips checkout and node setup)                                                                                                                                   | **false**    | `false`     |
+| **`command`**           | npm/pnpm/Yarn script command to run for testing.                                                                                                                                                    | **false**    | `test:ci`   |
+|                         | This should be a script defined in your `package.json`.                                                                                                                                             |              |             |
+|                         | The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).                                                                                                 |              |             |
+|                         |                                                                                                                                                                                                     |              |             |
+|                         | Vitest: `vitest run --reporter=default --reporter=junit --outputFile=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`                                                |              |             |
+|                         | Jest: `jest --ci --reporters=default --reporters=jest-junit --coverage`                                                                                                                             |              |             |
+| **`coverage`**          | Code coverage reporter to use. Supported values:                                                                                                                                                    | **false**    | `github`    |
+|                         | - `github`: Parse coverage reports via [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action, with GitHub summaries/PR comments |              |             |
+|                         | - `codecov`: Upload coverage to Codecov                                                                                                                                                             |              |             |
+|                         | - `""` or `null`: No coverage reporting                                                                                                                                                             |              |             |
+| **`report-file`**       | Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.                 | **false**    | -           |
+|                         | Supports multiple formats (Cobertura, OpenCover, lcov, etc.).                                                                                                                                       |              |             |
+|                         | Provide absolute paths or paths relative to the working directory.                                                                                                                                  |              |             |
+|                         | Multiple entries can be separated by newlines, commas, or semicolons.                                                                                                                               |              |             |
+|                         | When omitted, the action falls back to `auto:test,auto:coverage` detection.                                                                                                                         |              |             |
+| **`path-mapping`**      | Optional path mapping to adjust file paths in test and coverage reports.                                                                                                                            | **false**    | -           |
+|                         | See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.                                               |              |             |
+| **`github-token`**      | GitHub token for coverage PR comments.                                                                                                                                                              | **false**    | -           |
+|                         | Required when coverage is set to `github`.                                                                                                                                                          |              |             |
+|                         | Requires permissions to create and update PR comments:                                                                                                                                              |              |             |
+|                         |                                                                                                                                                                                                     |              |             |
+|                         | - `issues: write`                                                                                                                                                                                   |              |             |
+|                         | - `pull-requests: write`                                                                                                                                                                            |              |             |
 
 <!-- inputs:end -->
 <!-- secrets:start -->

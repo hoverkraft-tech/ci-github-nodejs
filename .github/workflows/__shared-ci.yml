@@ -7,7 +7,7 @@ permissions: {}
 
 jobs:
   linter:
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
     permissions:
       actions: read
       contents: read
@@ -53,6 +53,20 @@ jobs:
     name: Test action "package/create"
     needs: linter
     uses: $/.github/workflows/__test-action-package-create.yml
+    permissions:
+      contents: read
+
+  test-action-package-test:
+    name: Test action "package/test"
+    needs: linter
+    uses: $/.github/workflows/__test-action-package-test.yml
+    permissions:
+      contents: read
+
+  test-action-package-discover:
+    name: Test action "package/discover"
+    needs: linter
+    uses: $/.github/workflows/__test-action-package-discover.yml
     permissions:
       contents: read
 

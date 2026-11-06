@@ -146,12 +146,10 @@ jobs:
           working-directory: actions/package/test
           tarball-path: ${{ steps.fixture.outputs.tarball }}
           commands: |
-            test "$PWD" = "$GITHUB_WORKSPACE/actions/package/test"
+            test "$PWD" != "$GITHUB_WORKSPACE/actions/package/test"
             test "$PACKAGE_NAME" = "$EXPECTED_PACKAGE_NAME"
             test "$PACKAGE_VERSION" = 1.2.3
-            consumer=$(mktemp -d)
-            npm install --prefix "$consumer" --ignore-scripts --offline --no-audit --no-fund "$PACKAGE_TARBALL_PATH"
-            test "$("$consumer/node_modules/.bin/release-fixture")" = "$PACKAGE_VERSION"
+            test "$(release-fixture)" = "$PACKAGE_VERSION"
             touch "$RUNNER_TEMP/release-smoke-ran"
       - name: Act - Reject a failing package command
         id: failing-command
@@ -177,3 +175,90 @@ jobs:
           test -f "$RUNNER_TEMP/release-smoke-ran"
           test "$COMMAND_OUTCOME" = failure
           test "$TARBALL_OUTCOME" = failure
+
+  prepared-workspaces:
+    name: Test prepared workspace packaging (${{ matrix.manager }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        manager: [pnpm10, pnpm]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Arrange - Create a workspace with compiled output and failing hooks
+        id: workspace
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          MANAGER: ${{ matrix.manager }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const lock = JSON.parse(fs.readFileSync('actions/release/prepare/package-lock.json', 'utf8'));
+            const version = lock.packages[`node_modules/${process.env.MANAGER}`].version;
+            const directory = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP, 'pnpm-release-'));
+            const write = async (file, value) => {
+              const target = path.join(directory, file);
+              await io.mkdirP(path.dirname(target));
+              fs.writeFileSync(target, typeof value === 'string' ? value : JSON.stringify(value));
+            };
+            const scripts = Object.fromEntries(['preinstall', 'postinstall', 'prepare', 'prepack', 'postpack'].map(name => [name, 'exit 91']));
+            await write('.node-version', fs.readFileSync('.node-version', 'utf8'));
+            await write('package.json', { private: true, packageManager: `pnpm@${version}` });
+            await write('pnpm-workspace.yaml', "packages:\n  - packages/*\n");
+            await write('packages/core/package.json', { name: '@example/core', version: '1.4.0' });
+            await write('packages/cli/package.json', {
+              name: '@example/cli', version: '2.3.0', files: ['dist'], scripts,
+              dependencies: { '@example/core': 'workspace:^' },
+            });
+            await write('packages/cli/dist/index.js', 'compiled by CI\n');
+            core.setOutput('directory', directory);
+      - uses: $/actions/setup-node
+        with:
+          working-directory: ${{ steps.workspace.outputs.directory }}
+          install-dependencies: "false"
+      - name: Arrange - Resolve the workspace lockfile
+        working-directory: ${{ steps.workspace.outputs.directory }}
+        run: pnpm install --lockfile-only --ignore-scripts
+      - name: Arrange - Upload the prepared build
+        id: build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: ${{ steps.workspace.outputs.directory }}
+          name: workspace-build-${{ matrix.manager }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+      - name: Arrange - Remove local build output before restoration
+        working-directory: ${{ steps.workspace.outputs.directory }}
+        run: rm packages/cli/dist/index.js
+      - name: Arrange - Link the prepared workspace without running hooks
+        working-directory: ${{ steps.workspace.outputs.directory }}
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Act - Package the selected workspace from CI output
+        id: package
+        uses: $/actions/package/create
+        with:
+          working-directory: ${{ steps.workspace.outputs.directory }}
+          package-directory: packages/cli
+          build-artifact-id: ${{ steps.build.outputs.artifact-id }}
+          build-artifact-path: ${{ steps.workspace.outputs.directory }}
+          artifact-name: workspace-package-${{ matrix.manager }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Assert - Compiled bytes and native workspace dependency resolution
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          TARBALL: ${{ steps.package.outputs.package-tarball-path }}
+          ARTIFACT_ID: ${{ steps.package.outputs.package-tarball-artifact-id }}
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const { stdout: compiled } = await exec.getExecOutput('tar', ['-xOf', process.env.TARBALL, 'package/dist/index.js']);
+            const { stdout: manifest } = await exec.getExecOutput('tar', ['-xOf', process.env.TARBALL, 'package/package.json']);
+            const parsed = JSON.parse(manifest);
+            assert.equal(compiled, 'compiled by CI\n');
+            assert.equal(parsed.name, '@example/cli');
+            assert.equal(parsed.version, '2.3.0');
+            assert.equal(parsed.dependencies['@example/core'], '^1.4.0');
+            assert.match(process.env.ARTIFACT_ID, /^[1-9][0-9]*$/);

@@ -34,7 +34,7 @@ Action to setup Node.js and install dependencies according to the package manage
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/setup-node@97f64bc080b78daca8fb3ece49de448aaac83429 # 1.1.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/setup-node@<sha>
   with:
     # Install project dependencies after configuring Node.js and the package manager.
     # Set false when only tooling is needed, such as packaging prepared build files,
@@ -95,6 +95,7 @@ Action to setup Node.js and install dependencies according to the package manage
 
 | **Output**               | **Description**                                      |
 | ------------------------ | ---------------------------------------------------- |
+| **`package-manager`**    | Detected package manager (`npm`, `pnpm` or `yarn`).  |
 | **`run-script-command`** | The command to run a script in the package.json file |
 
 <!-- outputs:end -->

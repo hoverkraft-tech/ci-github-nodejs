@@ -39,10 +39,16 @@ See [the release guide](release.md).
 
 ### Workflow Call Inputs
 
-| **Input**                  | **Description**                                                                                                         | **Required** | **Type**   | **Default** |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------ | ---------- | ----------- |
-| **`working-directory`**    | Public npm project directory containing its package.json and lockfile.                                                  | **false**    | **string** | `.`         |
-| **`github-app-client-id`** | Optional GitHub App client ID, paired with the github-app-key secret to generate a repository-scoped preparation token. | **false**    | **string** | -           |
+| **Input**                  | **Description**                                                                                                                                                                        | **Required** | **Type**    | **Default** |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- | ----------- |
+| **`release-config`**       | Optional partial release configuration as a YAML or JSON mapping, forwarded to ci-github-publish/actions/release/plan.                                                                 | **false**    | **string**  | -           |
+|                            | See <https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/plan> for supported settings and override behavior.                                                |              |             |             |
+|                            | Pass the same configuration to preparation and release. Independent Lerna retains native version planning.                                                                             |              |             |             |
+| **`versioning`**           | Versioning tool, npm for one public package or lerna for fixed or independent workspaces.                                                                                              | **false**    | **string**  | `npm`       |
+| **`working-directory`**    | Project or workspace root containing the lockfile and package manager configuration.                                                                                                   | **false**    | **string**  | `.`         |
+| **`package-directory`**    | Public npm package directory relative to working-directory. Leave as . for a root package or Lerna workspaces.                                                                         | **false**    | **string**  | `.`         |
+| **`force`**                | Force a new version on manual default-branch runs, including unchanged public packages. Uses a patch bump when no version increase is planned. Ignored for schedules and tag recovery. | **false**    | **boolean** | `false`     |
+| **`github-app-client-id`** | Optional GitHub App client ID, paired with the github-app-key secret to generate a repository-scoped preparation token.                                                                | **false**    | **string**  | -           |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
@@ -106,7 +112,7 @@ on:
 permissions: {}
 jobs:
   prepare-package-release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/prepare-package-release.yml@97f64bc080b78daca8fb3ece49de448aaac83429 # 1.1.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/prepare-package-release.yml@<sha>
     permissions:
       actions: write
       contents: write
@@ -115,9 +121,25 @@ jobs:
       # Optional GitHub App private key, paired with the github-app-client-id input. The identity must be permitted by branch and tag rules.
       github-app-key: ""
     with:
-      # Public npm project directory containing its package.json and lockfile.
+      # Optional partial release configuration as a YAML or JSON mapping, forwarded to ci-github-publish/actions/release/plan.
+      # See https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/plan for supported settings and override behavior.
+      # Pass the same configuration to preparation and release. Independent Lerna retains native version planning.
+      release-config: ""
+
+      # Versioning tool, npm for one public package or lerna for fixed or independent workspaces.
+      # Default: `npm`
+      versioning: npm
+
+      # Project or workspace root containing the lockfile and package manager configuration.
       # Default: `.`
       working-directory: .
+
+      # Public npm package directory relative to working-directory. Leave as . for a root package or Lerna workspaces.
+      # Default: `.`
+      package-directory: .
+
+      # Force a new version on manual default-branch runs, including unchanged public packages. Uses a patch bump when no version increase is planned. Ignored for schedules and tag recovery.
+      force: false
 
       # Optional GitHub App client ID, paired with the github-app-key secret to generate a repository-scoped preparation token.
       github-app-client-id: ""

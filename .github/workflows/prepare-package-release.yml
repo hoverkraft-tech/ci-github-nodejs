@@ -6,10 +6,29 @@ name: Prepare Node.js Package Release
 on:
   workflow_call:
     inputs:
+      release-config:
+        description: |
+          Optional partial release configuration as a YAML or JSON mapping, forwarded to ci-github-publish/actions/release/plan.
+          See https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/plan for supported settings and override behavior.
+          Pass the same configuration to preparation and release. Independent Lerna retains native version planning.
+        type: string
+        default: ""
+      versioning:
+        description: Versioning tool, npm for one public package or lerna for fixed or independent workspaces.
+        type: string
+        default: npm
       working-directory:
-        description: Public npm project directory containing its package.json and lockfile.
+        description: Project or workspace root containing the lockfile and package manager configuration.
         type: string
         default: .
+      package-directory:
+        description: Public npm package directory relative to working-directory. Leave as . for a root package or Lerna workspaces.
+        type: string
+        default: .
+      force:
+        description: Force a new version on manual default-branch runs, including unchanged public packages. Uses a patch bump when no version increase is planned. Ignored for schedules and tag recovery.
+        type: boolean
+        default: false
       github-app-client-id:
         description: Optional GitHub App client ID, paired with the github-app-key secret to generate a repository-scoped preparation token.
         type: string
@@ -60,5 +79,9 @@ jobs:
       - id: prepare
         uses: $/actions/release/prepare
         with:
+          release-config: ${{ inputs.release-config }}
+          versioning: ${{ inputs.versioning }}
           working-directory: ${{ inputs.working-directory }}
+          package-directory: ${{ inputs.package-directory }}
+          force: ${{ inputs.force }}
           github-token: ${{ steps.release-token.outputs.token || github.token }}

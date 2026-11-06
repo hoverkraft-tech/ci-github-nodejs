@@ -14,117 +14,49 @@ const item = {
   directory: ".",
   tag: "v1.2.3",
 };
-const artifact = {
-  id: 10,
-  expired: false,
-  workflow_run: { id: 42, head_sha: context.sha },
-};
-const verifyArtifact = (data = artifact, artifactId = "10") =>
-  releaseVerification.verifyArtifact({
-    context,
-    artifactId,
-    github: {
-      rest: {
-        actions: {
-          getArtifact: async ({ artifact_id }) => {
-            assert.equal(artifact_id, 10);
-            return { data };
-          },
-        },
-      },
+test("prepares independent release scopes and requires the workflow source tag", () => {
+  const packages = [
+    { ...item, tag: "@example/cli@1.2.3", directory: "packages/cli" },
+    {
+      name: "@example/core",
+      slug: "example-core",
+      version: "2.0.1",
+      tag: "@example/core@2.0.1",
+      directory: "packages/core",
     },
-  });
-
-test("release verifies the source tag, committed version and publication state", async () => {
-  const github = {
-    rest: {
-      repos: {
-        getCommit: async () => ({ data: { sha: context.sha } }),
-        getReleaseByTag: async () => ({ data: { draft: false } }),
+  ];
+  const prepare = (values = packages) =>
+    releaseVerification.prepareReleases({
+      context: {
+        ...context,
+        workspace: "/tmp/project",
+        ref: `refs/tags/${packages[0].tag}`,
       },
-    },
-  };
-  const verify = (
-    changes = {},
-    ref = `refs/tags/${item.tag}`,
-    workingDirectory = ".",
-  ) =>
-    releaseVerification.verifyReleases({
-      github,
-      context: { ...context, workspace: "/tmp/project", ref },
-      packages: [{ ...item, ...changes }],
-      workingDirectory,
+      packages: values,
     });
-  assert.deepEqual(await verify(), [{ tag: item.tag, published: true }]);
-  github.rest.repos.getReleaseByTag = async () => ({ data: { draft: true } });
-  assert.equal((await verify())[0].published, false);
-  github.rest.repos.getReleaseByTag = async () => {
-    throw Object.assign(new Error("Not found"), { status: 404 });
-  };
-  github.paginate = async () => [{ tag_name: item.tag, draft: true }];
-  assert.equal((await verify())[0].published, false);
-  github.paginate = async () => [];
-  assert.equal((await verify())[0].published, false);
-  github.rest.repos.getReleaseByTag = async () => {
-    throw Object.assign(new Error("Forbidden"), { status: 403 });
-  };
-  await assert.rejects(verify(), /Forbidden/);
-
-  await assert.rejects(verify({}, "refs/heads/main"), /prepared release tag/);
-  await assert.rejects(verify({ tag: "v2.0.0" }), /source tag/);
-  await assert.rejects(verify({ version: "1.2.4" }), /match the release tag/);
-  await assert.rejects(
-    verify({}, `refs/tags/${item.tag}`, ".."),
-    /inside the repository/,
-  );
-  github.rest.repos.getCommit = async () => ({ data: { sha: "other-commit" } });
-  await assert.rejects(verify(), /prepared source commit/);
-});
-
-test("release accepts a package tarball artifact from this run and prepared commit, including reruns", async () => {
-  await assert.doesNotReject(verifyArtifact());
-});
-
-test("rejects expired artifacts, other runs, older commits and unavailable source identity", async () => {
-  for (const data of [
-    { ...artifact, expired: true },
-    { ...artifact, workflow_run: { id: 41, head_sha: context.sha } },
-    { ...artifact, workflow_run: { id: 42, head_sha: "old" } },
-    { ...artifact, workflow_run: undefined },
-  ]) {
-    await assert.rejects(verifyArtifact(data), /this run and prepared commit/);
-  }
-});
-
-test("rejects missing, multiple or invalid package tarball artifact IDs before downloading", async () => {
-  for (const id of ["", "0", "1,2", "NaN", "-1", "9007199254740992"]) {
-    await assert.rejects(
-      verifyArtifact(artifact, id),
-      /positive package tarball artifact ID/,
-    );
-  }
-});
-
-test("missing or inaccessible package tarball artifacts stop release", async () => {
-  const github = {
-    rest: {
-      actions: {
-        getArtifact: async () => {
-          throw new Error("Artifact not found");
-        },
-      },
-    },
-  };
-  await assert.rejects(
-    releaseVerification.verifyArtifact({ github, context, artifactId: "10" }),
-    /Artifact not found/,
+  const releases = prepare();
+  assert.equal(releases.length, 2);
+  assert.equal(releases[1].workingDirectory, "packages/core");
+  assert.equal(releases[1].artifactPattern, "release-assets-example-core");
+  assert.throws(() => prepare([packages[1]]), /source tag/);
+  assert.throws(
+    () => prepare([{ ...packages[0], tag: "@other/name@1.2.3" }]),
+    /stable version tag/,
   );
 });
 
-test("release accepts one prepared npm package with its prepared identity", () => {
+test("release accepts prepared single-package and workspace lists with their prepared identities", () => {
+  const packages = [
+    item,
+    { ...item, name: "other", slug: "other", directory: "packages/other" },
+  ];
   assert.deepEqual(
     releaseVerification.parsePackages(JSON.stringify([item]), item.version),
     [item],
+  );
+  assert.deepEqual(
+    releaseVerification.parsePackages(JSON.stringify(packages), item.version),
+    packages,
   );
 });
 
@@ -134,7 +66,6 @@ test("rejects ambiguous names, unsafe paths, mismatched versions and invalid pac
     {},
     [null],
     [item, item],
-    [{ ...item, directory: "packages/cli" }],
     [{ ...item, slug: "wrong" }],
     [{ ...item, name: "../bad" }],
     [{ ...item, directory: "../outside" }],
@@ -153,21 +84,72 @@ test("rejects ambiguous names, unsafe paths, mismatched versions and invalid pac
   }
 });
 
-test("verifies tags derived from nested project directories containing punctuation", async () => {
+test("prepares tags derived from nested project directories containing punctuation", () => {
   const tag = "my-package-1.2.3";
-  const releases = await releaseVerification.verifyReleases({
+  const releases = releaseVerification.prepareReleases({
     context: { ...context, workspace: "/tmp/project", ref: `refs/tags/${tag}` },
     packages: [{ ...item, tag }],
     workingDirectory: " ---My Package--- ",
-    github: {
-      rest: {
-        repos: {
-          getCommit: async () => ({ data: { sha: context.sha } }),
-          getReleaseByTag: async () => ({ data: { draft: true } }),
-        },
-      },
-    },
   });
   assert.equal(releases[0].tag, tag);
-  assert.equal(releases[0].published, false);
+});
+
+test("binds validated CI tarballs to selected packages and rejects ambiguous artifacts", () => {
+  const packages = [
+    item,
+    { ...item, name: "other", slug: "other", directory: "packages/other" },
+  ];
+  assert.equal(
+    releaseVerification.bindArtifacts([item], "10")[0].artifactId,
+    "10",
+  );
+  assert.deepEqual(
+    releaseVerification
+      .bindArtifacts(
+        packages,
+        "",
+        JSON.stringify({ ".": "10", "packages/other": "11", unchanged: "12" }),
+      )
+      .map((p) => p.artifactId),
+    ["10", "11"],
+  );
+  for (const [selected, single, map] of [
+    [packages, "10", ""],
+    [[item], "10", '{".":"10"}'],
+    [[item], "", ""],
+    [packages, "", '{".":"10"}'],
+    [packages, "", '{".":"10","packages/other":"10"}'],
+    [[item], "", "[]"],
+    [[item], "", '{".":"0"}'],
+    [[item], "", '{".":"9007199254740992"}'],
+  ])
+    assert.throws(
+      () => releaseVerification.bindArtifacts(selected, single, map),
+      /artifact|map/,
+    );
+});
+
+test("rejects unprepared refs, escaped scopes and mixed release modes", () => {
+  const prepare = (overrides = {}) =>
+    releaseVerification.prepareReleases({
+      context: {
+        ...context,
+        workspace: "/tmp/project",
+        ref: "refs/tags/v1.2.3",
+      },
+      packages: [item],
+      ...overrides,
+    });
+  assert.throws(
+    () => prepare({ context: { ...context, ref: "refs/heads/main" } }),
+    /prepared release tag/,
+  );
+  assert.throws(
+    () => prepare({ workingDirectory: "../outside" }),
+    /inside the repository/,
+  );
+  assert.throws(
+    () => prepare({ packages: [item, { ...item, tag: "@example/cli@1.2.3" }] }),
+    /independent package tags/,
+  );
 });

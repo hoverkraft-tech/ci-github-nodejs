@@ -1,19 +1,59 @@
-# Publish an already validated package tarball without rebuilding, repacking or running tests.
-# Call after successful package validation at the prepared tag, using an artifact from the same run and commit.
+# Publish validated package tarballs without rebuilding, repacking or running tests.
+# Call after successful package validation at the prepared tags, using artifacts from this run and commit.
+#
+# ### Force a manual release
+#
+# Add an optional boolean `force` input, defaulting to `false`, under the caller's
+# `on.workflow_dispatch.inputs`. Forward it to the preparation job with
+# `force: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}`.
+#
+# On a manual default-branch run, `force: true` prepares a new version even without
+# changes. Higher Conventional Commit plans are preserved; an unchanged planned
+# version receives a patch bump. Lerna includes every public package, using native
+# Conventional Commit increments in independent mode and patch increments for
+# unchanged packages. Private packages remain excluded.
+#
+# Schedules keep normal no-change behavior. Explicit tag runs always recover that
+# version, even when force is supplied. Preparation does not forward force to the
+# dispatched tag run. Builds, validation, repository protections and existing-tag
+# checks still apply. Force never overwrites a published version or release tag.
+#
+# ### Override release configuration
+#
+# Pass the same partial YAML or JSON `release-config` to preparation and release.
+# For example, `tag-prefix: v` with `tag-template: v$RESOLVED_VERSION` preserves v-prefixed tags.
+# Alternatively, put partial overrides in `.github/release-config.yml`, or
+# `.github/release-configs/{slug}.yml` for a scoped release. Shared defaults come first,
+# repository settings override them, and workflow input overrides repository settings.
+# Supplied top-level keys replace inherited values, including entire lists and mappings;
+# omitted keys remain inherited. Files with their own `_extends` chain retain that base.
+# `_extends` is reserved in the workflow input.
+# Override only repository-specific settings to inherit upstream version rules and notes.
+# Independent Lerna still plans versions natively; keep tag settings consistent with its package tags.
 name: Node.js Release
 
 on:
   workflow_call:
     inputs:
+      release-config:
+        description: |
+          Optional partial release configuration as a YAML or JSON mapping, forwarded to ci-github-publish/actions/release/create.
+          See https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/create for supported settings and override behavior.
+          Pass the same configuration to preparation and release.
+        type: string
+        default: ""
       packages:
-        description: JSON array containing one public npm package from prepare-package-release.
+        description: JSON public package list from prepare-package-release, with name, version, tag, directory and slug.
         type: string
         required: true
       package-tarball-artifact-id:
-        description: |
-          Validated package tarball artifact ID from this workflow run and the prepared tag's commit. Upload one raw .tgz with archive: false. The caller must depend on successful validation; any job can produce the artifact.
+        description: Validated raw tarball artifact ID for one prepared package. Supply this or package-tarball-artifacts.
         type: string
-        required: true
+        default: ""
+      package-tarball-artifacts:
+        description: JSON object mapping package directories relative to working-directory to validated raw tarball artifact IDs. Supply this or package-tarball-artifact-id. Artifacts must belong to this run and prepared commit; the caller must require successful validation.
+        type: string
+        default: ""
       working-directory:
         description: Project directory relative to the caller repository root, matching release preparation.
         type: string
@@ -42,46 +82,115 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Release npm package
+  verify:
+    name: Verify package artifacts
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
     environment: ${{ inputs.environment }}
     permissions:
       actions: read
-      contents: write
-      pull-requests: read
-      id-token: write
+      contents: read
+    outputs:
+      releases: ${{ steps.verify.outputs.releases }}
+      packages: ${{ steps.verify.outputs.packages }}
     steps:
       - id: verify
         uses: $/actions/release/verify
         with:
           packages: ${{ inputs.packages }}
           package-tarball-artifact-id: ${{ inputs.package-tarball-artifact-id }}
+          package-tarball-artifacts: ${{ inputs.package-tarball-artifacts }}
           working-directory: ${{ inputs.working-directory }}
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+  draft:
+    name: Draft release notes
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: write
+      pull-requests: read
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ${{ fromJSON(needs.verify.outputs.releases) }}
+    steps:
+      - name: Create draft and optional AI summary
+        if: "!matrix.release.published"
+        uses: $/actions/release/draft
         with:
-          persist-credentials: false
-      - uses: hoverkraft-tech/ci-github-publish/actions/release/create@ea6682de88070c254dac619a6623a242a6d57cd3 # 1.0.3
-        with:
-          tag: ${{ github.ref_name }}
-          target-sha: ${{ github.sha }}
-          working-directory: ${{ inputs.working-directory != '.' && inputs.working-directory || '' }}
-          publish: "false"
+          tag: ${{ matrix.release.tag }}
+          working-directory: ${{ matrix.release.workingDirectory }}
+          release-config: ${{ inputs.release-config }}
+          package-name: ${{ matrix.release.packageName }}
           changelog-summary: ${{ secrets.changelog-summary || inputs.changelog-summary }}
-        name: Create draft and optional AI summary
-        if: steps.verify.outputs.published != 'true'
+
+  npm:
+    name: Publish ${{ matrix.package.name }}
+    needs: [verify, draft]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.environment }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.verify.outputs.packages) }}
+    steps:
       - name: Publish missing npm version
         id: publish
         uses: $/actions/package/publish
         with:
-          package-tarball-artifact-id: ${{ inputs.package-tarball-artifact-id }}
-          name: ${{ fromJSON(inputs.packages)[0].name }}
-          version: ${{ fromJSON(inputs.packages)[0].version }}
+          package-tarball-artifact-id: ${{ matrix.package.artifactId }}
+          name: ${{ matrix.package.name }}
+          version: ${{ matrix.package.version }}
           recover-existing: "true"
           tag: latest
+      - name: Name tarball for transfer between jobs
+        id: asset
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PACKAGE_TARBALL: ${{ steps.publish.outputs.package-tarball-path }}
+          ASSET_NAME: ${{ matrix.package.slug }}-${{ matrix.package.version }}.tgz
+        with:
+          script: |
+            const path = require('node:path');
+            const source = process.env.PACKAGE_TARBALL;
+            const destination = path.join(path.dirname(source), process.env.ASSET_NAME);
+            if (source !== destination) await io.mv(source, destination);
+            core.setOutput('path', destination);
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets-${{ matrix.package.slug }}
+          path: ${{ steps.asset.outputs.path }}
+          overwrite: true
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: [verify, npm]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ${{ fromJSON(needs.verify.outputs.releases) }}
+    steps:
+      - id: release-assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ matrix.release.artifactPattern }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/release-assets
       - uses: $/actions/release/finalize
         with:
-          tag: ${{ github.ref_name }}
-          package-tarball-path: ${{ steps.publish.outputs.package-tarball-path }}
-          asset-name: ${{ fromJSON(inputs.packages)[0].slug }}-${{ fromJSON(inputs.packages)[0].version }}.tgz
+          tag: ${{ matrix.release.tag }}
+          package-tarball-path: ${{ steps.release-assets.outputs.download-path }}/*.tgz

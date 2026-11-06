@@ -25,7 +25,7 @@ Publish an existing Node.js package tarball to an npm-compatible registry
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/package/publish@97f64bc080b78daca8fb3ece49de448aaac83429 # 1.1.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/package/publish@<sha>
   with:
     # Expected package name, paired with version to reject an unintended release tarball before publication.
     name: ""
@@ -56,7 +56,7 @@ Publish an existing Node.js package tarball to an npm-compatible registry
     # Default: `true`
     provenance: "true"
 
-    # Validate publishing without uploading the package (true or false)
+    # Validate the tarball without uploading (true or false). Enables npm force mode only during dry runs so CI can check already-published versions. Live publication keeps npm's version checks.
     # Default: `false`
     dry-run: "false"
 
@@ -70,18 +70,18 @@ Publish an existing Node.js package tarball to an npm-compatible registry
 
 ## Inputs
 
-| **Input**                         | **Description**                                                                                                                            | **Required** | **Default**                  |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ---------------------------- |
-| **`name`**                        | Expected package name, paired with version to reject an unintended release tarball before publication.                                     | **false**    | -                            |
-| **`version`**                     | Expected package version, paired with name to reject an unintended release tarball before publication.                                     | **false**    | -                            |
-| **`recover-existing`**            | Recover an existing npmjs.org version by restoring its original tarball instead of publishing again. Checks the registry on every attempt. | **false**    | `false`                      |
-| **`package-tarball-artifact-id`** | Artifact ID of one package tarball uploaded by the package action                                                                          | **true**     | -                            |
-| **`registry-url`**                | Registry URL used by npm publish                                                                                                           | **false**    | `https://registry.npmjs.org` |
-| **`access`**                      | Package access: public, restricted, or empty to use npm defaults                                                                           | **false**    | `public`                     |
-| **`tag`**                         | npm distribution tag, such as latest, next, or canary; empty uses npm defaults                                                             | **false**    | -                            |
-| **`provenance`**                  | Whether to request provenance for npmjs.org publishes (true or false)                                                                      | **false**    | `true`                       |
-| **`dry-run`**                     | Validate publishing without uploading the package (true or false)                                                                          | **false**    | `false`                      |
-| **`github-token`**                | GitHub token for downloading the artifact; registry authentication uses NODE_AUTH_TOKEN or OIDC                                            | **false**    | `${{ github.token }}`        |
+| **Input**                         | **Description**                                                                                                                                                                              | **Required** | **Default**                  |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------- |
+| **`name`**                        | Expected package name, paired with version to reject an unintended release tarball before publication.                                                                                       | **false**    | -                            |
+| **`version`**                     | Expected package version, paired with name to reject an unintended release tarball before publication.                                                                                       | **false**    | -                            |
+| **`recover-existing`**            | Recover an existing npmjs.org version by restoring its original tarball instead of publishing again. Checks the registry on every attempt.                                                   | **false**    | `false`                      |
+| **`package-tarball-artifact-id`** | Artifact ID of one package tarball uploaded by the package action                                                                                                                            | **true**     | -                            |
+| **`registry-url`**                | Registry URL used by npm publish                                                                                                                                                             | **false**    | `https://registry.npmjs.org` |
+| **`access`**                      | Package access: public, restricted, or empty to use npm defaults                                                                                                                             | **false**    | `public`                     |
+| **`tag`**                         | npm distribution tag, such as latest, next, or canary; empty uses npm defaults                                                                                                               | **false**    | -                            |
+| **`provenance`**                  | Whether to request provenance for npmjs.org publishes (true or false)                                                                                                                        | **false**    | `true`                       |
+| **`dry-run`**                     | Validate the tarball without uploading (true or false). Enables npm force mode only during dry runs so CI can check already-published versions. Live publication keeps npm's version checks. | **false**    | `false`                      |
+| **`github-token`**                | GitHub token for downloading the artifact; registry authentication uses NODE_AUTH_TOKEN or OIDC                                                                                              | **false**    | `${{ github.token }}`        |
 
 <!-- inputs:end -->
 <!-- examples:start -->

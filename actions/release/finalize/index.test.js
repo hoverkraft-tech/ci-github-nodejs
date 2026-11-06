@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const glob = require("@actions/glob");
 const { test } = require("node:test");
 const { createHash } = require("node:crypto");
 const fs = require("node:fs");
@@ -32,6 +33,7 @@ function assetsFixture(t) {
     data,
     args: {
       github,
+      glob,
       repo: { owner: "example", repo: "project" },
       tag: "v1.2.0",
       tarballPath,
@@ -92,7 +94,6 @@ test("attaches only the requested file even when other tarballs are present", as
 test("rejects asset names that could escape staging or are not tarball filenames", async (t) => {
   const f = assetsFixture(t);
   for (const assetName of [
-    "",
     "../outside.tgz",
     "/outside.tgz",
     "dir\\outside.tgz",
@@ -144,4 +145,57 @@ test("recovers draft assets through release listing and propagates lookup failur
     throw Object.assign(new Error("Forbidden"), { status: 403 });
   };
   await assert.rejects(releaseAssets.prepareAssets(f.args), /Forbidden/);
+});
+
+test("workspace recovery stages only missing tarballs from the explicit glob", async (t) => {
+  const f = assetsFixture(t);
+  const root = f.args.tempDirectory;
+  fs.renameSync(f.args.tarballPath, path.join(root, f.args.assetName));
+  f.assets.push({
+    name: f.args.assetName,
+    digest: `sha256:${createHash("sha256").update(f.data).digest("hex")}`,
+  });
+  const missingName = "example-cli-1.2.0.tgz";
+  fs.writeFileSync(path.join(root, missingName), "second package");
+  const nested = path.join(root, "previous-attempt");
+  fs.mkdirSync(nested);
+  fs.writeFileSync(path.join(nested, "ignored.tgz"), "previous attempt");
+  fs.mkdirSync(path.join(root, "directory.tgz"));
+  fs.symlinkSync(path.join(nested, "ignored.tgz"), path.join(root, "link.tgz"));
+  const args = {
+    ...f.args,
+    tarballPath: path.join(root, "*.tgz"),
+    assetName: "",
+  };
+  const result = await releaseAssets.prepareAssets(args);
+  assert.deepEqual(fs.readdirSync(result.pendingDirectory), [missingName]);
+  assert.equal(
+    fs.readFileSync(path.join(result.pendingDirectory, missingName), "utf8"),
+    "second package",
+  );
+  await assert.rejects(
+    releaseAssets.prepareAssets({
+      ...args,
+      tarballPath: path.join(root, "absent-*.tgz"),
+    }),
+    /No package tarballs/,
+  );
+});
+
+test("rejects workspace tarballs with duplicate asset filenames", async (t) => {
+  const f = assetsFixture(t);
+  const nested = path.join(f.args.tempDirectory, "nested");
+  fs.mkdirSync(nested);
+  fs.writeFileSync(
+    path.join(nested, path.basename(f.args.tarballPath)),
+    "other package",
+  );
+  await assert.rejects(
+    releaseAssets.prepareAssets({
+      ...f.args,
+      tarballPath: path.join(f.args.tempDirectory, "**/*.tgz"),
+      assetName: "",
+    }),
+    /Duplicate release asset name/,
+  );
 });

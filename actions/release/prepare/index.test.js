@@ -218,13 +218,29 @@ const packageItem = {
   directory: ".",
   tag: "v1.2.3",
 };
-test("release accepts one prepared npm package without CI packaging metadata", () => {
+test("release accepts prepared single-package and workspace lists without CI packaging metadata", () => {
+  const packages = [
+    packageItem,
+    {
+      ...packageItem,
+      name: "other",
+      slug: "other",
+      directory: "packages/other",
+    },
+  ];
   assert.deepEqual(
     releasePreparation.parsePackages(
       JSON.stringify([packageItem]),
       packageItem.version,
     ),
     [packageItem],
+  );
+  assert.deepEqual(
+    releasePreparation.parsePackages(
+      JSON.stringify(packages),
+      packageItem.version,
+    ),
+    packages,
   );
 });
 
@@ -234,7 +250,6 @@ test("rejects ambiguous names, unsafe paths, mismatched versions and invalid pac
     {},
     [null],
     [packageItem, packageItem],
-    [{ ...packageItem, directory: "packages/cli" }],
     [{ ...packageItem, slug: "wrong" }],
     [{ ...packageItem, name: "../bad" }],
     [{ ...packageItem, directory: "../outside" }],

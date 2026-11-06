@@ -36,7 +36,7 @@ inputs:
     default: "lint:ci"
   report-file:
     description: |
-      Optional lint report path forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/parse-ci-reports) action.
+      Optional lint report path forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.
       Provide an absolute path or one relative to the working directory.
       When omitted, the action falls back to `auto:lint` detection.
     required: false
@@ -44,7 +44,7 @@ inputs:
   path-mapping:
     description: |
       Optional path mapping to adjust file paths in test and coverage reports.
-      See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/parse-ci-reports) for details.
+      See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.
     required: false
     default: ""
 
@@ -53,7 +53,7 @@ runs:
   steps:
     # jscpd:ignore-start
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
@@ -112,7 +112,7 @@ runs:
 
     - name: 📊 Parse lint reports
       if: always()
-      uses: hoverkraft-tech/ci-github-common/actions/parse-ci-reports@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+      uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         report-paths: ${{ inputs.report-file || 'auto:lint' }}
