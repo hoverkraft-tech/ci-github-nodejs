@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItcGFja2FnZSIgY29sb3I9ImJsdWUiPjxsaW5lIHgxPSIxNi41IiB5MT0iOS40IiB4Mj0iNy41IiB5Mj0iNC4yMSI+PC9saW5lPjxwYXRoIGQ9Ik0yMSAxNlY4YTIgMiAwIDAgMC0xLTEuNzNsLTctNGEyIDIgMCAwIDAtMiAwbC03IDRBMiAyIDAgMCAwIDMgOHY4YTIgMiAwIDAgMCAxIDEuNzNsNyA0YTIgMiAwIDAgMCAyIDBsNy00QTIgMiAwIDAgMCAyMSAxNnoiPjwvcGF0aD48cG9seWxpbmUgcG9pbnRzPSIzLjI3IDYuOTYgMTIgMTIuMDEgMjAuNzMgNi45NiI+PC9wb2x5bGluZT48bGluZSB4MT0iMTIiIHkxPSIyMi4wOCIgeDI9IjEyIiB5Mj0iMTIiPjwvbGluZT48L3N2Zz4=) GitHub Action: Get package manager
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/3fb447d0403952a43eebe2b03f436945955c160699ea2bb62cb2abc5229c52cb/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Get package manager" />
+  <img src="https://opengraph.githubassets.com/6963b10abf5bde223e9ca9d092769a577749af0a7d6725313a6c701c6a3a767a/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Get package manager" />
 </div>
 
 ---
@@ -34,7 +34,7 @@ Action to detect the package manager used. Supports Yarn, pnpm, and npm
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/get-package-manager@97f64bc080b78daca8fb3ece49de448aaac83429 # 1.1.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/get-package-manager@31cd29bfb95f6bc6490d6abe5d66690431b518e3 # 2.0.0
   with:
     # Working directory where the dependencies are installed.
     # Can be absolute or relative to the repository root.
