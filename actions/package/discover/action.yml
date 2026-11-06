@@ -1,0 +1,94 @@
+name: Discover packages
+description: Select public packages from workspace configuration or an explicit directory list without installing dependencies.
+author: hoverkraft
+branding:
+  icon: package
+  color: blue
+inputs:
+  working-directory:
+    description: Project root containing package.json and package manager configuration.
+    default: .
+  directories:
+    description: Optional JSON array of public package directories relative to working-directory. Empty discovers workspaces, or the standalone root package.
+    default: ""
+outputs:
+  directories:
+    description: JSON array of public package directories relative to working-directory.
+    value: ${{ steps.discover.outputs.directories }}
+runs:
+  using: composite
+  steps:
+    - id: setup-node
+      uses: $/actions/setup-node
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        install-dependencies: "false"
+    - id: discover
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        DIRECTORIES: ${{ inputs.directories }}
+        PACKAGE_MANAGER: ${{ steps.setup-node.outputs.package-manager }}
+      with:
+        script: |
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const directory = fs.realpathSync(path.resolve(process.env.GITHUB_WORKSPACE, process.env.WORKING_DIRECTORY));
+          const read = file => JSON.parse(fs.readFileSync(path.join(directory, file), 'utf8'));
+          const manifest = read('package.json');
+          const explicit = process.env.DIRECTORIES.trim() !== '';
+          const relativePath = value => typeof value === 'string' && value.trim() !== '' &&
+            !path.isAbsolute(value) && !path.win32.isAbsolute(value) && !value.split(/[\\/]/).includes('..');
+          let directories;
+          if (explicit) {
+            directories = JSON.parse(process.env.DIRECTORIES);
+            if (!Array.isArray(directories) || !directories.length || directories.some(value => !relativePath(value))) {
+              throw new Error('directories must be a nonempty JSON array of relative package directories inside the project.');
+            }
+          } else {
+            const lerna = fs.existsSync(path.join(directory, 'lerna.json')) ? read('lerna.json') : {};
+            if (lerna.packages !== undefined) {
+              if (!Array.isArray(lerna.packages) || !lerna.packages.length) throw new Error('lerna.json packages must be a nonempty array.');
+              const patterns = lerna.packages.map(pattern => {
+                if (typeof pattern !== 'string') throw new Error('Lerna package patterns must be strings.');
+                const exclude = pattern.startsWith('!');
+                const value = exclude ? pattern.slice(1) : pattern;
+                if (!relativePath(value)) throw new Error('Lerna package patterns must remain inside the project.');
+                return `${exclude ? '!' : ''}${directory}/${value.replace(/\/$/, '')}/package.json`;
+              });
+              patterns.push(`!${directory}/**/node_modules/**`, `!${directory}/**/.git/**`);
+              const files = await (await glob.create(patterns.join('\n'), { followSymbolicLinks: false, matchDirectories: false })).glob();
+              directories = files.map(file => path.dirname(file));
+            } else if (process.env.PACKAGE_MANAGER === 'pnpm' && fs.existsSync(path.join(directory, 'pnpm-workspace.yaml'))) {
+              const { stdout } = await exec.getExecOutput('pnpm', ['list', '--recursive', '--depth', '-1', '--json', '--config.lockfile=false'], { cwd: directory });
+              directories = JSON.parse(stdout).map(project => project.path);
+              const workspaces = directories.filter(project => path.resolve(project) !== directory);
+              if (workspaces.length) directories = workspaces;
+            } else if (manifest.workspaces !== undefined) {
+              const { stdout } = await exec.getExecOutput('npm', [
+                'exec', '--workspaces', '--include-workspace-root=false', '--offline', '--yes=false', '--ignore-scripts',
+                '--', process.execPath, '-p', 'JSON.stringify(process.cwd())',
+              ], { cwd: directory });
+              directories = stdout.trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
+            } else {
+              directories = ['.'];
+            }
+          }
+          const selected = [];
+          for (const candidate of directories) {
+            const absolute = fs.realpathSync(path.resolve(directory, candidate));
+            const relative = path.relative(directory, absolute) || '.';
+            if (!relativePath(relative)) throw new Error(`Package directory escapes the project: ${candidate}.`);
+            const packaged = read(path.join(relative, 'package.json'));
+            if (packaged.private === true) {
+              if (explicit) throw new Error(`Package directory is private: ${candidate}.`);
+              continue;
+            }
+            const normalized = relative.split(path.sep).join('/');
+            if (selected.includes(normalized)) throw new Error(`Duplicate package directory: ${normalized}.`);
+            selected.push(normalized);
+          }
+          if (!selected.length) throw new Error('No public packages found. Check workspace configuration or provide directories explicitly.');
+          if (selected.length > 256) throw new Error('Package validation supports at most 256 package directories.');
+          core.info(`Selected public packages: ${selected.join(', ')}`);
+          core.setOutput('directories', selected.sort());

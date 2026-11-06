@@ -62,6 +62,14 @@ belongs to `release/verify`, npm recovery to `package/restore`, and asset handli
 rules and GitHub release lookup, which have multiple consumers. Specialized
 package preparation belongs to `prepare` in the workspace extension.
 
+Follow the [parse-ci-reports action pattern](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports)
+for dependency setup and tests. Keep each action's manifest and lockfile local.
+Use `setup-node` with `github.action_path` when runtime dependencies are needed;
+install test-only dependencies through shared CI. Colocated Node.js tests expose
+`test`, `test:watch` and `test:ci`; the CI command emits console results and LCOV
+into a tracked coverage directory that ignores generated reports. Keep unit-test
+CI separate from integration jobs that exercise the actual actions.
+
 ### Version preparation and release notes
 
 Use the public `ci-github-publish/release/plan` action as the version authority for
@@ -83,6 +91,22 @@ the same committed identity. A concurrent branch update fails the atomic push.
 The preparation identity must satisfy branch and tag rules; preparation neither
 creates release PRs nor bypasses protections.
 
+The manual override accepted on 2026-11-05 extends the no-change decision: an
+optional `force` input creates a new version only on manual default-branch runs.
+Keep higher HoverKraft plans and use a patch increment when the plan equals the
+committed version. Native Lerna force versioning includes all public packages;
+independent packages retain Conventional Commit increments with a patch fallback.
+Schedules and explicit tag recovery ignore the override. Do not forward it to the
+dispatched tag run or relax validation, version-history or tag-conflict checks.
+
+The generic configuration override accepted on 2026-11-05 exposes the same
+`release-config` YAML or JSON mapping to preparation and drafting. Forward it to
+ci-github-publish rather than adding an input for each upstream release setting.
+Use native configuration inheritance: supplied top-level keys replace inherited
+values. Apply shared defaults, then partial repository settings, then workflow
+input. Preserve repository files; an explicit `_extends` chain keeps its own base. Independent
+Lerna retains native version planning. Both phases must receive the same overrides.
+
 Keep release notes on GitHub. Preparation never creates or modifies `CHANGELOG.md`,
 including existing files. Use `release/create` for the draft and optional AI summary,
 and `release/update` for missing assets and final publication. Preserve caller release
@@ -97,11 +121,16 @@ or an enablement flag to the Node.js workflow.
 
 ### Build artifacts and packaging
 
+GitHub artifact ownership and release tag identity checks are shared through
+`ci-github-publish/actions/release/verify`. Node.js retains package/version validation
+and release grouping. The test action calls `ci-github-common/actions/quality/codecov`
+directly, so language-specific actions do not maintain wrappers or uploader setup.
+
 Preparation commits versions before validation. CI builds, runs source tests,
 packs the distributable and optionally runs consumer checks against that tarball.
 The existing CI workflow adds an opt-in `package` job and a
 `package-tarball-artifact-id` output. General applications keep packaging disabled.
-`package-tests` belongs to CI and has no publication credentials or environment.
+The `package` configuration's `tests` option belongs to CI and has no publication credentials or environment.
 It derives package identity from the tarball and rejects changes to its bytes.
 A publication dry run also runs in CI. The standard packaging job supports the
 non-container Ubuntu artifact layout; custom producers can compose the actions.
@@ -193,6 +222,91 @@ the alternatives and observations below preserve their history, not new validati
   for Gatsby compatibility were replaced with the shared root version and reviewed
   Renovate updates. The compatibility finding at that time was Gatsby's exclusion
   of Node 26; it is historical evidence, not a permanent runtime constraint.
+
+## Workspace and Lerna extension
+
+The extension in PR #563 applies the same preparation, validated package artifact and publication
+contracts to these additional layouts. It adds to this record rather than creating
+a separate release policy.
+
+### Native versioning and package selection
+
+Keep `working-directory` as the root containing the lockfile and package-manager
+configuration. Use `package-directory` to select one public package in an npm or
+pnpm workspace. npm updates the selected manifest and root lockfile; pnpm maintains
+its own lockfile. Private sibling packages are not published.
+
+For fixed Lerna, apply HoverKraft's exact planned version through the consumer's
+installed Lerna, preserving dependency propagation and lockfile updates. For
+independent Lerna, use native Conventional Commit change detection and per-package
+increments instead of a second dependency/version planner. Disable Lerna's Git
+commits, tags and pushes, and use `--no-changelog` in both modes so existing root
+and package changelogs remain unchanged.
+
+Preparation pushes one commit and every resulting package tag atomically, then
+dispatches one tag to build and release the whole batch. Independent packages use
+`package-name@version` tags and receive their own HoverKraft notes, optional AI
+summaries and tarball assets. Preserve caller-supplied notes configuration. Recovery
+from any matching package tag at the prepared commit resumes the full batch.
+
+### Native packing and validation before publication
+
+npm prebuilt packing still skips dependency installation. Native pnpm packing needs
+workspace dependencies to resolve `workspace:` ranges, so install the frozen
+workspace with lifecycle scripts disabled, restore the artifact's compiled bytes and pack with
+hooks disabled. Reject unresolved workspace references in the tarball; do not replace
+native packing with manual manifest rewrites. This adds dependency availability to
+CI packaging; release consumes the resulting tarballs without packing again.
+
+CI must finish smoke tests and publication dry runs for all selected packages.
+Release must finish optional AI summaries before any npm publication. Preserve successful validation artifact IDs across partial
+matrix retries and recheck the registry in each publication attempt. Original npm
+bytes and GitHub asset integrity remain protected. npm publication across packages
+is non-atomic even with this validation barrier.
+
+Tests colocated with the release helpers cover native npm/pnpm version application,
+fixed/independent Lerna dependency propagation and committed package discovery.
+Dedicated integration workflows invoke the real actions to check npm/pnpm packaging,
+artifact restoration, smoke-test failures and validation collection. Unit tests mock
+registry and GitHub responses for integrity cases. Full remote preparation and
+workflow dispatch require a release-capable test repository and are not covered by
+these checks; see the validation guide for the explicit boundary.
+
+## Consumer audit (2026-11-02)
+
+The consumer audit on this date combined the
+[GitHub dependency graph](https://github.com/hoverkraft-tech/ci-github-nodejs/network/dependents)
+with code search and repository metadata. It identified 24 repositories with workflow
+or action usage and `fork: false`. GitHub's dependent graph alone was incomplete;
+validation copies with `fork: false` were retained. These counts are dated evidence,
+not a continuously updated inventory.
+
+Six public npm publishers demonstrated these concrete requirements:
+
+| Repository                                                              | Package layout                                   | Release requirement                                                               |
+| ----------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------- |
+| [Reactionable](https://github.com/reactionable/reactionable)            | Fixed Lerna, npm                                 | Preserve workspace dependencies and shared build output                           |
+| [Reactionable CLI](https://github.com/reactionable/reactionable-cli)    | Single npm package                               | Preserve the installed CLI and documentation deployment                           |
+| [ts-dev-tools](https://github.com/escemi-tech/ts-dev-tools)             | Independent Lerna, pnpm                          | Keep package tags, independent versions and `workspace:` dependencies             |
+| [CI Dokumentor](https://github.com/hoverkraft-tech/ci-dokumentor)       | Private pnpm/Nx workspace, public `packages/cli` | Use the root lockfile; retain installed CLI tests and other distribution channels |
+| [Docusaurus theme](https://github.com/hoverkraft-tech/docusaurus-theme) | Private npm workspace, public `packages/theme`   | Include built static assets and test an installed theme                           |
+| [Slidev theme](https://github.com/hoverkraft-tech/slidev-theme)         | Private npm workspace, public `packages/theme`   | Keep checked-in theme files and installed-theme slide builds                      |
+
+The remaining consumers include applications, sites, containers and GitHub Actions.
+Using Node.js CI does not imply they should publish an npm package. An additional
+unpublished resume theme needs an explicit initial release baseline.
+
+The audit also found manifest/release/npm version differences, a missing npm package
+version in a fixed-version release, PR-protected release branches, and five Pages
+environments restricted to `main`. These require repository-specific reconciliation;
+changing a shared workflow cannot grant permissions or reconstruct release history.
+The operational requirements belong in the [readiness guide](../../.github/workflows/release.md#establish-the-release-baseline).
+
+These findings justified workspace selection, native independent Lerna versioning
+and installed-package validation. The subsequent 2026-11-03 decision removed source
+changelog generation from those paths while retaining version and dependency updates.
+Applications and other release products continue using their own publication
+compositions. Repository migrations and settings changes remain each owner's work.
 
 - **2026-11-03, consumer validation:** The CLI planned `1.3.0`, already committed
   but unpublished, and required signed commits on its default branch. This
@@ -289,6 +403,12 @@ the alternatives and observations below preserve their history, not new validati
   retains source/identity checks and retry recovery. This avoids testing a
   different package from the one published and removes consumer commands from
   the job with publication credentials. The PR CI entry point remains unchanged.
+
+- **2026-11-04, workspace CI handoff:** CI packages selected directories in a
+  read-only matrix and collects their validated artifact IDs. Release pairs those
+  IDs with prepared packages, verifies all artifact sources, then publishes.
+  Validation reports retain successful matrix results across failed-job reruns.
+  The single-package artifact input remains available for one-package callers.
 - **2026-11-04, recovery input naming:** Rename Publish's `skip-existing` input to
   `recover-existing` to describe restoring original registry bytes when resuming a
   release. Keep the default false for standalone publication and enable recovery
@@ -297,3 +417,11 @@ the alternatives and observations below preserve their history, not new validati
   tarball path and its asset name directly to finalization. This supersedes the
   implicit `RUNNER_TEMP/release-assets` contract and the workflow's extra copy.
   Finalization stages missing bytes once, preserving digest checks on retries.
+
+- **2026-11-05, isolated package consumers:** Custom package checks share temporary
+  consumer creation, npm installation with lifecycle scripts disabled, binary
+  lookup and cleanup inside `package/test`. Commands run in that consumer and
+  receive the installed package path and archive identity. An optional example
+  project supplies dependencies and scripts without modifying its source files.
+  Callers retain package-specific runtime assertions. Default archive checks
+  remain independent of installation for workspaces with unpublished siblings.

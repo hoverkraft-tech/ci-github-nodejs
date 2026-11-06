@@ -29,14 +29,13 @@ _Actions for continuous integration steps: build, lint, and test._
 
 #### - [Build](actions/build/README.md)
 
-#### - [Codecov](actions/codecov/README.md)
-
 #### - [Lint](actions/lint/README.md)
 
 #### - [Test](actions/test/README.md)
 
 ### Package Actions
 
+- [Discover public packages](actions/package/discover/README.md)
 - [Create a package tarball](actions/package/create/README.md)
 - [Test a package tarball](actions/package/test/README.md)
 - [Publish a package tarball](actions/package/publish/README.md)
@@ -46,6 +45,7 @@ _Actions for continuous integration steps: build, lint, and test._
 
 - [Prepare a package release](actions/release/prepare/README.md)
 - [Verify a prepared release](actions/release/verify/README.md)
+- [Draft a package release](actions/release/draft/README.md)
 - [Finalize a release](actions/release/finalize/README.md)
 
 ### Dependencies

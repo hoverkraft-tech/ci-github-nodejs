@@ -1,0 +1,291 @@
+name: Internal - Tests for "package/test" action
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  entry-points:
+    name: Package defaults (${{ matrix.fixture.name }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture:
+          - name: data-only package
+            manifest: {}
+            files: { README.md: Package data }
+            outcome: success
+          - name: library with declarations and binaries
+            manifest:
+              main: lib/index.cjs
+              module: lib/index.mjs
+              types: lib/index.d.ts
+              bin: { example: bin/cli.js }
+            files:
+              lib/index.cjs: throw new Error('Do not execute package code');
+              lib/index.mjs: throw new Error('Do not execute package code');
+              lib/index.d.ts: export {};
+              bin/cli.js: throw new Error('Do not execute package code');
+            outcome: success
+          - name: direct conditional exports and typings
+            manifest:
+              typings: lib/index.d.ts
+              exports: { import: ./lib/index.mjs, require: ./lib/index.cjs }
+            files:
+              lib/index.mjs: export {};
+              lib/index.cjs: module.exports = {};
+              lib/index.d.ts: export {};
+            outcome: success
+          - name: extensionless main
+            manifest: { main: lib/index }
+            files: { lib/index.js: "module.exports = {};" }
+            outcome: success
+          - name: directory main
+            manifest: { main: lib }
+            files:
+              lib/package.json: '{"main":"entry.cjs"}'
+              lib/entry.cjs: module.exports = {};
+            outcome: success
+          - name: string export and binary
+            manifest: { exports: ./index.js, bin: cli.js }
+            files: { index.js: "export {};", cli.js: "console.log('ok');" }
+            outcome: success
+          - name: nested conditions and excluded subpaths
+            manifest:
+              exports:
+                ".":
+                  types: ./index.d.ts
+                  node: { import: ./index.mjs, require: ./index.cjs }
+                  default: ./index.mjs
+                ./package.json: ./package.json
+                ./private: null
+            files:
+              index.d.ts: export {};
+              index.mjs: export {};
+              index.cjs: module.exports = {};
+            outcome: success
+          - name: wildcard exports with nested and repeated replacements
+            manifest:
+              exports:
+                ./features/*: ./lib/*.js
+                ./repeated/*: ./repeat/*/index-*.js
+            files:
+              lib/nested/feature.js: export {};
+              repeat/feature/index-feature.js: export {};
+            outcome: success
+          - name: export fallback array
+            manifest:
+              exports: [unsupported:target, null, { default: ./index.js }]
+            files: { index.js: "export {};" }
+            outcome: success
+          - name: missing main
+            manifest: { main: missing.js }
+            files: { index.js: "module.exports = {};" }
+            outcome: failure
+          - name: missing declaration
+            manifest: { types: missing.d.ts }
+            files: {}
+            outcome: failure
+          - name: missing binary
+            manifest: { bin: { example: missing.js } }
+            files: {}
+            outcome: failure
+          - name: missing module
+            manifest: { module: missing.mjs }
+            files: {}
+            outcome: failure
+          - name: missing nested export
+            manifest:
+              exports:
+                ".": { import: ./index.js, require: ./missing.cjs }
+            files: { index.js: "export {};" }
+            outcome: failure
+          - name: unmatched export pattern
+            manifest: { exports: { "./features/*": "./missing/*.js" } }
+            files: { lib/index.js: "export {};" }
+            outcome: failure
+          - name: mismatched wildcard replacements
+            manifest: { exports: { "./features/*": "./lib/*/index-*.js" } }
+            files: { lib/one/index-two.js: "export {};" }
+            outcome: failure
+          - name: directory export
+            manifest: { exports: ./lib }
+            files: { lib/index.js: "export {};" }
+            outcome: failure
+          - name: entry outside the package
+            manifest: { main: ../outside.js }
+            files: {}
+            outcome: failure
+          - name: missing name
+            manifest: { name: null }
+            files: {}
+            outcome: failure
+          - name: missing version
+            manifest: { version: null }
+            files: {}
+            outcome: failure
+    steps:
+      - name: Arrange - Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Arrange - Pack the fixture
+        id: fixture
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          MANIFEST: ${{ toJSON(matrix.fixture.manifest) }}
+          FILES: ${{ toJSON(matrix.fixture.files) }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { createHash } = require('node:crypto');
+            const directory = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP, 'package-fixture-'));
+            const packageDirectory = path.join(directory, 'package');
+            await io.mkdirP(packageDirectory);
+            fs.writeFileSync(path.join(packageDirectory, 'package.json'), JSON.stringify({
+              name: 'example-package', version: '1.2.3', ...JSON.parse(process.env.MANIFEST),
+              scripts: { prepare: 'exit 91', prepack: 'exit 91', test: 'exit 91' },
+            }));
+            for (const [entry, content] of Object.entries(JSON.parse(process.env.FILES))) {
+              const file = path.join(packageDirectory, entry);
+              await io.mkdirP(path.dirname(file));
+              fs.writeFileSync(file, content);
+            }
+            const tarball = path.join(directory, 'package.tgz');
+            await exec.exec('tar', ['-czf', tarball, '-C', directory, 'package']);
+            core.setOutput('tarball', tarball);
+            core.setOutput('digest', createHash('sha256').update(fs.readFileSync(tarball)).digest('hex'));
+      - name: Act - Run default checks without custom commands
+        id: test
+        continue-on-error: true
+        uses: $/actions/package/test
+        with:
+          tarball-path: ${{ steps.fixture.outputs.tarball }}
+      - name: Assert - Outcome, original bytes and cleanup
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          OUTCOME: ${{ steps.test.outcome }}
+          EXPECTED_OUTCOME: ${{ matrix.fixture.outcome }}
+          TARBALL: ${{ steps.fixture.outputs.tarball }}
+          EXPECTED_DIGEST: ${{ steps.fixture.outputs.digest }}
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            const { createHash } = require('node:crypto');
+            assert.equal(process.env.OUTCOME, process.env.EXPECTED_OUTCOME);
+            assert.equal(createHash('sha256').update(fs.readFileSync(process.env.TARBALL)).digest('hex'), process.env.EXPECTED_DIGEST);
+            assert.deepEqual(fs.readdirSync(process.env.RUNNER_TEMP).filter(name => name.startsWith('package-test-')), []);
+
+  consumer:
+    name: Installed consumer (${{ matrix.fixture.name }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture:
+          - name: empty consumer
+            project: ""
+            outcome: success
+          - name: example project
+            project: consumer-fixture
+            outcome: success
+          - name: failed installation
+            project: ""
+            outcome: failure
+    steps:
+      - name: Arrange - Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Arrange - Package and example project with failing install hooks
+        id: fixture
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          FAIL_INSTALL: ${{ matrix.fixture.outcome == 'failure' }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { createHash } = require('node:crypto');
+            const directory = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP, 'consumer-fixture-'));
+            const packageDirectory = path.join(directory, 'package');
+            await io.mkdirP(packageDirectory);
+            const scripts = { preinstall: 'exit 91', install: 'exit 91', postinstall: 'exit 91', prepare: 'exit 91' };
+            fs.writeFileSync(path.join(packageDirectory, 'package.json'), JSON.stringify({
+              name: '@example/consumer-fixture', version: '1.2.3', main: 'index.js',
+              bin: { 'fixture-cli': 'cli.js' }, scripts,
+              dependencies: process.env.FAIL_INSTALL === 'true' ? { missing: `file:${directory}/missing.tgz` } : {},
+            }));
+            fs.writeFileSync(path.join(packageDirectory, 'index.js'), 'module.exports = 42;');
+            fs.writeFileSync(path.join(packageDirectory, 'cli.js'), '#!/usr/bin/env node\nconsole.log(require("./package.json").version);');
+            const tarball = path.join(directory, 'fixture.tgz');
+            await exec.exec('tar', ['-czf', tarball, '-C', directory, 'package']);
+            const project = path.join(process.env.GITHUB_WORKSPACE, 'consumer-fixture');
+            await io.mkdirP(path.join(project, 'node_modules', 'must-not-copy'));
+            await io.mkdirP(path.join(project, '.git'));
+            fs.writeFileSync(path.join(project, 'node_modules', 'must-not-copy', 'sentinel'), 'preserve');
+            fs.writeFileSync(path.join(project, '.git', 'sentinel'), 'preserve');
+            fs.writeFileSync(path.join(project, '.fixture-config'), 'copied');
+            fs.writeFileSync(path.join(project, 'package.json'), JSON.stringify({
+              name: 'example-consumer', private: true,
+              dependencies: { '@example/consumer-fixture': 'file:../must-not-resolve' },
+              scripts: { ...scripts, build: 'node build.cjs' },
+            }));
+            fs.writeFileSync(path.join(project, 'build.cjs'), 'require("node:assert/strict").equal(require("@example/consumer-fixture"), 42);');
+            core.setOutput('tarball', tarball);
+            core.setOutput('digest', createHash('sha256').update(fs.readFileSync(tarball)).digest('hex'));
+            core.setOutput('project-manifest', fs.readFileSync(path.join(project, 'package.json'), 'utf8'));
+      - name: Act - Exercise the installed package
+        id: test
+        continue-on-error: true
+        uses: $/actions/package/test
+        env:
+          TEST_PROJECT: ${{ matrix.fixture.project }}
+        with:
+          tarball-path: ${{ steps.fixture.outputs.tarball }}
+          test-project: ${{ matrix.fixture.project }}
+          commands: |
+            test "$PWD" != "$GITHUB_WORKSPACE"
+            test "$PACKAGE_NAME" = @example/consumer-fixture
+            test "$PACKAGE_VERSION" = 1.2.3
+            test "$(fixture-cli)" = "$PACKAGE_VERSION"
+            test -f "$PACKAGE_INSTALL_PATH/index.js"
+            test ! -e node_modules/must-not-copy
+            test ! -e .git
+            node -e 'require("node:assert/strict").equal(require(process.env.PACKAGE_NAME), 42)'
+            if [ -n "$TEST_PROJECT" ]; then
+              test "$(cat .fixture-config)" = copied
+              npm run build
+            fi
+            touch "$RUNNER_TEMP/consumer-command-ran"
+      - name: Assert - Outcome, cleanup and unchanged source files
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          OUTCOME: ${{ steps.test.outcome }}
+          EXPECTED_OUTCOME: ${{ matrix.fixture.outcome }}
+          TARBALL: ${{ steps.fixture.outputs.tarball }}
+          EXPECTED_DIGEST: ${{ steps.fixture.outputs.digest }}
+          PROJECT_MANIFEST: ${{ steps.fixture.outputs.project-manifest }}
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { createHash } = require('node:crypto');
+            assert.equal(process.env.OUTCOME, process.env.EXPECTED_OUTCOME);
+            assert.equal(fs.existsSync(path.join(process.env.RUNNER_TEMP, 'consumer-command-ran')), process.env.OUTCOME === 'success');
+            assert.equal(createHash('sha256').update(fs.readFileSync(process.env.TARBALL)).digest('hex'), process.env.EXPECTED_DIGEST);
+            assert.deepEqual(fs.readdirSync(process.env.RUNNER_TEMP).filter(name => name.startsWith('package-test-')), []);
+            const project = path.join(process.env.GITHUB_WORKSPACE, 'consumer-fixture');
+            assert.equal(fs.readFileSync(path.join(project, 'package.json'), 'utf8'), process.env.PROJECT_MANIFEST);
+            assert.equal(fs.readFileSync(path.join(project, 'node_modules', 'must-not-copy', 'sentinel'), 'utf8'), 'preserve');
+            assert.equal(fs.readFileSync(path.join(project, '.git', 'sentinel'), 'utf8'), 'preserve');
+            assert.equal(fs.existsSync(path.join(project, 'package-lock.json')), false);

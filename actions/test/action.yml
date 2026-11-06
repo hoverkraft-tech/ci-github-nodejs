@@ -44,14 +44,14 @@ inputs:
   coverage:
     description: |
       Code coverage reporter to use. Supported values:
-      - `github`: Parse coverage reports via [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/parse-ci-reports) action, with GitHub summaries/PR comments
+      - `github`: Parse coverage reports via [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action, with GitHub summaries/PR comments
       - `codecov`: Upload coverage to Codecov
       - `""` or `null`: No coverage reporting
     required: false
     default: "github"
   report-file:
     description: |
-      Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/parse-ci-reports) action.
+      Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.
       Supports multiple formats (Cobertura, OpenCover, lcov, etc.).
       Provide absolute paths or paths relative to the working directory.
       Multiple entries can be separated by newlines, commas, or semicolons.
@@ -61,7 +61,7 @@ inputs:
   path-mapping:
     description: |
       Optional path mapping to adjust file paths in test and coverage reports.
-      See the [parse-ci-reports documentation](https://hoverkraft-tech/ci-github-common/actions/parse-ci-reports) for details.
+      See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.
     required: false
     default: ""
   github-token:
@@ -80,7 +80,7 @@ runs:
   steps:
     # jscpd:ignore-start
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
@@ -141,7 +141,7 @@ runs:
     - name: 📊 Parse coverage reports
       if: always() && inputs.coverage == 'github'
       id: parse-coverage-reports
-      uses: hoverkraft-tech/ci-github-common/actions/parse-ci-reports@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+      uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         report-name: "Coverage Results"
@@ -151,7 +151,7 @@ runs:
 
     - name: 📊 Add coverage PR comment
       if: always() && inputs.coverage == 'github' && github.event_name == 'pull_request' && steps.parse-coverage-reports.outputs.markdown
-      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       with:
         title: "Code Coverage Report"
         token: ${{ inputs.github-token }}
@@ -159,6 +159,6 @@ runs:
 
     - name: 📊 Upload coverage to Codecov
       if: always() && inputs.coverage == 'codecov'
-      uses: $/actions/codecov
+      uses: hoverkraft-tech/ci-github-common/actions/quality/codecov@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}

@@ -58,7 +58,7 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@97f64bc080b78daca8fb3ece49de448aaac83429 # 1.1.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@<commit-sha>
     permissions:
       contents: read
       id-token: write
@@ -124,15 +124,23 @@ jobs:
       # Default: `build`
       build: build
 
-      # Create and validate an npm package from the checked-out source and build output.
-      # Disabled by default for projects that do not distribute npm packages.
+      # Create and validate public npm packages from the checked-out source and build output.
+      # Pass "false" (the default) to disable, "true" for automatic package discovery and default checks,
+      # or a JSON object to enable packaging with specific options. Quote booleans because this input has type string.
+      #
+      # - `directories`: Optional array of public package directories relative to working-directory. Omit to discover workspaces or the standalone root package. Private packages are excluded.
+      # - `tests`: Optional shell commands after default manifest and entry-point checks. Runs in an isolated npm consumer with lifecycle scripts disabled and installed binaries on PATH.
+      # - `test-project`: Optional consumer fixture directory relative to working-directory. Its dependencies and scripts are copied without node_modules or Git metadata. Requires `tests`.
+      #
+      # PACKAGE_INSTALL_PATH, PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION identify the tested package.
+      # The consumer is cleaned up on success or failure. Commands must not modify the tarball.
       # Requires non-container CI with the default Ubuntu artifact layout.
-      package: false
-
-      # Optional shell commands testing the packed tarball when package is enabled.
-      # Runs from working-directory with PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION.
-      # Install consumer test dependencies explicitly. Commands must not modify the tarball.
-      package-tests: ""
+      # Unknown options and invalid field types are rejected before build or packaging.
+      #
+      # Example: `{"tests":"my-cli --help"}`
+      #
+      # Default: `false`
+      package: "false"
 
       # Optional flag to enable check steps.
       # Default: `true`
@@ -273,12 +281,20 @@ jobs:
 |                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
 |                         | Example:                                                                                                                                                                                                                                                                                                                                                                                            |              |             |                     |
 |                         | <!-- textlint-disable --><pre lang="json">{&#13; "commands": [&#13; "build",&#13; "generate-artifacts"&#13; ],&#13; "env": {&#13; "CUSTOM_ENV_VAR": "value"&#13; },&#13; "artifact": [&#13; "dist/",&#13; "packages/package-a/build/"&#13; ]&#13;}</pre><!-- textlint-enable -->                                                                                                                    |              |             |                     |
-| **`package`**           | Create and validate an npm package from the checked-out source and build output.                                                                                                                                                                                                                                                                                                                    | **false**    | **boolean** | `false`             |
-|                         | Disabled by default for projects that do not distribute npm packages.                                                                                                                                                                                                                                                                                                                               |              |             |                     |
+| **`package`**           | Create and validate public npm packages from the checked-out source and build output.                                                                                                                                                                                                                                                                                                               | **false**    | **string**  | `false`             |
+|                         | Pass "false" (the default) to disable, "true" for automatic package discovery and default checks,                                                                                                                                                                                                                                                                                                   |              |             |                     |
+|                         | or a JSON object to enable packaging with specific options. Quote booleans because this input has type string.                                                                                                                                                                                                                                                                                      |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
+|                         | - `directories`: Optional array of public package directories relative to working-directory. Omit to discover workspaces or the standalone root package. Private packages are excluded.                                                                                                                                                                                                             |              |             |                     |
+|                         | - `tests`: Optional shell commands after default manifest and entry-point checks. Runs in an isolated npm consumer with lifecycle scripts disabled and installed binaries on PATH.                                                                                                                                                                                                                  |              |             |                     |
+|                         | - `test-project`: Optional consumer fixture directory relative to working-directory. Its dependencies and scripts are copied without node_modules or Git metadata. Requires `tests`.                                                                                                                                                                                                                |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
+|                         | PACKAGE_INSTALL_PATH, PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION identify the tested package.                                                                                                                                                                                                                                                                                           |              |             |                     |
+|                         | The consumer is cleaned up on success or failure. Commands must not modify the tarball.                                                                                                                                                                                                                                                                                                             |              |             |                     |
 |                         | Requires non-container CI with the default Ubuntu artifact layout.                                                                                                                                                                                                                                                                                                                                  |              |             |                     |
-| **`package-tests`**     | Optional shell commands testing the packed tarball when package is enabled.                                                                                                                                                                                                                                                                                                                         | **false**    | **string**  | -                   |
-|                         | Runs from working-directory with PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION.                                                                                                                                                                                                                                                                                                            |              |             |                     |
-|                         | Install consumer test dependencies explicitly. Commands must not modify the tarball.                                                                                                                                                                                                                                                                                                                |              |             |                     |
+|                         | Unknown options and invalid field types are rejected before build or packaging.                                                                                                                                                                                                                                                                                                                     |              |             |                     |
+|                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
+|                         | Example: `{"tests":"my-cli --help"}`                                                                                                                                                                                                                                                                                                                                                                |              |             |                     |
 | **`checks`**            | Optional flag to enable check steps.                                                                                                                                                                                                                                                                                                                                                                | **false**    | **boolean** | `true`              |
 | **`lint`**              | Whether to enable linting.                                                                                                                                                                                                                                                                                                                                                                          | **false**    | **string**  | `true`              |
 |                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                                                                                                                                                  |              |             |                     |
@@ -421,10 +437,11 @@ When specified, steps will execute inside this container instead of checking out
 
 ## Outputs
 
-| **Output**                        | **Description**                                                                                                       |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **`package-tarball-artifact-id`** | Artifact ID of the package validated by the packaging job. Available when package is enabled and validation succeeds. |
-| **`build-artifact-id`**           | ID of the build artifact) uploaded during the build step.                                                             |
+| **Output**                        | **Description**                                                                                                                                |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`package-tarball-artifact-id`** | Artifact ID of the package validated by the packaging job. Available when package is enabled and validation succeeds.                          |
+| **`package-tarball-artifacts`**   | JSON object mapping package directories to validated tarball artifact IDs when packaging is enabled. Require successful CI before publication. |
+| **`build-artifact-id`**           | ID of the build artifact) uploaded during the build step.                                                                                      |
 
 <!-- outputs:end -->
 

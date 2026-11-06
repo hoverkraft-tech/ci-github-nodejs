@@ -21,8 +21,10 @@ function versionFromTag(tag, directory, relativeDirectory) {
 
 function parsePackages(input, version) {
   const packages = JSON.parse(input);
-  if (!Array.isArray(packages) || packages.length !== 1)
-    throw new Error("Expected exactly one public npm package.");
+  if (!Array.isArray(packages) || !packages.length || packages.length > 256)
+    throw new Error(
+      "Expected a nonempty package array with at most 256 entries.",
+    );
   for (const item of packages) {
     if (
       !item ||
@@ -31,40 +33,50 @@ function parsePackages(input, version) {
       item.slug !== item.name.replace(/^@/, "").replace("/", "-") ||
       typeof item.version !== "string" ||
       !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(item.version) ||
-      item.directory !== "."
+      typeof item.directory !== "string" ||
+      !item.directory ||
+      path.isAbsolute(item.directory) ||
+      item.directory.split(/[\\/]/).includes("..")
     )
       throw new Error(
-        "Expected a valid package name, slug, stable version and root package directory.",
+        "Expected valid package names, slugs, stable versions and relative directories.",
       );
   }
+  if (new Set(packages.map((item) => item.slug)).size !== packages.length)
+    throw new Error("Package slugs must be unique.");
   if (version && packages.some((item) => item.version !== version))
     throw new Error("Package versions must match the prepared release tag.");
   return packages;
 }
 
-async function findRelease(github, repo, tag) {
-  try {
-    const { data } = await github.rest.repos.getReleaseByTag({
-      ...repo,
-      tag,
-    });
-    return data;
-  } catch (error) {
-    if (error.status !== 404) throw error;
-    const releases = await github.paginate(github.rest.repos.listReleases, {
-      ...repo,
-      per_page: 100,
-    });
-    return releases.find((release) => release.tag_name === tag);
-  }
+function bindArtifacts(packages, artifactId = "", artifactsInput = "") {
+  if (Boolean(artifactId) === Boolean(artifactsInput))
+    throw new Error(
+      "Supply either one package artifact ID or a directory-to-artifact map.",
+    );
+  if (artifactId && packages.length !== 1)
+    throw new Error("Multiple packages require a directory-to-artifact map.");
+  const artifacts = artifactsInput
+    ? JSON.parse(artifactsInput)
+    : { [packages[0].directory]: artifactId };
+  if (!artifacts || Array.isArray(artifacts) || typeof artifacts !== "object")
+    throw new Error("Package artifacts must be a directory-to-artifact map.");
+  const result = packages.map((item) => {
+    const id = Object.hasOwn(artifacts, item.directory)
+      ? String(artifacts[item.directory])
+      : "";
+    if (!/^[1-9][0-9]*$/.test(id) || !Number.isSafeInteger(Number(id)))
+      throw new Error(
+        `Missing or invalid package artifact for ${item.directory}.`,
+      );
+    return { ...item, artifactId: id };
+  });
+  if (new Set(result.map((item) => item.artifactId)).size !== result.length)
+    throw new Error("Each package must have its own tarball artifact.");
+  return result;
 }
 
-async function verifyReleases({
-  github,
-  context,
-  packages,
-  workingDirectory = ".",
-}) {
+function prepareReleases({ context, packages, workingDirectory = "." }) {
   if (!context.ref.startsWith("refs/tags/"))
     throw new Error("Publish from the prepared release tag.");
   const sourceTag = context.ref.slice("refs/tags/".length);
@@ -78,39 +90,40 @@ async function verifyReleases({
   );
   if (relativeDirectory.startsWith("..") || path.isAbsolute(relativeDirectory))
     throw new Error("Release directory must be inside the repository.");
-  const [item] = parsePackages(JSON.stringify(packages));
-  if (item.tag !== sourceTag)
-    throw new Error("Package tag must match the workflow source tag.");
-  if (versionFromTag(sourceTag, directory, relativeDirectory) !== item.version)
-    throw new Error("Package version must match the release tag.");
-  const { data: commit } = await github.rest.repos.getCommit({
-    ...context.repo,
-    ref: sourceTag,
-  });
-  if (commit.sha !== context.sha)
-    throw new Error("Release tag must identify the prepared source commit.");
-  const release = await findRelease(github, context.repo, sourceTag);
-  return [{ tag: sourceTag, published: Boolean(release && !release.draft) }];
+  const releases = new Map();
+  for (const item of packages) {
+    const independent = item.tag === `${item.name}@${item.version}`;
+    if (
+      typeof item.tag !== "string" ||
+      (!independent &&
+        versionFromTag(item.tag, directory, relativeDirectory) !== item.version)
+    )
+      throw new Error("Package versions must match their release tags.");
+    if (!releases.has(item.tag)) {
+      releases.set(item.tag, {
+        tag: item.tag,
+        packageName: independent ? item.name : "",
+        workingDirectory: independent
+          ? path.posix.join(workingDirectory, item.directory)
+          : workingDirectory,
+        artifactPattern: independent
+          ? `release-assets-${item.slug}`
+          : "release-assets-*",
+      });
+    }
+  }
+  if (!releases.has(sourceTag))
+    throw new Error("Package list must include the workflow source tag.");
+  if (
+    releases.size > 1 &&
+    [...releases.values()].some((release) => !release.packageName)
+  )
+    throw new Error("Multiple releases require independent package tags.");
+  return [...releases.values()];
 }
 
-async function verifyArtifact({ github, context, artifactId }) {
-  if (
-    !/^[1-9][0-9]*$/.test(artifactId) ||
-    !Number.isSafeInteger(Number(artifactId))
-  )
-    throw new Error("Expected one positive package tarball artifact ID.");
-  const { data: artifact } = await github.rest.actions.getArtifact({
-    ...context.repo,
-    artifact_id: Number(artifactId),
-  });
-  if (
-    artifact.expired ||
-    artifact.workflow_run?.id !== context.runId ||
-    artifact.workflow_run?.head_sha !== context.sha
-  )
-    throw new Error(
-      "Package tarball artifact must be unexpired and belong to this run and prepared commit.",
-    );
-}
-
-module.exports = { parsePackages, verifyReleases, verifyArtifact };
+module.exports = {
+  parsePackages,
+  bindArtifacts,
+  prepareReleases,
+};

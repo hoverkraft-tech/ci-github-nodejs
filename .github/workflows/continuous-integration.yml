@@ -55,18 +55,22 @@ on:
         default: "build"
       package:
         description: |
-          Create and validate an npm package from the checked-out source and build output.
-          Disabled by default for projects that do not distribute npm packages.
+          Create and validate public npm packages from the checked-out source and build output.
+          Pass "false" (the default) to disable, "true" for automatic package discovery and default checks,
+          or a JSON object to enable packaging with specific options. Quote booleans because this input has type string.
+
+          - `directories`: Optional array of public package directories relative to working-directory. Omit to discover workspaces or the standalone root package. Private packages are excluded.
+          - `tests`: Optional shell commands after default manifest and entry-point checks. Runs in an isolated npm consumer with lifecycle scripts disabled and installed binaries on PATH.
+          - `test-project`: Optional consumer fixture directory relative to working-directory. Its dependencies and scripts are copied without node_modules or Git metadata. Requires `tests`.
+
+          PACKAGE_INSTALL_PATH, PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION identify the tested package.
+          The consumer is cleaned up on success or failure. Commands must not modify the tarball.
           Requires non-container CI with the default Ubuntu artifact layout.
-        type: boolean
-        default: false
-      package-tests:
-        description: |
-          Optional shell commands testing the packed tarball when package is enabled.
-          Runs from working-directory with PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION.
-          Install consumer test dependencies explicitly. Commands must not modify the tarball.
+          Unknown options and invalid field types are rejected before build or packaging.
+
+          Example: `{"tests":"my-cli --help"}`
         type: string
-        default: ""
+        default: "false"
       checks:
         description: "Optional flag to enable check steps."
         type: boolean
@@ -211,7 +215,10 @@ on:
     outputs:
       package-tarball-artifact-id:
         description: Artifact ID of the package validated by the packaging job. Available when package is enabled and validation succeeds.
-        value: ${{ jobs.package.outputs.artifact-id }}
+        value: ${{ jobs.package-results.outputs.artifact-id }}
+      package-tarball-artifacts:
+        description: JSON object mapping package directories to validated tarball artifact IDs when packaging is enabled. Require successful CI before publication.
+        value: ${{ jobs.package-results.outputs.artifacts }}
       build-artifact-id:
         description: "ID of the build artifact) uploaded during the build step."
         value: ${{ jobs.build.outputs.artifact-id }}
@@ -231,23 +238,61 @@ jobs:
       container-volumes: ${{ steps.parse.outputs.container-volumes }}
       container-username: ${{ steps.parse.outputs.container-username }}
       path-mapping: ${{ steps.parse.outputs.path-mapping }}
+      package-enabled: ${{ steps.package-config.outputs.enabled }}
+      package-directories: ${{ steps.package-config.outputs.directories }}
+      package-tests: ${{ steps.package-config.outputs.tests }}
+      package-test-project: ${{ steps.package-config.outputs.test-project }}
     steps:
+      - id: package-config
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PACKAGE_INPUT: ${{ inputs.package }}
+          CONTAINER_INPUT: ${{ inputs.container }}
+        with:
+          script: |
+            let config;
+            try {
+              config = JSON.parse(process.env.PACKAGE_INPUT.trim() || 'false');
+            } catch {
+              throw new Error('package must be true, false, or a JSON object.');
+            }
+            if (typeof config !== 'boolean' && (!config || typeof config !== 'object' || Array.isArray(config))) {
+              throw new Error('package must be true, false, or a JSON object.');
+            }
+            const enabled = config !== false;
+            if (typeof config === 'boolean') config = {};
+            const allowed = ['directories', 'tests', 'test-project'];
+            const unknown = Object.keys(config).filter(key => !allowed.includes(key));
+            if (unknown.length) throw new Error(`Unknown package options: ${unknown.join(', ')}.`);
+            const { directories, tests = '', 'test-project': testProject = '' } = config;
+            if (typeof tests !== 'string' || typeof testProject !== 'string') {
+              throw new Error('package.tests and package.test-project must be strings.');
+            }
+            const path = require('node:path');
+            const relativeDirectory = value => typeof value === 'string' && value.trim() !== '' &&
+              !path.posix.isAbsolute(value) && !path.win32.isAbsolute(value) &&
+              !value.split(/[\\/]/).includes('..') && !/[\r\n\0]/.test(value);
+            if (directories !== undefined && (!Array.isArray(directories) || !directories.length || directories.length > 256 ||
+                directories.some(directory => !relativeDirectory(directory)) || new Set(directories).size !== directories.length)) {
+              throw new Error('package.directories must contain 1 to 256 unique relative directories inside the project.');
+            }
+            if (testProject && !relativeDirectory(testProject)) throw new Error('package.test-project must be a directory inside the project.');
+            if (testProject && !tests.trim()) throw new Error('package.test-project requires package.tests.');
+            if (enabled && process.env.CONTAINER_INPUT.trim()) {
+              throw new Error('Package validation requires non-container CI with the default Ubuntu artifact layout.');
+            }
+            core.setOutput('enabled', enabled);
+            core.setOutput('directories', directories === undefined ? '' : directories);
+            core.setOutput('tests', tests);
+            core.setOutput('test-project', testProject);
       - id: parse
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           CONTAINER_INPUT: ${{ inputs.container }}
           CONTAINER_PASSWORD: ${{ secrets.container-password }}
           WORKING_DIRECTORY: ${{ inputs.working-directory }}
-          PACKAGE_ENABLED: ${{ inputs.package }}
-          PACKAGE_TESTS: ${{ inputs.package-tests }}
         with:
           script: |
-            if (process.env.PACKAGE_TESTS.trim() && process.env.PACKAGE_ENABLED !== 'true') {
-              return core.setFailed('package-tests requires package: true.');
-            }
-            if (process.env.PACKAGE_ENABLED === 'true' && process.env.CONTAINER_INPUT.trim()) {
-              return core.setFailed('Package validation requires non-container CI with the default Ubuntu artifact layout.');
-            }
             const containerInput = process.env.CONTAINER_INPUT.trim();
             if (!containerInput) {
               return;
@@ -338,7 +383,7 @@ jobs:
       security-events: write
     runs-on: *ci-runner
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       - id: code-ql-options
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -381,7 +426,7 @@ jobs:
       contents: read
     runs-on: *ci-runner
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
 
   setup:
@@ -404,16 +449,25 @@ jobs:
       build-env: ${{ steps.build-variables.outputs.env }}
       build-commands: ${{ steps.build-variables.outputs.commands }}
       build-artifact: ${{ steps.build-variables.outputs.artifact }}
+      package-directories: ${{ steps.packages.outputs.directories }}
     steps:
       - name: Checkout repository
         if: inputs.container == ''
-        uses: hoverkraft-tech/ci-github-common/actions/checkout@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+        uses: hoverkraft-tech/ci-github-common/actions/checkout@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
 
       - id: working-directory
-        uses: hoverkraft-tech/ci-github-common/actions/working-directory@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+        uses: hoverkraft-tech/ci-github-common/actions/working-directory@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
         with:
           working-directory: ${{ inputs.working-directory }}
           enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
+
+      - name: Discover public packages
+        id: packages
+        if: inputs.checks == true && needs.prepare.outputs.package-enabled == 'true'
+        uses: $/actions/package/discover
+        with:
+          working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+          directories: ${{ needs.prepare.outputs.package-directories }}
 
       - id: build-variables
         if: inputs.build != ''
@@ -516,7 +570,7 @@ jobs:
       contents: read
       packages: read
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
         if: inputs.container == ''
 
       - id: preparel-lint-options
@@ -565,7 +619,7 @@ jobs:
     outputs:
       artifact-id: ${{ steps.build.outputs.artifact-id }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
         if: needs.setup.outputs.build-commands && inputs.container == ''
 
       - id: build
@@ -595,7 +649,7 @@ jobs:
       packages: read
       pull-requests: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
         if: inputs.container == ''
 
       - if: needs.build.outputs.artifact-id && inputs.container == ''
@@ -643,27 +697,35 @@ jobs:
           github-token: ${{ secrets.github-token || github.token }}
 
   package:
-    name: Validate package
-    if: inputs.checks == true && inputs.package
-    needs: build
+    name: Validate package ${{ matrix.directory }}
+    if: inputs.checks == true && needs.prepare.outputs.package-enabled == 'true'
+    needs: [prepare, setup, build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    outputs:
-      artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
+    strategy:
+      fail-fast: false
+      matrix:
+        directory: ${{ fromJSON(needs.setup.outputs.package-directories) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: $/actions/setup-node
+      - id: setup-node
+        uses: $/actions/setup-node
         with:
           working-directory: ${{ inputs.working-directory }}
           install-dependencies: "false"
+      - name: Link pnpm workspace dependencies
+        if: steps.setup-node.outputs.package-manager == 'pnpm'
+        working-directory: ${{ inputs.working-directory }}
+        run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Package prepared files
         id: package
         uses: $/actions/package/create
         with:
           working-directory: ${{ inputs.working-directory }}
+          package-directory: ${{ matrix.directory }}
           build-artifact-id: ${{ needs.build.outputs.artifact-id }}
           build-artifact-path: /
       - name: Test the package as a consumer
@@ -671,7 +733,8 @@ jobs:
         with:
           working-directory: ${{ inputs.working-directory }}
           tarball-path: ${{ steps.package.outputs.package-tarball-path }}
-          commands: ${{ inputs.package-tests }}
+          commands: ${{ needs.prepare.outputs.package-tests }}
+          test-project: ${{ needs.prepare.outputs.package-test-project }}
       - name: Validate npm publication without publishing
         uses: $/actions/package/publish
         with:
@@ -679,3 +742,64 @@ jobs:
           dry-run: "true"
           provenance: "false"
           github-token: ""
+      - name: Record successful validation
+        id: report
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          DIRECTORY: ${{ matrix.directory }}
+          PROJECT: ${{ inputs.working-directory }}
+          ARTIFACT_ID: ${{ steps.package.outputs.package-tarball-artifact-id }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const report = path.join(process.env.RUNNER_TEMP, `${process.env.ARTIFACT_ID}.json`);
+            fs.writeFileSync(report, JSON.stringify({ directory: process.env.DIRECTORY, project: process.env.PROJECT, artifactId: process.env.ARTIFACT_ID, attempt: Number(process.env.GITHUB_RUN_ATTEMPT) }));
+            core.setOutput('path', report);
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-package-validation-${{ steps.package.outputs.package-tarball-artifact-id }}
+          path: ${{ steps.report.outputs.path }}
+          if-no-files-found: error
+
+  package-results:
+    name: Collect validated packages
+    if: inputs.checks == true && needs.prepare.outputs.package-enabled == 'true'
+    needs: [prepare, setup, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.collect.outputs.artifact-id }}
+      artifacts: ${{ steps.collect.outputs.artifacts }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ci-package-validation-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/package-validation
+      - id: collect
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          DIRECTORIES: ${{ needs.setup.outputs.package-directories }}
+          PROJECT: ${{ inputs.working-directory }}
+          REPORT_DIRECTORY: ${{ runner.temp }}/package-validation
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const directories = JSON.parse(process.env.DIRECTORIES);
+            const files = await (await glob.create(path.join(process.env.REPORT_DIRECTORY, '*.json'), { followSymbolicLinks: false, matchDirectories: false })).glob();
+            const reports = files.map(file => JSON.parse(fs.readFileSync(file, 'utf8'))).filter(report => report.project === process.env.PROJECT);
+            const artifacts = Object.fromEntries(directories.map(directory => {
+              const matches = reports.filter(report => report.directory === directory).sort((a, b) => b.attempt - a.attempt);
+              const latest = matches[0];
+              if (!latest || !/^[1-9][0-9]*$/.test(latest.artifactId) || !Number.isSafeInteger(Number(latest.artifactId)) ||
+                  !Number.isSafeInteger(latest.attempt) || latest.attempt < 1 ||
+                  (matches[1] && latest.attempt === matches[1].attempt)) {
+                throw new Error(`Expected one validated package result for ${directory}.`);
+              }
+              return [directory, latest.artifactId];
+            }));
+            core.setOutput('artifacts', artifacts);
+            if (directories.length === 1) core.setOutput('artifact-id', artifacts[directories[0]]);

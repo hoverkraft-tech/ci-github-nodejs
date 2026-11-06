@@ -13,6 +13,7 @@ jobs:
       contents: read
     outputs:
       package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
+      published-version-artifact-id: ${{ steps.published-version.outputs.package-tarball-artifact-id }}
     steps:
       - name: Arrange - Checkout sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -30,6 +31,24 @@ jobs:
         uses: $/actions/package/create
         with:
           working-directory: tests/npm
+
+      - id: published-fixture
+        name: Arrange - Use an existing npm name and version
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { stdout } = await exec.getExecOutput('npm', ['--version'], { silent: true });
+            const version = stdout.trim();
+            const directory = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP, 'published-version-'));
+            fs.writeFileSync(path.join(directory, 'package.json'), JSON.stringify({ name: 'npm', version, packageManager: `npm@${version}` }));
+            core.setOutput('directory', directory);
+      - id: published-version
+        name: Arrange - Pack the existing-version fixture
+        uses: $/actions/package/create
+        with:
+          working-directory: ${{ steps.published-fixture.outputs.directory }}
 
   publish:
     name: Publish dry run (${{ matrix.os }}, ${{ matrix.tag || 'default tag' }})
@@ -54,6 +73,13 @@ jobs:
           package-tarball-artifact-id: ${{ needs.package.outputs.package-tarball-artifact-id }}
           tag: ${{ matrix.tag }}
           access: ${{ matrix.tag == 'next' && 'restricted' || 'public' }}
+          dry-run: "true"
+          provenance: "false"
+
+      - name: Act - Validate an already-published version without publishing
+        uses: $/actions/package/publish
+        with:
+          package-tarball-artifact-id: ${{ needs.package.outputs.published-version-artifact-id }}
           dry-run: "true"
           provenance: "false"
 

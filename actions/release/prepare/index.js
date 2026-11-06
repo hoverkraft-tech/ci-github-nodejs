@@ -21,8 +21,10 @@ function versionFromTag(tag, directory, relativeDirectory) {
 
 function parsePackages(input, version) {
   const packages = JSON.parse(input);
-  if (!Array.isArray(packages) || packages.length !== 1)
-    throw new Error("Expected exactly one public npm package.");
+  if (!Array.isArray(packages) || !packages.length || packages.length > 256)
+    throw new Error(
+      "Expected a nonempty package array with at most 256 entries.",
+    );
   for (const item of packages) {
     if (
       !item ||
@@ -31,12 +33,17 @@ function parsePackages(input, version) {
       item.slug !== item.name.replace(/^@/, "").replace("/", "-") ||
       typeof item.version !== "string" ||
       !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(item.version) ||
-      item.directory !== "."
+      typeof item.directory !== "string" ||
+      !item.directory ||
+      path.isAbsolute(item.directory) ||
+      item.directory.split(/[\\/]/).includes("..")
     )
       throw new Error(
-        "Expected a valid package name, slug, stable version and root package directory.",
+        "Expected valid package names, slugs, stable versions and relative directories.",
       );
   }
+  if (new Set(packages.map((item) => item.slug)).size !== packages.length)
+    throw new Error("Package slugs must be unique.");
   if (version && packages.some((item) => item.version !== version))
     throw new Error("Package versions must match the prepared release tag.");
   return packages;

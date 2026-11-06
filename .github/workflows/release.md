@@ -22,8 +22,38 @@
 
 ## Overview
 
-Publish an already validated package tarball without rebuilding, repacking or running tests.
-Call after successful package validation at the prepared tag, using an artifact from the same run and commit.
+Publish validated package tarballs without rebuilding, repacking or running tests.
+Call after successful package validation at the prepared tags, using artifacts from this run and commit.
+
+### Force a manual release
+
+Add an optional boolean `force` input, defaulting to `false`, under the caller's
+`on.workflow_dispatch.inputs`. Forward it to the preparation job with
+`force: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}`.
+
+On a manual default-branch run, `force: true` prepares a new version even without
+changes. Higher Conventional Commit plans are preserved; an unchanged planned
+version receives a patch bump. Lerna includes every public package, using native
+Conventional Commit increments in independent mode and patch increments for
+unchanged packages. Private packages remain excluded.
+
+Schedules keep normal no-change behavior. Explicit tag runs always recover that
+version, even when force is supplied. Preparation does not forward force to the
+dispatched tag run. Builds, validation, repository protections and existing-tag
+checks still apply. Force never overwrites a published version or release tag.
+
+### Override release configuration
+
+Pass the same partial YAML or JSON `release-config` to preparation and release.
+For example, `tag-prefix: v` with `tag-template: v$RESOLVED_VERSION` preserves v-prefixed tags.
+Alternatively, put partial overrides in `.github/release-config.yml`, or
+`.github/release-configs/{slug}.yml` for a scoped release. Shared defaults come first,
+repository settings override them, and workflow input overrides repository settings.
+Supplied top-level keys replace inherited values, including entire lists and mappings;
+omitted keys remain inherited. Files with their own `_extends` chain retain that base.
+`_extends` is reserved in the workflow input.
+Override only repository-specific settings to inherit upstream version rules and notes.
+Independent Lerna still plans versions natively; keep tag settings consistent with its package tags.
 
 ### Permissions
 
@@ -48,22 +78,34 @@ consumer test commands.
 The separate [`ci-github-publish` preparation workflow](https://github.com/hoverkraft-tech/ci-github-publish/blob/main/.github/workflows/prepare-release.yml)
 manages release labels on pull requests.
 
-## Supported project
+## Choose the package layout
 
-Use one public npm package with a stable version and an npm lockfile. Set
-`working-directory` to its directory, using the same value for preparation, building and
-release. The default is the repository root. The package must have its own lockfile;
-workspace roots, selected workspace packages and Lerna projects require a different
-pipeline. Use [custom composition](#custom-release-pipelines) for other package layouts,
-registries, prereleases, applications or containers.
+| Layout                                             | Preparation inputs                                          | Version authority                                   |
+| -------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------- |
+| One public root package                            | Defaults                                                    | HoverKraft Conventional Commit plan                 |
+| One public package inside an npm or pnpm workspace | `package-directory: packages/cli`                           | HoverKraft Conventional Commit plan                 |
+| Fixed-version Lerna workspaces                     | `versioning: lerna`                                         | HoverKraft Conventional Commit plan                 |
+| Independent Lerna workspaces                       | `versioning: lerna`, with `lerna.json.version: independent` | Lerna Conventional Commits for each changed package |
+
+`working-directory` is the project or workspace root containing the lockfile and
+package manager configuration. Use the same value for preparation, building and release.
+`package-directory` is relative to that root and selects the one public npm package;
+private workspace packages remain private. Lerna selects its public packages itself.
+Install Lerna in the project and set `npmClient: pnpm` in `lerna.json` when applicable.
+Pin the package manager in the root `packageManager` field.
+
+Stable versions and public npm publication with the `latest` dist-tag are supported.
+For apps, containers, GitHub Actions, private registries and other publication
+policies, use [a custom release pipeline](#custom-release-pipelines).
 
 ## Set up
 
-1. Align the committed version, existing tags, GitHub releases and npm versions.
-   HoverKraft plans from GitHub release history; the next version must not be older
-   than the committed version. Follow the [readiness guide](#establish-the-release-baseline).
+1. Align committed package versions, existing tags, GitHub releases and npm versions.
+   HoverKraft plans from GitHub release history. An older plan fails;
+   independent Lerna uses existing `package-name@version` tags. Follow the
+   [release readiness guide](#establish-the-release-baseline) before the first automated run.
 2. Configure [npm trusted publishing](../../actions/package/publish/README.md#npm-trusted-publishing)
-   for the package, repository and caller workflow filename. Leave npm's environment
+   for each public package, the repository and caller workflow filename. Leave npm's environment
    field empty unless opting into a [release environment](#optional-release-environment).
    A new package needs its first version published before configuring its trusted
    publisher. Publication uses GitHub-hosted runners and `id-token: write`.
@@ -119,7 +161,7 @@ jobs:
       id-token: write
     with:
       build: '{"commands":["build"],"artifact":["dist"]}'
-      package: true
+      package: "true"
 
   release:
     needs: [prepare, ci]
@@ -136,11 +178,11 @@ jobs:
 
 The caller concurrency group serializes the whole pipeline. Keep it distinct from
 those used by the reusable workflows. Any package validation job can replace the example's
-shared CI job if it meets the [artifact requirements](#build-once-and-test-the-package).
+shared CI job if it meets the [artifact requirements](#build-once-and-test-the-packages).
 Shared CI wrappers expose `package-tarball-artifact-id` for release and can retain
 `build-artifact-id` for documentation or other build outputs. CI has no release
 version-planning inputs and does not publish packages.
-The `packages` output contains exactly one package for the release workflow.
+The `packages` output identifies the packages selected for release.
 
 The caller chooses where to store App credentials and maps them explicitly as shown.
 The example uses repository or organization variables and secrets; their names are
@@ -149,22 +191,46 @@ environment, so environment-scoped credentials are unavailable. A partially
 configured App fails before preparation. Without App credentials, omit both mappings to use
 `GITHUB_TOKEN` where repository rules allow it.
 
+### Workspace caller adjustments
+
+Use the same caller with these changes:
+
+- For one public package inside a private npm or pnpm workspace, pass
+  `package-directory: packages/cli` to preparation and include `packages/cli/dist`
+  in the build artifact. Keep `working-directory` at the workspace root.
+- For fixed-version Lerna, pass `versioning: lerna` to preparation and include the
+  generated output of every public package, for example `packages/*/dist`.
+- For independent Lerna, use the same `versioning: lerna` input and set
+  `"version": "independent"` in `lerna.json`. Preparation selects changed public
+  packages; one build serves the whole release batch.
+
+Configure CI with `package: "true"`; public packages are discovered automatically.
+Pass `needs.ci.outputs.package-tarball-artifacts` to release through
+`package-tarball-artifacts`, replacing the single-artifact input.
+Adjust optional CI `package.tests` using `PACKAGE_NAME` when installed-package
+checks differ. Include documentation output in the same build
+artifact when deploying it after release.
+
 ## Establish the release baseline
 
-Compare the public package's manifest and lockfile version with its published npm
+Compare each public package's manifest and lockfile version with its published npm
 version and the corresponding Git tag and GitHub release. Use the commit that
 actually produced the published package as evidence. Do not create a historical tag
 on an unrelated current commit, lower an already published version, or overwrite a tag.
 
-The next HoverKraft plan must not be older than the committed version. An equal
-plan can release an already-versioned package when its tag does not exist.
-Resolve manifest versions ahead of the plan before enabling the schedule: establish
-missing releases from verified historical source, or reconcile an unpublished
-manifest version in a reviewed change.
-Fetch full history; preparation does this automatically. A GitHub release does not
-prove npm publication succeeded. Resume its original tag only when that source
-contains the caller workflow and supported configuration. Otherwise use a reviewed
-recovery pipeline against the immutable source; never guess the published bytes.
+For single and fixed-version projects, the next plan must not be older than the
+committed version. An equal plan can release an already-versioned package when its
+tag does not exist. Resolve manifest versions ahead of the plan before enabling
+the schedule, using verified source history or a reviewed version correction.
+Independent Lerna projects require their existing `name@version` tags and correct
+per-package versions. Fetch full history; preparation does this automatically.
+
+Check every public workspace individually. A GitHub release for a fixed-version
+monorepo does not prove every package reached npm. For a missing npm version, verify
+that its source, generated output and dependencies can be reproduced from the
+original tag. Resume that tag only when it contains the caller workflow and the
+supported configuration. Otherwise use a reviewed recovery pipeline against that
+immutable source; do not re-publish existing versions or guess their bytes.
 
 For a package that has never been published, establish its first version and matching
 release history before enabling trusted publication. The shared workflow deliberately
@@ -188,28 +254,44 @@ an empty string. No release environment setup is required for npm trusted publis
 
 To use environment approvals or deployment restrictions, pass its name through
 the release job's `with.environment`, for example `environment: release`. Configure
-that environment to permit the release tags. If npm's trusted publisher specifies
+that environment to permit the release tags. Scoped Lerna tags contain `/`; match
+the full tag rather than assuming a bare version. If npm's trusted publisher specifies
 an environment, its name must match this input; leave that field empty when using
 the default. Callers relying on an environment's protections or secrets must
 explicitly pass its name.
 
 ## Versions and release notes
 
-HoverKraft selects the next version. npm applies that exact version to the manifest
-and lockfile with lifecycle scripts disabled. Release notes and optional AI summaries
-are published on GitHub. Preparation does not create or modify `CHANGELOG.md` files.
-Repository release configuration is preserved.
-Preparation creates version commits through GitHub's API, which signs them for
-the authenticated App or bot. It requires GitHub to verify the signature before
-atomically pushing the commit and tag, then dispatches the caller at the tag.
-An already-committed planned version is accepted when its tag does not exist;
-if npm leaves the manifest and lockfile unchanged, preparation tags the existing
-commit without creating an empty commit. A no-change plan creates neither. Concurrent branch updates or existing
-tag conflicts stop the push; tags are never overwritten.
+For a single package or fixed-version Lerna project, HoverKraft selects the next
+version. npm applies the exact planned version to the selected package and lockfile.
+Lerna applies that version to changed public packages and updates dependency ranges
+and lockfiles. Unchanged packages can keep their previous versions. Repository
+release configuration takes precedence over generated defaults.
 
-Stable bare tags, `v`-prefixed tags and directory-slug prefixes are supported.
-Version planning, release notes, optional AI summaries and GitHub publication
-use `ci-github-publish`; npm only applies the planned version.
+Independent Lerna projects use Lerna's native change detection, Conventional Commit
+increments and dependent-package updates. Preparation commits all changes once and
+atomically pushes the branch and every `package-name@version` tag. One dispatched tag builds the batch. Release creates one GitHub release
+per changed public package, with package-scoped HoverKraft notes, optional AI summaries
+and its own tarball asset. Existing `.github/release-configs/<directory-slug>.yml`
+files take precedence; configure their tag prefix for the package's Lerna tags.
+
+Release notes and optional AI summaries are published on GitHub. Preparation does
+not create or modify `CHANGELOG.md` files, including package changelogs. Lerna runs
+with `--no-changelog` while retaining Conventional Commit versioning.
+
+Preparation installs dependencies with lifecycle scripts disabled. Versioning and
+packaging hooks also remain disabled. No-change preparation creates no release
+commit or tag. Concurrent branch updates or existing tag conflicts stop the atomic
+push without creating remote release tags. Tags are never overwritten.
+
+Bare stable tags, `v`-prefixed tags and directory-slug prefixes are supported for
+single and fixed-version projects. Independent packages use `name@version`, including
+scoped names such as `@example/core@1.2.3`. Prereleases are unsupported.
+
+Preparation uses GitHub API bot signing and requires a verified signature before
+pushing the version commit and tags atomically. An already-committed planned
+version is accepted if its tag does not exist. When version application leaves
+no changes, preparation tags the existing source without an empty commit.
 
 ## Changelog summaries
 
@@ -236,20 +318,24 @@ the non-empty secret replaces the entire input; their properties are not merged.
 Omit both to keep the full release notes without an AI summary. Invalid configuration
 or summary generation failures stop publication. Already published notes are preserved.
 
-## Build once and test the package
+## Build once and test the packages
 
 Build and pack from the prepared tag because earlier artifacts can embed an old
-version. Enable `package: true` on the shared CI workflow to create a tarball,
-run optional `package-tests`, and validate it with `npm publish --dry-run`.
+version. Enable `package: "true"` on the shared CI workflow to create a tarball,
+validate its manifest and declared entry points, run optional `package.tests`,
+and validate publication with `npm publish --dry-run`.
 The packaging job has read-only repository permissions, no release environment
 and no publication credentials. The option is disabled by default for applications
-and other projects that do not distribute npm packages. Supplying `package-tests`
-without enabling packaging is an error.
+and other projects that do not distribute npm packages. Use `package: "false"` to
+disable it, `package: "true"` for defaults, or a JSON object to enable packaging
+with specific options. Boolean values must be quoted because the input is a string.
+Unknown options and invalid field types fail configuration validation.
 
 Include every generated package file in the build artifact, preserving absolute
 paths for the default Ubuntu runner without a build container. Shared CI already
 produces this layout. Its packaging job restores those files without rebuilding,
-installing project dependencies or running lifecycle hooks. Include files normally
+rebuilding package files or running lifecycle hooks. For pnpm, CI first installs
+the frozen workspace dependencies with lifecycle scripts disabled. Include files normally
 generated by `prepare` or `prepack` in the build. CI packaging does not support
 container mode; custom validation jobs can use the standalone package actions.
 
@@ -258,22 +344,71 @@ If your build needs installation hooks, set `ignore-scripts: false` and configur
 any script approvals required by your package manager. Explicit build, lint and
 test commands still run. Packaging always disables lifecycle scripts.
 
-Configure consumer checks on **CI**, not on the release workflow:
+CI discovers packages before building, without installing project dependencies.
+Explicit `lerna.json.packages` patterns take precedence; otherwise it uses pnpm's
+workspace configuration or `package.json.workspaces`, including exclusions.
+When child workspaces are present, the root is not implicitly packaged. A
+standalone public package uses `.`. Packages with `private: true` are excluded;
+discovery fails if there are no public packages.
+
+Use the `directories` option only to override discovery, for example
+`package: '{"directories":["packages/core","packages/cli"]}'`. Paths are relative to `working-directory`.
+Explicit selections must contain public packages; duplicate paths and paths
+outside the project are rejected. The resolved selection is shared by the
+package matrix and artifact collector.
+
+CI tests every selected package before exposing `package-tarball-artifacts`, a JSON
+map from directory to artifact ID. Pass that output to release's input of the same
+name instead of `package-tarball-artifact-id`. Preparation may select only a subset
+of changed packages; release selects the matching artifacts from the map. The
+single-artifact input remains available when preparation selects exactly one package.
+Successful package validation results survive reruns of failed matrix jobs.
+
+Default package checks require a manifest with a name and version. They check
+declared `main`, `module`, `types`, `typings`, `bin` and local `exports` targets
+against the archive, including nested conditions and local fallback targets.
+Export patterns must match at least one packaged file; repeated `*` replacements
+must match the same text. Null exports and absent optional entry fields are
+allowed. Node's file and directory resolution applies to `main`; other targets
+must identify files. Checks do not execute package code or lifecycle scripts,
+install dependencies, or prove runtime imports work.
+
+Configure additional consumer checks on **CI**, not on the release workflow:
 
 ```yaml
 with:
-  package: true
-  package-tests: |
-    test_project=$(mktemp -d)
-    npm install --prefix "$test_project" --ignore-scripts "$PACKAGE_TARBALL_PATH"
-    "$test_project/node_modules/.bin/my-cli" --help
+  package: '{"tests":"my-cli --help"}'
 ```
 
-Commands run from `working-directory`; `PACKAGE_TARBALL_PATH`, `PACKAGE_NAME` and
-`PACKAGE_VERSION` describe the actual tarball. Install consumer test dependencies
-explicitly. Tests must not change the tarball bytes. A failed check or dry run
-fails CI, preventing dependent release jobs from starting. A dry run does not
-validate npm authentication. Use this same CI configuration on pull requests.
+The action creates a temporary npm consumer, installs the tarball with lifecycle
+scripts disabled, runs commands there and cleans up on success or failure.
+Installed binaries are on `PATH`. `PACKAGE_INSTALL_PATH`, `PACKAGE_TARBALL_PATH`,
+`PACKAGE_NAME` and `PACKAGE_VERSION` identify the installed package and original
+archive. Use `GITHUB_WORKSPACE` to access checked-out source. CLI flags and runtime
+assertions remain explicit because they depend on the package's public interface.
+
+For a theme or plugin, provide its example project and the command that exercises
+it:
+
+```yaml
+with:
+  package: |
+    {"test-project":"packages/docs","tests":"npm run build"}
+```
+
+The project is relative to `working-directory` and must contain `package.json`.
+Its files are copied without `node_modules` or Git metadata; the original stays
+unchanged. npm installs its dependencies and replaces the tested dependency with
+the tarball. The example must work as a standalone npm consumer: other dependencies
+must resolve outside the source workspace. `package.test-project` requires
+`package.tests`. With no custom commands, only the default archive checks run,
+so unpublished sibling dependencies do not require registry access.
+
+Tests must not change the tarball bytes. A failed check or dry run
+fails CI, preventing dependent release jobs from starting. Dry runs use npm's force
+mode to validate tarballs whose committed version is already published. They do not
+check registry version availability or npm authentication. Actual publication keeps
+npm's version checks enabled. Use this same CI configuration on pull requests.
 
 Pass the validated artifact ID through `package-tarball-artifact-id` and require
 successful validation through `needs`. Release accepts one raw `.tgz` uploaded
@@ -287,16 +422,21 @@ build layout because release downloads only the finished tarball.
 
 Run the caller from the default branch or wait for its schedule. Preparation reports:
 
-| Status       | Meaning                                              |
-| ------------ | ---------------------------------------------------- |
-| `no-changes` | No release needed; building and release are skipped. |
-| `dispatched` | Follow the new caller run at the prepared tag.       |
-| `released`   | This version already has a published GitHub release. |
-| `ready`      | The tag run can build, then release.                 |
+| Status       | Meaning                                                  |
+| ------------ | -------------------------------------------------------- |
+| `no-changes` | No release needed; building and release are skipped.     |
+| `dispatched` | Follow the new caller run at the prepared tag.           |
+| `released`   | Every release in this batch is already public on GitHub. |
+| `ready`      | This tag run can build, then release.                    |
 
-The release job succeeds only after npm publication and GitHub release assets
+On default-branch manual or scheduled runs, `no-changes` and `released` skip
+version updates, tag creation, building, publication and dependent deployment
+jobs. Explicit tag runs return `ready` to allow release recovery.
+
+The release job succeeds only after all npm packages and GitHub release assets
 succeed. Use `needs.release.result == 'success'` for dependent jobs. Preparation
 success alone is not publication.
+Review AI summaries for accuracy. Retries preserve already published release notes.
 
 Rerun a failed release job to reuse the validated tarball without rebuilding,
 repacking or repeating consumer tests. Artifact and package identity checks still run.
@@ -309,11 +449,15 @@ Published release notes are preserved.
 To build again and resume the same version, dispatch the caller at its original tag:
 
 ```sh
-gh workflow run release.yml --ref v1.2.3
+gh workflow run release.yml --ref '@example/core@1.2.3'
 ```
 
-A tag run never plans another version. If source needs changing, make a new commit
-and release; never move a released tag. Review AI summaries for accuracy.
+A tag run never plans another version. Existing npm versions are skipped and their
+original tarballs restored with SHA-512 verification for assets. Existing GitHub
+assets are reused only when SHA-256 digests match. Conflicts and unavailable digests
+fail instead of replacing assets. npm publication cannot be atomic; registry errors
+stop recovery, and only an absent version permits publication. If source needs
+changing, make a new commit and release. Never move a released tag.
 
 Documentation deployment remains a separate caller job. Require
 `needs.release.result == 'success'` and consume the producer's `build-artifact-id`.
@@ -332,7 +476,7 @@ Use HoverKraft [`release/plan`](https://github.com/hoverkraft-tech/ci-github-pub
 for version selection. Commit version and lockfile updates before building
 the source, especially when compiled files embed the version. Keep the planned
 tag fixed throughout the pipeline. The [Node.js preparation action](../../actions/release/prepare/README.md)
-handles this for one public npm package and dispatches the caller at the tag.
+handles this for npm and Lerna projects and dispatches the caller at the tag.
 
 ### Packaging and publication
 
@@ -355,6 +499,10 @@ different restoration path or omit the build artifact inputs. Run consumer tests
 and a publication dry run in this validation job, then pass the tarball artifact
 ID to a separate publication job that depends on validation succeeding.
 
+For pnpm workspace packages, run `pnpm install --frozen-lockfile --ignore-scripts`
+before packaging to resolve workspace dependencies. The shared CI packaging job
+performs this preparation before the action restores the compiled build output.
+
 The [Publish action](../../actions/package/publish/README.md) consumes the resulting tarball
 artifact ID. A dry run validates `npm publish` inputs but does not prove registry
 authentication or trusted publishing. See its
@@ -376,9 +524,9 @@ publishing an npm library. Keep these consumers on the appropriate
 and container tooling. Attach their build artifacts or deployment jobs to the release
 caller. Do not introduce an npm package just to use shared release automation.
 
-For custom package checks, [Test package](../../actions/package/test/README.md)
-exposes the tarball path and rejects tests that change its bytes. Complete package
-checks before publication.
+[Test package](../../actions/package/test/README.md) checks the manifest and
+declared entry points by default. Optional custom commands receive the tarball
+path and must preserve its bytes. Complete package checks before publication.
 
 ### Recovery
 
@@ -390,7 +538,9 @@ remaining release steps can resume. Registry and integrity errors still fail the
 Pass that `package-tarball-path` directly to `release/finalize`, with the desired
 `.tgz` filename as `asset-name`. Finalization checks the existing asset's digest
 and stages the file only if it is missing. Callers do not need to copy the tarball
-into a predefined directory.
+into a predefined directory. For workspace releases, pass the downloaded tarball
+glob as `package-tarball-path` and leave `asset-name` empty to preserve the names
+set before transfer between jobs.
 
 npm publication across several packages cannot be atomic. Check exact package
 versions before retrying; published versions cannot be overwritten. Restore original
@@ -432,6 +582,12 @@ push rejection after concurrent branch changes. GitHub API responses, including
 signature verification, are mocked; these tests do not prove live App signing or
 branch-rule authorization.
 
+`release/prepare/ReleaseProject.test.js` imports the workspace preparation implementation
+directly and uses temporary Git repositories with native npm, pnpm and Lerna. It checks selected-package and
+lockfile updates, dependent-package versions, changelog preservation, invalid plans
+and discovery of every public package in an independent release batch. It does not
+reproduce the workflow's step ordering, conditions or dispatch logic.
+
 The [release test workflow](__test-release.yml) is called
 by [shared CI](__shared-ci.yml). It runs the unit tests through
 the existing Node.js CI workflow in a separate matrix job per action and invokes the actual release actions in separate
@@ -444,6 +600,12 @@ correctly composes `package/restore` and preserves unpublished package bytes.
 The CI workflow tests exercise optional packaging, installed-package checks and
 consuming the validated tarball in a separate job. Publish action tests reject
 unexpected package identities before publication.
+
+A matrix invokes the actual Package action with pnpm 10 and 12, using versions from
+the action test lockfile. It restores uploaded compiled bytes, resolves `workspace:`
+ranges through native packing and rejects accidental lifecycle execution through
+failing hooks. The CI workflow integration test checks that the package artifact map
+matches the single-package output and consumes that validated tarball in a separate job.
 
 The [CI workflow integration test](__test-workflow-continuous-integration.yml)
 checks real artifact restoration and packaging of prepared files with failing lifecycle hooks
@@ -469,16 +631,20 @@ serves as its template; regeneration preserves that authored content.
 
 ### Workflow Call Inputs
 
-| **Input**                         | **Description**                                                                                                                                                                                                         | **Required** | **Type**   | **Default** |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------- | ----------- |
-| **`packages`**                    | JSON array containing one public npm package from prepare-package-release.                                                                                                                                              | **true**     | **string** | -           |
-| **`package-tarball-artifact-id`** | Validated package tarball artifact ID from this workflow run and the prepared tag's commit. Upload one raw .tgz with archive: false. The caller must depend on successful validation; any job can produce the artifact. | **true**     | **string** | -           |
-| **`working-directory`**           | Project directory relative to the caller repository root, matching release preparation.                                                                                                                                 | **false**    | **string** | `.`         |
-| **`changelog-summary`**           | Optional JSON configuration forwarded unchanged to ci-github-publish/actions/release/create.                                                                                                                            | **false**    | **string** | -           |
-|                                   | Supports all upstream summary options. Use the changelog-summary secret when the configuration contains credentials.                                                                                                    |              |            |             |
-|                                   | A non-empty secret overrides this input; omit both to disable summarization. Summary failures stop publication.                                                                                                         |              |            |             |
-|                                   | See <https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/create>.                                                                                                                            |              |            |             |
-| **`environment`**                 | Optional GitHub environment for release jobs. Leave empty to run without an environment. When set, its protection rules apply; use the same name if restricting npm trusted publishing to an environment.               | **false**    | **string** | -           |
+| **Input**                         | **Description**                                                                                                                                                                                                                                                | **Required** | **Type**   | **Default** |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------- | ----------- |
+| **`release-config`**              | Optional partial release configuration as a YAML or JSON mapping, forwarded to ci-github-publish/actions/release/create.                                                                                                                                       | **false**    | **string** | -           |
+|                                   | See <https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/create> for supported settings and override behavior.                                                                                                                      |              |            |             |
+|                                   | Pass the same configuration to preparation and release.                                                                                                                                                                                                        |              |            |             |
+| **`packages`**                    | JSON public package list from prepare-package-release, with name, version, tag, directory and slug.                                                                                                                                                            | **true**     | **string** | -           |
+| **`package-tarball-artifact-id`** | Validated raw tarball artifact ID for one prepared package. Supply this or package-tarball-artifacts.                                                                                                                                                          | **false**    | **string** | -           |
+| **`package-tarball-artifacts`**   | JSON object mapping package directories relative to working-directory to validated raw tarball artifact IDs. Supply this or package-tarball-artifact-id. Artifacts must belong to this run and prepared commit; the caller must require successful validation. | **false**    | **string** | -           |
+| **`working-directory`**           | Project directory relative to the caller repository root, matching release preparation.                                                                                                                                                                        | **false**    | **string** | `.`         |
+| **`changelog-summary`**           | Optional JSON configuration forwarded unchanged to ci-github-publish/actions/release/create.                                                                                                                                                                   | **false**    | **string** | -           |
+|                                   | Supports all upstream summary options. Use the changelog-summary secret when the configuration contains credentials.                                                                                                                                           |              |            |             |
+|                                   | A non-empty secret overrides this input; omit both to disable summarization. Summary failures stop publication.                                                                                                                                                |              |            |             |
+|                                   | See <https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/create>.                                                                                                                                                                   |              |            |             |
+| **`environment`**                 | Optional GitHub environment for release jobs. Leave empty to run without an environment. When set, its protection rules apply; use the same name if restricting npm trusted publishing to an environment.                                                      | **false**    | **string** | -           |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
@@ -534,7 +700,7 @@ on:
 permissions: {}
 jobs:
   release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@97f64bc080b78daca8fb3ece49de448aaac83429 # 1.1.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@<commit-sha>
     permissions:
       actions: read
       contents: write
@@ -544,14 +710,20 @@ jobs:
       # Optional complete JSON summary configuration, including provider credentials. Overrides the changelog-summary input and is forwarded unchanged to ci-github-publish/actions/release/create.
       changelog-summary: ""
     with:
-      # JSON array containing one public npm package from prepare-package-release.
+      # Optional partial release configuration as a YAML or JSON mapping, forwarded to ci-github-publish/actions/release/create.
+      # See https://github.com/hoverkraft-tech/ci-github-publish/tree/main/actions/release/create for supported settings and override behavior.
+      # Pass the same configuration to preparation and release.
+      release-config: ""
+
+      # JSON public package list from prepare-package-release, with name, version, tag, directory and slug.
       # This input is required.
       packages: ""
 
-      # Validated package tarball artifact ID from this workflow run and the prepared tag's commit. Upload one raw .tgz with archive: false. The caller must depend on successful validation; any job can produce the artifact.
-      #
-      # This input is required.
+      # Validated raw tarball artifact ID for one prepared package. Supply this or package-tarball-artifacts.
       package-tarball-artifact-id: ""
+
+      # JSON object mapping package directories relative to working-directory to validated raw tarball artifact IDs. Supply this or package-tarball-artifact-id. Artifacts must belong to this run and prepared commit; the caller must require successful validation.
+      package-tarball-artifacts: ""
 
       # Project directory relative to the caller repository root, matching release preparation.
       # Default: `.`

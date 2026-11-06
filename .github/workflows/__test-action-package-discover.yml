@@ -1,0 +1,171 @@
+name: Internal - Tests for "package/discover" action
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  discover:
+    name: Package discovery (${{ matrix.fixture.name }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture:
+          - name: standalone npm
+            root: { private: false }
+            expected: ["."]
+          - name: npm workspaces and exclusions
+            root:
+              private: true
+              workspaces: [packages/*, "!packages/excluded"]
+            expected: [packages/cli, packages/core]
+          - name: workspace root is not implicitly packaged
+            root:
+              private: false
+              workspaces: [packages/core]
+            expected: [packages/core]
+          - name: Yarn workspace object
+            manager: yarn
+            root:
+              workspaces: { packages: [packages/*, "!packages/excluded"] }
+            expected: [packages/cli, packages/core]
+          - name: pnpm workspaces
+            manager: pnpm
+            files:
+              pnpm-workspace.yaml: |
+                packages:
+                  - 'packages/*'
+                  - '!packages/excluded'
+            expected: [packages/cli, packages/core]
+          - name: pnpm 10 workspaces
+            manager: pnpm10
+            files:
+              pnpm-workspace.yaml: |
+                packages:
+                  - 'packages/*'
+                  - '!packages/excluded'
+            expected: [packages/cli, packages/core]
+          - name: standalone pnpm with settings
+            manager: pnpm
+            root: { private: false }
+            files:
+              pnpm-workspace.yaml: "packages: []"
+            expected: ["."]
+          - name: Lerna package patterns take precedence
+            root: { workspaces: [packages/excluded] }
+            files:
+              lerna.json: '{"version":"independent","packages":["packages/*","!packages/excluded"]}'
+            expected: [packages/cli, packages/core]
+          - name: explicit subset
+            root: { workspaces: [packages/*] }
+            directories: '["packages/core"]'
+            expected: [packages/core]
+          - name: explicit root
+            root: { private: false, workspaces: [packages/*] }
+            directories: '["."]'
+            expected: ["."]
+          - name: private standalone
+            expected: failure
+          - name: private workspaces only
+            root: { workspaces: [packages/private] }
+            expected: failure
+          - name: unmatched workspaces
+            root: { workspaces: [missing/*] }
+            expected: failure
+          - name: explicit private package
+            directories: '["packages/private"]'
+            expected: failure
+          - name: empty override
+            directories: "[]"
+            expected: failure
+          - name: invalid override
+            directories: '{"directory":"packages/core"}'
+            expected: failure
+          - name: escaping directory
+            directories: '["../outside"]'
+            expected: failure
+          - name: duplicate normalized directories
+            directories: '["packages/core", "./packages/core/"]'
+            expected: failure
+          - name: symlink outside the project
+            directories: '["linked"]'
+            expected: failure
+    steps:
+      - name: Arrange - Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Arrange - Create uninstalled project fixtures
+        id: fixture
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          FIXTURE: ${{ toJSON(matrix.fixture) }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const fixture = JSON.parse(process.env.FIXTURE);
+            const temporary = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP, 'package-discovery-'));
+            const directory = path.join(temporary, 'project');
+            const write = async (file, content) => {
+              const target = path.join(directory, file);
+              await io.mkdirP(path.dirname(target));
+              fs.writeFileSync(target, typeof content === 'string' ? content : JSON.stringify(content));
+            };
+            const manifest = { name: 'discovery-root', version: '1.0.0', private: true, ...fixture.root,
+              scripts: { preinstall: 'exit 91', postinstall: 'exit 91', prepare: 'exit 91' } };
+            if (fixture.manager?.startsWith('pnpm')) {
+              const lock = JSON.parse(fs.readFileSync('actions/release/prepare/package-lock.json', 'utf8'));
+              manifest.packageManager = `pnpm@${lock.packages[`node_modules/${fixture.manager}`].version}`;
+              await write('pnpm-lock.yaml', "lockfileVersion: '9.0'\n");
+            } else if (fixture.manager === 'yarn') {
+              await write('yarn.lock', '# yarn lockfile v1\n');
+            } else {
+              await write('package-lock.json', { name: manifest.name, version: manifest.version, lockfileVersion: 3, packages: { '': manifest } });
+            }
+            await write('package.json', manifest);
+            await write('.node-version', fs.readFileSync('.node-version', 'utf8'));
+            for (const name of ['core', 'cli', 'private', 'excluded']) {
+              await write(`packages/${name}/package.json`, { name: `@example/${name}`, version: '1.0.0', private: name === 'private', scripts: manifest.scripts });
+            }
+            await write('examples/unconfigured/package.json', { name: 'unconfigured', version: '1.0.0' });
+            for (const [file, content] of Object.entries(fixture.files || {})) await write(file, content);
+            await io.mkdirP(path.join(temporary, 'outside'));
+            fs.writeFileSync(path.join(temporary, 'outside/package.json'), JSON.stringify({ name: 'outside', version: '1.0.0' }));
+            fs.symlinkSync(path.join(temporary, 'outside'), path.join(directory, 'linked'), 'dir');
+            core.setOutput('directory', directory);
+            const lockfile = fixture.manager?.startsWith('pnpm') ? 'pnpm-lock.yaml' : fixture.manager === 'yarn' ? 'yarn.lock' : 'package-lock.json';
+            core.setOutput('lockfile', path.join(directory, lockfile));
+            core.setOutput('lock-content', fs.readFileSync(path.join(directory, lockfile), 'utf8'));
+      - name: Act - Discover packages without installing dependencies
+        id: discover
+        continue-on-error: true
+        uses: $/actions/package/discover
+        with:
+          working-directory: ${{ steps.fixture.outputs.directory }}
+          directories: ${{ matrix.fixture.directories || '' }}
+      - name: Assert - Selection and dependency installation
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          EXPECTED: ${{ toJSON(matrix.fixture.expected) }}
+          OUTCOME: ${{ steps.discover.outcome }}
+          DIRECTORIES: ${{ steps.discover.outputs.directories }}
+          PROJECT: ${{ steps.fixture.outputs.directory }}
+          LOCKFILE: ${{ steps.fixture.outputs.lockfile }}
+          LOCK_CONTENT: ${{ steps.fixture.outputs.lock-content }}
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const expected = JSON.parse(process.env.EXPECTED);
+            assert.equal(process.env.OUTCOME, expected === 'failure' ? 'failure' : 'success');
+            if (expected !== 'failure') assert.deepEqual(JSON.parse(process.env.DIRECTORIES), expected);
+            const installed = await (await glob.create(`${process.env.PROJECT}/**/node_modules`, { followSymbolicLinks: false })).glob();
+            assert.deepEqual(installed, []);
+            assert.equal(fs.existsSync(path.join(process.env.PROJECT, 'package.tgz')), false);
+            assert.equal(fs.readFileSync(process.env.LOCKFILE, 'utf8'), process.env.LOCK_CONTENT);

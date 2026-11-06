@@ -36,6 +36,9 @@ inputs:
     default: ""
 
 outputs:
+  package-manager:
+    description: Detected package manager (`npm`, `pnpm` or `yarn`).
+    value: ${{ steps.get-package-manager.outputs.package-manager }}
   run-script-command:
     description: "The command to run a script in the package.json file"
     value: ${{ steps.get-package-manager.outputs.run-script-command }}
@@ -56,7 +59,7 @@ runs:
         done
     # jscpd:ignore-start
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@44f6108cef0e9884ea7735f3d62932c2310745d4 # 0.39.1
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: "false"

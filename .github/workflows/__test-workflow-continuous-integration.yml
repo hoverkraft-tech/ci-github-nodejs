@@ -6,6 +6,79 @@ on:
 permissions: {}
 
 jobs:
+  package-configuration:
+    name: Assert - Package configuration
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            const workflow = fs.readFileSync('.github/workflows/continuous-integration.yml', 'utf8');
+            const step = workflow.split('      - id: package-config\n')[1]?.split('\n      - ')[0];
+            assert.ok(step, 'Package configuration step must exist');
+            const script = step.split('          script: |\n')[1]?.replace(/^ {12}/gm, '');
+            assert.ok(script, 'Package configuration script must exist');
+            const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+            const configure = new AsyncFunction('core', 'process', 'require', script);
+            async function parse(input, container = '') {
+              const outputs = {};
+              await configure({
+                setOutput: (name, value) => { outputs[name] = typeof value === 'string' ? value : JSON.stringify(value); }
+              }, { env: { PACKAGE_INPUT: input, CONTAINER_INPUT: container } }, require);
+              return outputs;
+            }
+            for (const input of ['', 'false', '  false  ']) {
+              const outputs = await parse(input);
+              assert.equal(outputs.enabled, 'false', input);
+              assert.equal(outputs.tests, '');
+            }
+            for (const input of ['true', '{}', '  true  ']) {
+              const outputs = await parse(input);
+              assert.equal(outputs.enabled, 'true', input);
+              assert.equal(outputs.tests, '');
+            }
+            const commands = 'echo "$PACKAGE_NAME"\necho "consumer check"\n';
+            const custom = await parse(JSON.stringify({ tests: commands }));
+            assert.equal(custom.enabled, 'true');
+            assert.equal(custom.tests, commands, 'Preserve multiline commands and shell quoting');
+            for (const input of ['no', 'null', '[]', '0', '"true"', '{']) {
+              await assert.rejects(() => parse(input), /package must be true, false, or a JSON object/, input);
+            }
+            await assert.rejects(() => parse('{"unknown":true}'), /Unknown package options/);
+            for (const tests of [true, 1, [], {}, null]) {
+              await assert.rejects(() => parse(JSON.stringify({ tests })), /must be.*string/);
+            }
+            assert.equal((await parse('true')).directories, '', 'Default enables automatic discovery');
+            assert.equal((await parse('true'))['test-project'], '');
+            const configured = await parse(JSON.stringify({ directories: ['packages/core', 'packages/cli'], tests: commands, 'test-project': 'examples/app' }));
+            assert.deepEqual(JSON.parse(configured.directories), ['packages/core', 'packages/cli']);
+            assert.equal(configured['test-project'], 'examples/app');
+            assert.equal(configured.tests, commands);
+            assert.equal((await parse('{"directories":["."]}')).enabled, 'true');
+            for (const directories of [null, '.', [], ['.','.'], [42], [''], [' '], ['/tmp'], ['../outside'], ['a/../b'], ['C:\\outside'], ['..\\outside'], ['a\nb'], Array.from({ length: 257 }, (_, index) => `packages/${index}`)]) {
+              await assert.rejects(() => parse(JSON.stringify({ directories })), /package.directories/);
+            }
+            for (const project of [null, 42, true, []]) {
+              await assert.rejects(() => parse(JSON.stringify({ 'test-project': project, tests: commands })), /must be strings/);
+            }
+            for (const project of [' ', '/tmp', '../outside', 'C:\\outside', '..\\outside']) {
+              await assert.rejects(() => parse(JSON.stringify({ 'test-project': project, tests: commands })), /package.test-project must be a directory/);
+            }
+            for (const tests of ['', '   ']) {
+              await assert.rejects(() => parse(JSON.stringify({ 'test-project': 'example', tests })), /requires package.tests/);
+            }
+            await assert.rejects(() => parse('true', 'node:alpine'), /requires non-container CI/);
+            await assert.rejects(() => parse('{}', '{"image":"node:alpine"}'), /requires non-container CI/);
+            assert.equal((await parse('false', 'node:alpine')).enabled, 'false');
+            core.info('Package configuration checks passed.');
+
   act-without-container:
     name: Act - Run the continuous integration workflow (without container)
     uses: $/.github/workflows/continuous-integration.yml
@@ -17,14 +90,8 @@ jobs:
       security-events: write
     with:
       working-directory: tests/npm
-      package: true
-      package-tests: |
-        tar -xOf "$PACKAGE_TARBALL_PATH" package/dist/test.txt > "$RUNNER_TEMP/package-build.txt"
-        test "$(cat "$RUNNER_TEMP/package-build.txt")" = 'build test'
-        test "$PACKAGE_NAME" = test-for-ci-with-npm
-        consumer=$(mktemp -d)
-        npm install --prefix "$consumer" --ignore-scripts --offline --no-audit --no-fund "$PACKAGE_TARBALL_PATH"
-        test -f "$consumer/node_modules/$PACKAGE_NAME/dist/test.txt"
+      package: |
+        {"tests": "tar -xOf \"$PACKAGE_TARBALL_PATH\" package/dist/test.txt > \"$RUNNER_TEMP/package-build.txt\"\ntest \"$(cat \"$RUNNER_TEMP/package-build.txt\")\" = 'build test'\ntest \"$PACKAGE_NAME\" = test-for-ci-with-npm\ntest -f \"$PACKAGE_INSTALL_PATH/dist/test.txt\"\n"}
       code-ql: |
         {
           "languages": "javascript-typescript",
@@ -53,6 +120,17 @@ jobs:
 
       - name: Check the build artifacts
         run: test -f tests/npm/dist/test.txt
+
+      - name: Assert - Package outputs identify the validated tarball
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ARTIFACTS: ${{ needs.act-without-container.outputs.package-tarball-artifacts }}
+          EXPECTED_ARTIFACT_ID: ${{ needs.act-without-container.outputs.package-tarball-artifact-id }}
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            assert.match(process.env.EXPECTED_ARTIFACT_ID, /^[1-9][0-9]*$/);
+            assert.deepEqual(JSON.parse(process.env.ARTIFACTS), { '.': process.env.EXPECTED_ARTIFACT_ID });
 
       - name: Act - Consume the validated CI package without repacking
         id: validated-package
@@ -106,22 +184,10 @@ jobs:
           tar -xOf "$TARBALL" package/dist/test.txt > "$RUNNER_TEMP/packaged-build.txt"
           cmp "$RUNNER_TEMP/prepared-fixture/dist/test.txt" "$RUNNER_TEMP/packaged-build.txt"
           test ! -d tests/npm/node_modules
-      - name: Run package smoke checks with the project runtime
+      - name: Check the package without installing its unavailable dependencies
         uses: $/actions/package/test
         with:
-          working-directory: tests/npm
           tarball-path: ${{ steps.package.outputs.package-tarball-path }}
-          commands: |
-            node <<'NODE'
-            const assert = require('node:assert/strict');
-            const fs = require('node:fs');
-            const expected = fs.readFileSync('.node-version', 'utf8').trim().split('.');
-            assert.deepEqual(process.versions.node.split('.').slice(0, expected.length), expected);
-            NODE
-            test "$PACKAGE_NAME" = prepared-fixture
-            test "$PACKAGE_VERSION" = 1.2.3
-            tar -xOf "$PACKAGE_TARBALL_PATH" package/dist/test.txt > "$RUNNER_TEMP/smoke-output.txt"
-            cmp "$RUNNER_TEMP/prepared-fixture/dist/test.txt" "$RUNNER_TEMP/smoke-output.txt"
       - name: Validate publishing the prepared tarball
         uses: $/actions/package/publish
         with:

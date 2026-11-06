@@ -1,16 +1,19 @@
 name: Test package
-description: Run consumer smoke tests against the package tarball and reject changes to its bytes.
+description: Validate packaged entry points and run optional tests in an isolated consumer with the tarball installed, preserving the original package bytes.
 author: hoverkraft
 branding:
   icon: check-circle
   color: blue
 inputs:
   commands:
-    description: Shell commands run from working-directory, with PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION. Install test dependencies explicitly when needed.
+    description: Optional shell commands run in a temporary npm consumer after installing the tarball with lifecycle scripts disabled. Installed binaries are on PATH; PACKAGE_INSTALL_PATH, PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION describe the tested package. The consumer is removed after success or failure.
     default: ""
   working-directory:
-    description: Project or workspace root used by package tests.
+    description: Project or workspace root used to resolve test-project. Commands run in the temporary consumer; use GITHUB_WORKSPACE to access checked-out source.
     default: .
+  test-project:
+    description: Optional consumer project directory relative to working-directory, copied before installing the tarball. Must contain package.json. Copies files without node_modules or Git metadata; the original project is unchanged. Requires commands.
+    default: ""
   tarball-path:
     description: Absolute path to the package tarball.
     required: true
@@ -22,23 +25,110 @@ runs:
       env:
         PACKAGE_TEST_COMMANDS: ${{ inputs.commands }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        PACKAGE_TEST_PROJECT: ${{ inputs.test-project }}
         PACKAGE_TARBALL_PATH: ${{ inputs.tarball-path }}
       with:
         script: |
           const fs = require('node:fs');
           const path = require('node:path');
           const { createHash } = require('node:crypto');
-          if (!process.env.PACKAGE_TEST_COMMANDS.trim()) return;
+          const { createRequire } = require('node:module');
+          const commands = process.env.PACKAGE_TEST_COMMANDS.trim();
+          const testProject = process.env.PACKAGE_TEST_PROJECT.trim();
+          if (testProject && !commands) throw new Error('test-project requires commands.');
           const tarball = path.resolve(process.env.PACKAGE_TARBALL_PATH);
           const digest = () => createHash('sha256').update(fs.readFileSync(tarball)).digest('hex');
           const expected = digest();
-          const { stdout } = await exec.getExecOutput('tar', ['-xOf', tarball, 'package/package.json'], { silent: true });
-          const { name, version } = JSON.parse(stdout);
-          if (typeof name !== 'string' || !name || typeof version !== 'string' || !version) {
-            throw new Error('Package tarball must declare its name and version.');
+          const directory = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP, 'package-test-'));
+          try {
+            await exec.exec('tar', ['-xzf', tarball, '-C', directory]);
+            const packageDirectory = path.join(directory, 'package');
+            const manifestPath = path.join(packageDirectory, 'package.json');
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            const { name, version } = manifest ?? {};
+            if (typeof name !== 'string' || !name.trim() || typeof version !== 'string' || !version.trim()) {
+              throw new Error('Package tarball must declare its name and version.');
+            }
+            const packageRequire = createRequire(manifestPath);
+            let packagedFiles;
+            const checkEntry = async (entry, field, pattern = false) => {
+              if (typeof entry !== 'string' || !entry) throw new Error(`Invalid package entry point: ${field}.`);
+              let file = path.resolve(packageDirectory, entry);
+              if (file !== packageDirectory && !file.startsWith(`${packageDirectory}${path.sep}`)) {
+                throw new Error(`Package entry point escapes the package: ${field} (${entry}).`);
+              }
+              if (pattern && entry.includes('*')) {
+                packagedFiles ??= await (await glob.create(`${packageDirectory}/**`, { matchDirectories: false, followSymbolicLinks: false })).glob();
+                const parts = file.split('*').map(part => RegExp.escape(part));
+                const matcher = new RegExp(`^${parts.shift()}(.*)${parts.join('\\1')}$`);
+                if (packagedFiles.some(candidate => matcher.test(candidate))) return;
+              } else {
+                if (field === 'main') {
+                  try { file = packageRequire.resolve(file); } catch (error) {
+                    if (error.code !== 'MODULE_NOT_FOUND') throw error;
+                  }
+                }
+                if (file.startsWith(`${packageDirectory}${path.sep}`) && fs.statSync(file, { throwIfNoEntry: false })?.isFile()) return;
+              }
+              throw new Error(`Missing package entry point: ${field} (${entry}).`);
+            };
+            const checkExports = async (value, field = 'exports', fallback = false) => {
+              if (value === null) return;
+              if (Array.isArray(value)) {
+                for (const [index, target] of value.entries()) await checkExports(target, `${field}[${index}]`, true);
+              } else if (typeof value === 'object') {
+                for (const [key, target] of Object.entries(value)) await checkExports(target, `${field}.${key}`, fallback);
+              } else if (typeof value === 'string' && value.startsWith('./')) {
+                await checkEntry(value, field, true);
+              } else if (!fallback) {
+                throw new Error(`Invalid package export target: ${field}.`);
+              }
+            };
+            for (const field of ['main', 'module', 'types', 'typings']) {
+              if (manifest[field] != null) await checkEntry(manifest[field], field);
+            }
+            if (manifest.exports !== undefined) await checkExports(manifest.exports);
+            if (typeof manifest.bin === 'string') await checkEntry(manifest.bin, 'bin');
+            else if (manifest.bin != null) {
+              for (const [command, entry] of Object.entries(manifest.bin)) await checkEntry(entry, `bin.${command}`);
+            }
+            core.info(`Validated packaged entry points for ${name}@${version}.`);
+            if (commands) {
+              const consumer = path.join(directory, 'consumer');
+              await io.mkdirP(consumer);
+              if (testProject) {
+                const root = fs.realpathSync(path.resolve(process.env.GITHUB_WORKSPACE, process.env.WORKING_DIRECTORY));
+                const source = fs.realpathSync(path.resolve(root, testProject));
+                if (source !== root && !source.startsWith(`${root}${path.sep}`)) throw new Error('test-project must be inside working-directory.');
+                if (!fs.statSync(path.join(source, 'package.json'), { throwIfNoEntry: false })?.isFile()) throw new Error('test-project must contain package.json.');
+                const files = await (await glob.create([
+                  `${source}/**`, `!${source}/**/node_modules`, `!${source}/**/node_modules/**`,
+                  `!${source}/**/.git`, `!${source}/**/.git/**`,
+                ].join('\n'), { matchDirectories: false, followSymbolicLinks: false })).glob();
+                for (const file of files) {
+                  const resolved = fs.realpathSync(file);
+                  if (!resolved.startsWith(`${source}${path.sep}`)) throw new Error('test-project files must stay inside the project.');
+                  const destination = path.join(consumer, path.relative(source, file));
+                  await io.mkdirP(path.dirname(destination));
+                  await io.cp(resolved, destination);
+                }
+              } else {
+                fs.writeFileSync(path.join(consumer, 'package.json'), JSON.stringify({ name: 'package-consumer', version: '0.0.0', private: true }));
+              }
+              await exec.exec('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--workspaces=false', tarball], { cwd: consumer });
+              const installed = path.resolve(consumer, 'node_modules', name);
+              if (!installed.startsWith(`${consumer}${path.sep}`)) throw new Error('Installed package must stay inside the consumer.');
+              const installedManifest = JSON.parse(fs.readFileSync(path.join(installed, 'package.json'), 'utf8'));
+              if (installedManifest.name !== name || installedManifest.version !== version) throw new Error('Installed package does not match the tarball.');
+              await exec.exec('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', commands], {
+                cwd: consumer,
+                env: {
+                  ...process.env, PATH: `${path.join(consumer, 'node_modules', '.bin')}${path.delimiter}${process.env.PATH || ''}`,
+                  PACKAGE_INSTALL_PATH: installed, PACKAGE_TARBALL_PATH: tarball, PACKAGE_NAME: name, PACKAGE_VERSION: version,
+                },
+              });
+            }
+            if (digest() !== expected) throw new Error('Package tests must not modify the package tarball.');
+          } finally {
+            await io.rmRF(directory);
           }
-          await exec.exec('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', process.env.PACKAGE_TEST_COMMANDS], {
-            cwd: path.resolve(process.env.GITHUB_WORKSPACE, process.env.WORKING_DIRECTORY),
-            env: { ...process.env, PACKAGE_TARBALL_PATH: tarball, PACKAGE_NAME: name, PACKAGE_VERSION: version },
-          });
-          if (digest() !== expected) throw new Error('Package tests must not modify the package tarball.');
