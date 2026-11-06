@@ -28,7 +28,7 @@ permissions: {}
 jobs:
   baseline:
     if: inputs.scenario == 'benchmark'
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@aaab44d37f5f675dc6789ea377ffc5b63cc3fe0f
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@55afe8ef3c9b59932f87a99cb2620226f18b2062
     permissions:
       contents: read
       id-token: write
@@ -44,7 +44,7 @@ jobs:
       test: '{"coverage":""}'
 
   candidate:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@5bccd49fb33a6c04d5332cb32754b28261b12103
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@540c5f4ea785d853affae704ee5c4c270d96abcd
     permissions:
       contents: read
       id-token: write
