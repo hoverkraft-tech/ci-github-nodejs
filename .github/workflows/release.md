@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Release
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/c89abd1b58c683e2ae77a41fcb8cef8b2054b9120306f6d0d6aa1a347afd832b/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
+  <img src="https://opengraph.githubassets.com/6963b10abf5bde223e9ca9d092769a577749af0a7d6725313a6c701c6a3a767a/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Release" />
 </div>
 
 ---
@@ -700,7 +700,7 @@ on:
 permissions: {}
 jobs:
   release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@<commit-sha>
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@31cd29bfb95f6bc6490d6abe5d66690431b518e3 # 2.0.0
     permissions:
       actions: read
       contents: write
