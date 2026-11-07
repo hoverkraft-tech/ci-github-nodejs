@@ -1,0 +1,75 @@
+name: Internal - Tests for test action
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  test-report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        failure: [false, true]
+    steps:
+      - name: Arrange - Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Arrange - Create a dependency-free native test project
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            await io.mkdirP('report-fixture');
+            await io.cp('.node-version', 'report-fixture/.node-version');
+            fs.writeFileSync('report-fixture/package.json', JSON.stringify({
+              name: 'report-fixture', version: '1.0.0', private: true,
+              scripts: {
+                'pretest:ci': 'node -e "require(\'node:fs\').mkdirSync(\'.reports\', {recursive:true})"',
+                'test:ci': 'node --experimental-test-coverage --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=.reports/junit.xml --test-reporter=lcov --test-reporter-destination=.reports/lcov.info test.cjs',
+              },
+            }));
+            fs.writeFileSync('report-fixture/source.cjs', 'module.exports = value => value;\n');
+            fs.writeFileSync('report-fixture/test.cjs', "require('node:test').test('report fixture', () => require('node:assert/strict').equal(require('./source.cjs')(process.env.EXPECT_FAILURE), 'false'));\n");
+            await exec.exec('npm', ['install', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: 'report-fixture' });
+      - name: Act - Run tests with comments disabled and no write token
+        id: test
+        continue-on-error: true
+        uses: $/actions/test
+        env:
+          EXPECT_FAILURE: ${{ matrix.failure }}
+        with:
+          working-directory: report-fixture
+          comment: "false"
+          report-file: |
+            .reports/junit.xml
+            .reports/lcov.info
+      - name: Assert - Retrieve reports even after a failed test
+        if: steps.test.outputs.report-artifact-id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ steps.test.outputs.report-artifact-id }}
+          path: downloaded-reports
+          merge-multiple: true
+      - name: Assert - Verify outcome and native report content
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ACTUAL: ${{ steps.test.outcome }}
+          EXPECTED: ${{ matrix.failure && 'failure' || 'success' }}
+          ARTIFACT_ID: ${{ steps.test.outputs.report-artifact-id }}
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            assert.equal(process.env.ACTUAL, process.env.EXPECTED);
+            assert.match(process.env.ARTIFACT_ID, /^\d+$/);
+            const globber = await glob.create('downloaded-reports/**/*', { matchDirectories: false });
+            const files = await globber.glob();
+            assert.equal(files.length, 2);
+            const junit = fs.readFileSync(files.find(file => file.endsWith('junit.xml')), 'utf8');
+            assert.equal(junit.includes('<failure'), process.env.EXPECTED === 'failure');
+            assert.match(fs.readFileSync(files.find(file => file.endsWith('lcov.info')), 'utf8'), /SF:/);
