@@ -3,6 +3,7 @@
   "extends": ["config:recommended"],
   "enabledManagers": ["github-actions", "nodenv", "custom.regex"],
   "semanticCommits": "enabled",
+  "semanticCommitType": "build",
   "minimumReleaseAge": "7 days",
   "minimumReleaseAgeBehaviour": "timestamp-optional",
   "pinDigests": true,
