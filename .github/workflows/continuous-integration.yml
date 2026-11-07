@@ -26,7 +26,8 @@ on:
         required: false
       build:
         description: |
-          Build parameters. Must be a string or a JSON object.
+          Build parameters. Accepts newline-separated commands, a JSON array, or a JSON object.
+          An empty or whitespace-only string skips the build job; tests and optional packaging can run without it.
           For string, provide a list of commands to run during the build step, one per line.
           For JSON object, provide the following properties:
 
@@ -139,7 +140,10 @@ on:
         required: false
         default: "true"
       working-directory:
-        description: "Working directory where the dependencies are installed."
+        description: |
+          Working directory where dependencies and application commands run.
+          Relative paths resolve against the workspace of each application job.
+          Directory existence and non-container workspace boundaries are validated in those jobs.
         type: string
         required: false
         default: "."
@@ -242,6 +246,10 @@ jobs:
       package-directories: ${{ steps.package-config.outputs.directories }}
       package-tests: ${{ steps.package-config.outputs.tests }}
       package-test-project: ${{ steps.package-config.outputs.test-project }}
+      working-directory: ${{ steps.build-variables.outputs.working-directory }}
+      build-env: ${{ steps.build-variables.outputs.env }}
+      build-commands: ${{ steps.build-variables.outputs.commands }}
+      build-artifact: ${{ steps.build-variables.outputs.artifact }}
     steps:
       - id: package-config
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -376,6 +384,103 @@ jobs:
               return acc;
             }, ""));
 
+      - id: build-variables
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          BUILD_INPUT: ${{ inputs.build }}
+        with:
+          script: |
+            const path = require('node:path');
+
+            const workingDirectory = path.normalize(process.env.WORKING_DIRECTORY || '.');
+            core.setOutput('working-directory', workingDirectory);
+            const buildInput = process.env.BUILD_INPUT.trim();
+            if (!buildInput) {
+              core.setOutput('commands', '');
+              core.setOutput('env', '{}');
+              return;
+            }
+
+            let commands = [];
+            let env = {};
+
+            // Build commands is a list of command(s), one per line.
+            const buildCommandsIsList = !buildInput.trim().startsWith('{') && !buildInput.trim().startsWith('[');
+            if (buildCommandsIsList) {
+              commands = buildInput.split('\n').map(command => command.trim()).filter(Boolean);
+            } else {
+              let build;
+              try {
+                build = JSON.parse(buildInput);
+              } catch (error) {
+                core.setFailed(`Failed to parse build input as JSON: ${error.message}`);
+                return;
+              }
+
+              // Build commands is a JSON array of commands
+              if (Array.isArray(build)) {
+                commands = build;
+              }
+              // Build commands is a JSON object
+              else {
+                commands = build.commands ?? ["build"];
+                env = build.env ?? {};
+
+                if (build.artifact) {
+                  let buildArtifact = build.artifact;
+
+                  if (typeof buildArtifact === 'string' || Array.isArray(buildArtifact)) {
+                    buildArtifact = {
+                      paths: buildArtifact
+                    };
+                  }
+
+                  if (!buildArtifact || typeof buildArtifact !== 'object') {
+                    return core.setFailed('Build artifact must be a path, path array or options object');
+                  }
+
+                  if (typeof buildArtifact.paths === 'string') {
+                    buildArtifact.paths = buildArtifact.paths.split('\n');
+                  }
+                  if (!Array.isArray(buildArtifact.paths) || buildArtifact.paths.some(artifact => typeof artifact !== 'string')) {
+                    return core.setFailed('Build artifact paths must be a string or an array of strings');
+                  }
+
+                  buildArtifact.paths = buildArtifact.paths
+                    .map(artifact => artifact.trim())
+                    .filter(Boolean)
+                    .join('\n');
+
+                  if (!buildArtifact.paths) {
+                    return core.setFailed('No valid build artifact paths found');
+                  }
+
+                  // Generate a unique name for the artifact
+                  buildArtifact.name = `${process.env.GITHUB_JOB}-build-${process.env.GITHUB_RUN_ID}-${Math.random().toString(36).substring(2, 8)}`;
+
+                  core.setOutput('artifact', JSON.stringify(buildArtifact));
+                }
+              }
+            }
+
+            if (!Array.isArray(commands) || commands.some(command => typeof command !== 'string')) {
+              core.setFailed('Build commands array must only contain strings');
+              return;
+            }
+
+            if (!env || typeof env !== 'object' || Array.isArray(env)) {
+              return core.setFailed('Build env must be an object');
+            }
+
+            const sanitizedCommands = commands.map(command => command.trim()).filter(Boolean);
+            if (!sanitizedCommands.length) {
+              return core.setFailed('No build commands found');
+            }
+
+            core.setOutput('commands', sanitizedCommands.join('\n'));
+            core.setOutput('env', JSON.stringify(env));
+
   code-ql:
     name: 🛡️ CodeQL Analysis
     if: inputs.checks == true && inputs.code-ql != ''
@@ -429,14 +534,10 @@ jobs:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
 
-  setup:
-    name: ⚙️ Setup
+  lint:
+    if: inputs.checks == true && inputs.lint
+    name: 👕 Lint
     runs-on: *ci-runner
-    needs:
-      - prepare
-    permissions:
-      contents: read
-      packages: read
     container: &ci-container
       image: ${{ needs.prepare.outputs.container-image || '' }}
       env: ${{ fromJSON(needs.prepare.outputs.container-env || '{}') }}
@@ -444,128 +545,8 @@ jobs:
       ports: ${{ fromJSON(needs.prepare.outputs.container-ports || '[]') }}
       volumes: ${{ fromJSON(needs.prepare.outputs.container-volumes || '[]') }}
       credentials: ${{ fromJSON(needs.prepare.outputs.container-username && format('{{"username":{0},"password":{1}}}',toJSON(needs.prepare.outputs.container-username),toJSON(secrets.container-password)) || '{}') }}
-    outputs:
-      working-directory: ${{ steps.working-directory.outputs.absolute-path }}
-      build-env: ${{ steps.build-variables.outputs.env }}
-      build-commands: ${{ steps.build-variables.outputs.commands }}
-      build-artifact: ${{ steps.build-variables.outputs.artifact }}
-      package-directories: ${{ steps.packages.outputs.directories }}
-    steps:
-      - name: Checkout repository
-        if: inputs.container == ''
-        uses: hoverkraft-tech/ci-github-common/actions/checkout@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
-
-      - id: working-directory
-        uses: hoverkraft-tech/ci-github-common/actions/working-directory@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
-        with:
-          working-directory: ${{ inputs.working-directory }}
-          enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
-
-      - name: Discover public packages
-        id: packages
-        if: inputs.checks == true && needs.prepare.outputs.package-enabled == 'true'
-        uses: $/actions/package/discover
-        with:
-          working-directory: ${{ steps.working-directory.outputs.absolute-path }}
-          directories: ${{ needs.prepare.outputs.package-directories }}
-
-      - id: build-variables
-        if: inputs.build != ''
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
-          BUILD_INPUT: ${{ inputs.build }}
-        with:
-          script: |
-            const path = require('node:path');
-
-            const workingDirectory = process.env.WORKING_DIRECTORY;
-            const buildInput = process.env.BUILD_INPUT.trim();
-
-            let commands = [];
-            let env = {};
-
-            // Build commands is a list of command(s), one per line.
-            const buildCommandsIsList = !buildInput.trim().startsWith('{') && !buildInput.trim().startsWith('[');
-            if (buildCommandsIsList) {
-              commands = buildInput.split('\n').map(command => command.trim()).filter(Boolean);
-            } else {
-              let build;
-              try {
-                build = JSON.parse(buildInput);
-              } catch (error) {
-                core.setFailed(`Failed to parse build input as JSON: ${error.message}`);
-                return;
-              }
-
-              // Build commands is a JSON array of commands
-              if (Array.isArray(build)) {
-                commands = build;
-              }
-              // Build commands is a JSON object
-              else {
-                commands = build.commands ?? ["build"];
-                env = build.env ?? {};
-
-                if (build.artifact) {
-                  buildArtifact = build.artifact;
-
-                  if (typeof buildArtifact === 'string' || Array.isArray(buildArtifact)) {
-                    buildArtifact = {
-                      paths: buildArtifact
-                    };
-                  }
-
-                  if (typeof buildArtifact.paths === 'string') {
-                    buildArtifact.paths = buildArtifact.paths.split('\n');
-                  } else if (!Array.isArray(buildArtifact.paths)) {
-                    return core.setFailed('Build artifact paths must be a string or an array of strings');
-                  }
-
-                  buildArtifact.paths = buildArtifact.paths
-                    .map(artifact => artifact.trim())
-                    .filter(Boolean)
-                    .map(artifact => {
-                      // FIXME: Workaround to preserve full path to artifact
-                      const fullpath = artifact.startsWith('/') ? artifact : path.join(workingDirectory, artifact);
-
-                      // Add a wildcard to the first folder of the path
-                      return fullpath.replace(/\/([^/]+)/, '/*$1');
-                    }).join('\n');
-
-                  if (!buildArtifact.paths) {
-                    return core.setFailed('No valid build artifact paths found');
-                  }
-
-                  // Generate a unique name for the artifact
-                  buildArtifact.name = `${process.env.GITHUB_JOB}-build-${process.env.GITHUB_RUN_ID}-${Math.random().toString(36).substring(2, 8)}`;
-
-                  core.setOutput('artifact', JSON.stringify(buildArtifact));
-                }
-              }
-            }
-
-            if (commands.some(command => typeof command !== 'string')) {
-              core.setFailed('Build commands array must only contain strings');
-              return;
-            }
-
-            const sanitizedCommands = commands.map(command => command.trim()).filter(Boolean);
-            if (!sanitizedCommands.length) {
-              core.setFailed('No build commands found');
-            }
-
-            core.setOutput('commands', sanitizedCommands.join('\n'));
-            core.setOutput('env', JSON.stringify(env));
-
-  lint:
-    if: inputs.checks == true && inputs.lint
-    name: 👕 Lint
-    runs-on: *ci-runner
-    container: *ci-container
     needs:
       - prepare
-      - setup
     permissions:
       contents: read
       packages: read
@@ -599,20 +580,19 @@ jobs:
         uses: $/actions/lint
         with:
           ignore-scripts: ${{ inputs.ignore-scripts }}
-          working-directory: ${{ needs.setup.outputs.working-directory }}
+          working-directory: ${{ needs.prepare.outputs.working-directory }}
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           command: ${{ steps.preparel-lint-options.outputs.command }}
           report-file: ${{ steps.preparel-lint-options.outputs.report-file }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
 
   build:
-    if: inputs.checks == true
+    if: inputs.checks == true && needs.prepare.outputs.build-commands != ''
     name: 🏗️ Build
     runs-on: *ci-runner
     container: *ci-container
     needs:
       - prepare
-      - setup
     permissions:
       contents: read
       packages: read
@@ -620,28 +600,48 @@ jobs:
       artifact-id: ${{ steps.build.outputs.artifact-id }}
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
-        if: needs.setup.outputs.build-commands && inputs.container == ''
+        if: inputs.container == ''
+
+      - id: build-artifact
+        if: needs.prepare.outputs.build-artifact
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          WORKING_DIRECTORY: ${{ needs.prepare.outputs.working-directory }}
+          BUILD_ARTIFACT: ${{ needs.prepare.outputs.build-artifact }}
+        with:
+          script: |
+            const path = require('node:path');
+            const workingDirectory = path.resolve(process.env.GITHUB_WORKSPACE, process.env.WORKING_DIRECTORY);
+            const artifact = JSON.parse(process.env.BUILD_ARTIFACT);
+            artifact.paths = artifact.paths.split('\n').map(artifactPath => {
+              const fullPath = path.resolve(workingDirectory, artifactPath);
+              // Preserve the full directory layout used by artifact consumers.
+              return fullPath.replace(/\/([^/]+)/, '/*$1');
+            }).join('\n');
+            core.setOutput('artifact', JSON.stringify(artifact));
 
       - id: build
-        if: needs.setup.outputs.build-commands
         uses: $/actions/build
         with:
           ignore-scripts: ${{ inputs.ignore-scripts }}
           container: ${{ inputs.container != '' && 'true' || 'false' }}
-          working-directory: ${{ needs.setup.outputs.working-directory }}
+          working-directory: ${{ needs.prepare.outputs.working-directory }}
           build-secrets: ${{ secrets.build-secrets }}
-          build-commands: ${{ needs.setup.outputs.build-commands }}
-          build-env: ${{ needs.setup.outputs.build-env }}
-          build-artifact: ${{ needs.setup.outputs.build-artifact }}
+          build-commands: ${{ needs.prepare.outputs.build-commands }}
+          build-env: ${{ needs.prepare.outputs.build-env }}
+          build-artifact: ${{ steps.build-artifact.outputs.artifact }}
 
   test:
-    if: inputs.checks == true && inputs.test
+    if: >-
+      ${{ !cancelled() && inputs.checks == true && inputs.test &&
+          needs.prepare.result == 'success' &&
+          (needs.build.result == 'success' ||
+           (needs.build.result == 'skipped' && needs.prepare.outputs.build-commands == '')) }}
     name: 🧪 Test
     runs-on: *ci-runner
     container: *ci-container
     needs:
       - prepare
-      - setup
       - build
     permissions:
       contents: read
@@ -688,7 +688,7 @@ jobs:
         uses: $/actions/test
         with:
           ignore-scripts: ${{ inputs.ignore-scripts }}
-          working-directory: ${{ needs.setup.outputs.working-directory }}
+          working-directory: ${{ needs.prepare.outputs.working-directory }}
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           command: ${{ steps.prepare-test-options.outputs.command }}
           coverage: ${{ steps.prepare-test-options.outputs.coverage }}
@@ -696,17 +696,44 @@ jobs:
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
           github-token: ${{ secrets.github-token || github.token }}
 
+  discover-packages:
+    name: Discover public packages
+    if: inputs.checks == true && needs.prepare.outputs.package-enabled == 'true'
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      directories: ${{ steps.packages.outputs.directories }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: working-directory
+        uses: hoverkraft-tech/ci-github-common/actions/working-directory@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
+        with:
+          working-directory: ${{ needs.prepare.outputs.working-directory }}
+      - id: packages
+        uses: $/actions/package/discover
+        with:
+          working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+          directories: ${{ needs.prepare.outputs.package-directories }}
+
   package:
     name: Validate package ${{ matrix.directory }}
-    if: inputs.checks == true && needs.prepare.outputs.package-enabled == 'true'
-    needs: [prepare, setup, build]
+    if: >-
+      ${{ !cancelled() && inputs.checks == true && needs.prepare.outputs.package-enabled == 'true' &&
+          needs.prepare.result == 'success' && needs.discover-packages.result == 'success' &&
+          (needs.build.result == 'success' ||
+           (needs.build.result == 'skipped' && needs.prepare.outputs.build-commands == '')) }}
+    needs: [prepare, discover-packages, build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
-        directory: ${{ fromJSON(needs.setup.outputs.package-directories) }}
+        directory: ${{ fromJSON(needs.discover-packages.outputs.directories) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -764,8 +791,11 @@ jobs:
 
   package-results:
     name: Collect validated packages
-    if: inputs.checks == true && needs.prepare.outputs.package-enabled == 'true'
-    needs: [prepare, setup, package]
+    if: >-
+      ${{ !cancelled() && inputs.checks == true && needs.prepare.outputs.package-enabled == 'true' &&
+          needs.prepare.result == 'success' && needs.discover-packages.result == 'success' &&
+          needs.package.result == 'success' }}
+    needs: [prepare, discover-packages, package]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -781,7 +811,7 @@ jobs:
       - id: collect
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          DIRECTORIES: ${{ needs.setup.outputs.package-directories }}
+          DIRECTORIES: ${{ needs.discover-packages.outputs.directories }}
           PROJECT: ${{ inputs.working-directory }}
           REPORT_DIRECTORY: ${{ runner.temp }}/package-validation
         with:

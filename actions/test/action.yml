@@ -83,7 +83,7 @@ runs:
       uses: hoverkraft-tech/ci-github-common/actions/working-directory@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       with:
         working-directory: ${{ inputs.working-directory }}
-        enforce-path-in-workspace: ${{ inputs.container && 'false' || 'true' }}
+        enforce-path-in-workspace: ${{ inputs.container == 'true' && 'false' || 'true' }}
     # jscpd:ignore-end
 
     - id: setup-node
