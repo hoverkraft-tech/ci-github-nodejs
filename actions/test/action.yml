@@ -2,6 +2,10 @@ name: "Test"
 description: |
   Action to test Node.js projects with support for coverage reporting and pull request annotations
 
+  GitHub reporting retains native report artifacts for seven days, including after
+  test failures. Set `comment: false` and call the common `ci-reports` workflow
+  after test jobs to publish one test comment and one coverage comment.
+
   Note that this action must have write permission for id-token for this to work when using Codecov coverage reporting:
 
   ```yml
@@ -64,16 +68,24 @@ inputs:
       See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.
     required: false
     default: ""
+  comment:
+    description: Publish an individual coverage PR comment. Set false when using the common ci-reports workflow; GitHub summaries and report artifacts remain enabled.
+    default: "true"
   github-token:
     description: |
       GitHub token for coverage PR comments.
-      Required when coverage is set to `github`.
+      Required when coverage is `github` and individual comments are enabled.
       Requires permissions to create and update PR comments:
 
       - `issues: write`
       - `pull-requests: write`
     required: false
     default: ""
+
+outputs:
+  report-artifact-id:
+    description: Native test and coverage artifact ID, empty when GitHub reports are unavailable.
+    value: ${{ steps.upload-reports.outputs.artifact-id }}
 
 runs:
   using: "composite"
@@ -150,7 +162,7 @@ runs:
         output-format: "summary,markdown"
 
     - name: 📊 Add coverage PR comment
-      if: always() && inputs.coverage == 'github' && github.event_name == 'pull_request' && steps.parse-coverage-reports.outputs.markdown
+      if: always() && inputs.comment == 'true' && inputs.coverage == 'github' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.parse-coverage-reports.outputs.markdown
       uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       with:
         title: "Code Coverage Report"
@@ -162,3 +174,25 @@ runs:
       uses: hoverkraft-tech/ci-github-common/actions/quality/codecov@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+
+    - name: Prepare native report artifact
+      id: report-artifact
+      if: always() && steps.parse-coverage-reports.outputs.parsed-files != ''
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        REPORT_FILES: ${{ steps.parse-coverage-reports.outputs.parsed-files }}
+      with:
+        script: |
+          core.setOutput('files', JSON.parse(process.env.REPORT_FILES).join('\n'));
+          core.setOutput('id', require('node:crypto').randomUUID());
+
+    - name: Upload native test and coverage reports
+      id: upload-reports
+      if: always() && steps.report-artifact.outputs.files != ''
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ci-reports-${{ github.run_attempt }}-${{ github.job }}-${{ steps.report-artifact.outputs.id }}
+        path: ${{ steps.report-artifact.outputs.files }}
+        include-hidden-files: true
+        if-no-files-found: error
+        retention-days: 7

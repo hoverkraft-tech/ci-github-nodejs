@@ -98,3 +98,9 @@ jobs:
       id-token: write
       issues: read
       security-events: write
+
+  test-action-test:
+    needs: linter
+    uses: $/.github/workflows/__test-action-test.yml
+    permissions:
+      contents: read
