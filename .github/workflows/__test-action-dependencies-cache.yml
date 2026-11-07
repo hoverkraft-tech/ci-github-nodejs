@@ -58,7 +58,6 @@ jobs:
         with:
           working-directory: ${{ matrix.working-directory }}
           dependencies: |
-            gatsby
             jest
             nx
             prettier

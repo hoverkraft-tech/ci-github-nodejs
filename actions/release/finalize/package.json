@@ -7,6 +7,6 @@
     "test:ci": "node --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test"
   },
   "devDependencies": {
-    "@actions/glob": "^0.4.0"
+    "@actions/glob": "^0.7.0"
   }
 }

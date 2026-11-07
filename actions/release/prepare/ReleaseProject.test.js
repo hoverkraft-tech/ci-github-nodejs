@@ -1,11 +1,15 @@
 const assert = require("node:assert/strict");
-const exec = require("@actions/exec");
 const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { test } = require("node:test");
+const { before, test } = require("node:test");
 const { ReleaseProject } = require("./ReleaseProject.js");
+
+let exec;
+before(async () => {
+  exec = await import("@actions/exec");
+});
 
 Object.assign(process.env, {
   CI: "true",

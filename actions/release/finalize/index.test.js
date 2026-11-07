@@ -1,11 +1,15 @@
 const assert = require("node:assert/strict");
-const glob = require("@actions/glob");
-const { test } = require("node:test");
+const { before, test } = require("node:test");
 const { createHash } = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const releaseAssets = require("./index.js");
+
+let glob;
+before(async () => {
+  glob = await import("@actions/glob");
+});
 
 function directory(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "nodejs-release-assets-"));
