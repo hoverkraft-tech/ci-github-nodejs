@@ -1,19 +1,19 @@
 {
   "name": "test-for-ci-with-yarn",
   "version": "0.1.0",
+  "private": true,
   "scripts": {
     "lint": "echo \"lint test\"",
     "build": "mkdir -p dist && echo \"build test\" > dist/test.txt",
     "test:ci": "echo \"test CI\""
   },
   "devDependencies": {
-    "gatsby": "^5.16.1",
     "jest": "^30.5.2",
-    "nx": "^24.0.1",
+    "nx": "^24.0.5",
     "prettier": "^3.9.10",
-    "storybook": "^10.6.3"
+    "storybook": "^10.6.6"
   },
   "resolutions": {
-    "undici": ">=7.29.1"
+    "undici": "^8.12.4"
   }
 }

@@ -61,7 +61,6 @@ jobs:
         with:
           working-directory: ${{ matrix.working-directory }}
           dependencies: |
-            gatsby
             jest
             nx
             prettier
@@ -88,7 +87,6 @@ jobs:
             }
 
             const expectedResult = {
-              gatsby: true,
               jest: true,
               nx: true,
               prettier: true,

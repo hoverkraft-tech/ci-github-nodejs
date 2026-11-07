@@ -222,6 +222,10 @@ the alternatives and observations below preserve their history, not new validati
   for Gatsby compatibility were replaced with the shared root version and reviewed
   Renovate updates. The compatibility finding at that time was Gatsby's exclusion
   of Node 26; it is historical evidence, not a permanent runtime constraint.
+- **2026-11-06:** Gatsby was removed from the Node.js test fixtures because it is no
+  longer actively maintained and was the only fixture dependency excluding Node 26.
+  The `build` and `dependencies-cache` actions keep their Gatsby cache support; only
+  the fixture coverage and the related per-fixture engine workaround were dropped.
 
 ## Workspace and Lerna extension
 

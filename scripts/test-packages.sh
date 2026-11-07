@@ -27,14 +27,31 @@ detect_test_package_manager() {
 	esac
 }
 
+# Run a package manager command, preferring corepack when available so the
+# "packageManager" field is honored, and falling back to a directly-installed
+# binary (for example on Node.js releases that no longer bundle corepack).
+run_pm() {
+	pm="$1"
+	shift
+
+	if command -v corepack >/dev/null 2>&1; then
+		corepack "$pm" "$@"
+	elif command -v "$pm" >/dev/null 2>&1; then
+		"$pm" "$@"
+	else
+		echo "Error: neither 'corepack' nor '$pm' is available on PATH." >&2
+		return 127
+	fi
+}
+
 run_install_for_pm() {
 	pkg_dir="$1"
 	pm="$2"
 
 	case "$pm" in
 	npm) (cd "$pkg_dir" && npm install) ;;
-	pnpm) (cd "$pkg_dir" && corepack pnpm install) ;;
-	yarn) (cd "$pkg_dir" && corepack yarn install) ;;
+	pnpm) (cd "$pkg_dir" && run_pm pnpm install) ;;
+	yarn) (cd "$pkg_dir" && run_pm yarn install) ;;
 	esac
 }
 
@@ -75,10 +92,10 @@ run_interactive_update_for_pm() {
 		run_install_for_pm "$pkg_dir" "$pm"
 		;;
 	pnpm)
-		if ! (cd "$pkg_dir" && run_with_terminal_input corepack pnpm update --interactive --latest); then
+		if ! (cd "$pkg_dir" && run_with_terminal_input run_pm pnpm update --interactive --latest); then
 			return 1
 		fi
-		(cd "$pkg_dir" && corepack pnpm install --no-frozen-lockfile)
+		(cd "$pkg_dir" && run_pm pnpm install --no-frozen-lockfile)
 		;;
 	yarn)
 		resolutions_updated=0
@@ -98,7 +115,7 @@ run_interactive_update_for_pm() {
 		fi
 
 		if yarn_has_direct_dependency_updates "$pkg_dir"; then
-			(cd "$pkg_dir" && run_with_terminal_input corepack yarn upgrade-interactive --latest)
+			(cd "$pkg_dir" && run_with_terminal_input run_pm yarn upgrade-interactive --latest)
 		elif [ "$resolutions_updated" -eq 0 ]; then
 			echo "All of your dependencies are already up to date"
 		fi
@@ -119,7 +136,7 @@ run_audit_fix_for_pm() {
 	pnpm)
 		run_install_for_pm "$pkg_dir" "$pm"
 		echo "pnpm audit --fix=update in $pkg_dir"
-		(cd "$pkg_dir" && corepack pnpm audit --fix=update)
+		(cd "$pkg_dir" && run_pm pnpm audit --fix=update)
 		;;
 	yarn)
 		run_install_for_pm "$pkg_dir" "$pm"
@@ -145,7 +162,9 @@ run_for_each_test_package() {
 
 		case "$action" in
 		install)
-			run_install_for_pm "$pkg_dir" "$pm"
+			if ! run_install_for_pm "$pkg_dir" "$pm"; then
+				overall_status=1
+			fi
 			;;
 		update-interactive)
 			if ! run_interactive_update_for_pm "$pkg_dir" "$pm"; then
