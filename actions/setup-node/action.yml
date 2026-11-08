@@ -109,7 +109,7 @@ runs:
       env:
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
         # Updated by Renovate; keep the fallback version in one place.
-        DEFAULT_PNPM_VERSION: "12.16.1"
+        DEFAULT_PNPM_VERSION: "12.17.0"
       with:
         script: |
           const path = require('node:path');
