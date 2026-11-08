@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Prepare Node.js Package Release
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/6963b10abf5bde223e9ca9d092769a577749af0a7d6725313a6c701c6a3a767a/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Prepare Node.js Package Release" />
+  <img src="https://opengraph.githubassets.com/798861777139bae96adc7ee652339a4713d1b50ce3b11cfb3ce6c363f2339b53/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Prepare Node.js Package Release" />
 </div>
 
 ---
@@ -112,7 +112,7 @@ on:
 permissions: {}
 jobs:
   prepare-package-release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/prepare-package-release.yml@31cd29bfb95f6bc6490d6abe5d66690431b518e3 # 2.0.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/prepare-package-release.yml@02a04ad25ceaacdf3b7200e45fb7fec07fadf4fa # 2.1.0
     permissions:
       actions: write
       contents: write
