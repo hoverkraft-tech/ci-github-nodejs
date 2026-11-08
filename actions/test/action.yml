@@ -92,7 +92,7 @@ runs:
   steps:
     # jscpd:ignore-start
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@90211d735aa0289702ddbd7eb95b218020ccadad # 2.0.2
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: ${{ inputs.container == 'true' && 'false' || 'true' }}
@@ -163,7 +163,7 @@ runs:
 
     - name: 📊 Add coverage PR comment
       if: always() && inputs.comment == 'true' && inputs.coverage == 'github' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.parse-coverage-reports.outputs.markdown
-      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
+      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@90211d735aa0289702ddbd7eb95b218020ccadad # 2.0.2
       with:
         title: "Code Coverage Report"
         token: ${{ inputs.github-token }}
@@ -171,7 +171,7 @@ runs:
 
     - name: 📊 Upload coverage to Codecov
       if: always() && inputs.coverage == 'codecov'
-      uses: hoverkraft-tech/ci-github-common/actions/quality/codecov@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
+      uses: hoverkraft-tech/ci-github-common/actions/quality/codecov@90211d735aa0289702ddbd7eb95b218020ccadad # 2.0.2
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
 
