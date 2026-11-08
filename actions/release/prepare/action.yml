@@ -68,21 +68,21 @@ runs:
     - name: Plan release with HoverKraft
       id: plan
       if: steps.inspect.outputs.tag == '' && steps.inspect.outputs.independent != 'true'
-      uses: hoverkraft-tech/ci-github-publish/actions/release/plan@f06e0e72a76bfca57c34d08d03e5c1914275fd4c # 2.0.0
+      uses: hoverkraft-tech/ci-github-publish/actions/release/plan@b942fb00f3115ca70f98f45f2289cc9838eb9312 # 3.0.0
       with:
         github-token: ${{ inputs.github-token }}
-        target-sha: ${{ github.sha }}
-        release-config: ${{ inputs.release-config }}
+        target-ref: ${{ github.sha }}
+        config-overrides: ${{ inputs.release-config }}
         working-directory: ${{ inputs.working-directory != '.' && inputs.working-directory || '' }}
     - name: Restore source checkout for version preparation
-      if: steps.plan.outputs.has-changes == 'true' || steps.inspect.outputs.force == 'true'
+      if: steps.plan.outputs.should-release == 'true' || steps.inspect.outputs.force == 'true'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 0
         token: ${{ inputs.github-token }}
         persist-credentials: true
     - uses: $/actions/setup-node
-      if: steps.plan.outputs.has-changes == 'true' || steps.inspect.outputs.force == 'true' || inputs.versioning == 'lerna'
+      if: steps.plan.outputs.should-release == 'true' || steps.inspect.outputs.force == 'true' || inputs.versioning == 'lerna'
       with:
         working-directory: ${{ inputs.working-directory }}
         ignore-scripts: "true"
@@ -113,7 +113,7 @@ runs:
           }
     - name: Start version preparation from the planned source
       id: source
-      if: steps.inspect.outputs.tag == '' && (steps.plan.outputs.has-changes == 'true' || steps.inspect.outputs.independent == 'true' || steps.inspect.outputs.force == 'true')
+      if: steps.inspect.outputs.tag == '' && (steps.plan.outputs.should-release == 'true' || steps.inspect.outputs.independent == 'true' || steps.inspect.outputs.force == 'true')
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
@@ -126,7 +126,7 @@ runs:
         fi
     - name: Apply package versions with npm or Lerna
       id: version
-      if: steps.inspect.outputs.tag == '' && (steps.plan.outputs.has-changes == 'true' || steps.inspect.outputs.independent == 'true' || steps.inspect.outputs.force == 'true')
+      if: steps.inspect.outputs.tag == '' && (steps.plan.outputs.should-release == 'true' || steps.inspect.outputs.independent == 'true' || steps.inspect.outputs.force == 'true')
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         ACTION_PATH: ${{ github.action_path }}

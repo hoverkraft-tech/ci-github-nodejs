@@ -25,8 +25,10 @@
 # Alternatively, put partial overrides in `.github/release-config.yml`, or
 # `.github/release-configs/{slug}.yml` for a scoped release. Shared defaults come first,
 # repository settings override them, and workflow input overrides repository settings.
-# Supplied top-level keys replace inherited values, including entire lists and mappings;
-# omitted keys remain inherited. Files with their own `_extends` chain retain that base.
+# Supplied mappings and lists replace inherited values. Category overrides preserve
+# inherited path scope unless they contain an explicit `type: pre-include` category.
+# An empty categories list clears grouping and version rules but preserves path scope.
+# Omitted keys remain inherited. Files with their own `_extends` chain retain that base.
 # `_extends` is reserved in the workflow input.
 # Override only repository-specific settings to inherit upstream version rules and notes.
 # Independent Lerna still plans versions natively; keep tag settings consistent with its package tags.
