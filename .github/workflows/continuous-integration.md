@@ -3,7 +3,7 @@
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/a6a812de06b446b3789394d8f318b00c028697055c71362803a4b878ec587ba7/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
+  <img src="https://opengraph.githubassets.com/42f56f900781193e909ceb526259e29681ce01158969eb5c167a3646471647e9/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
 </div>
 
 ---
@@ -96,7 +96,8 @@ jobs:
       # Default: `["ubuntu-latest"]`
       runs-on: '["ubuntu-latest"]'
 
-      # Build parameters. Must be a string or a JSON object.
+      # Build parameters. Accepts newline-separated commands, a JSON array, or a JSON object.
+      # An empty or whitespace-only string skips the build job; tests and optional packaging can run without it.
       # For string, provide a list of commands to run during the build step, one per line.
       # For JSON object, provide the following properties:
       #
@@ -204,7 +205,10 @@ jobs:
       # Default: `true`
       test: "true"
 
-      # Working directory where the dependencies are installed.
+      # Working directory where dependencies and application commands run.
+      # Relative paths resolve against the workspace of each application job.
+      # Directory existence and non-container workspace boundaries are validated in those jobs.
+      #
       # Default: `.`
       working-directory: .
 
