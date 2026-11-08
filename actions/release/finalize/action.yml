@@ -44,7 +44,7 @@ runs:
         name: release-pending-assets-${{ steps.assets.outputs.release-id }}-${{ github.run_id }}-${{ github.run_attempt }}
         path: ${{ steps.assets.outputs.pending-directory }}/*.tgz
         if-no-files-found: error
-    - uses: hoverkraft-tech/ci-github-publish/actions/release/update@f06e0e72a76bfca57c34d08d03e5c1914275fd4c # 2.0.0
+    - uses: hoverkraft-tech/ci-github-publish/actions/release/update@b942fb00f3115ca70f98f45f2289cc9838eb9312 # 3.0.0
       if: steps.assets.outputs.published != 'true'
       with:
         tag: ${{ inputs.tag }}

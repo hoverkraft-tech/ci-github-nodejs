@@ -112,7 +112,7 @@ runs:
 
     - name: 📊 Parse lint reports
       if: always()
-      uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@5fbb531db839a26ebcc35c4946be279f945f7633 # 1.0.0
+      uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@90211d735aa0289702ddbd7eb95b218020ccadad # 2.0.2
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         report-paths: ${{ inputs.report-file || 'auto:lint' }}
