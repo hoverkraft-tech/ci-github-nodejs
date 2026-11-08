@@ -64,16 +64,26 @@ confirmed preparation/build/lint/test failure, missing-directory and workspace
 boundary rejection, disabled checks and cancellation. Expected failures are
 successful negative tests, not successful workflow conclusions.
 
-The [measurement record](evidence/0002-ci-preparation.json) retains source
-revisions, image digest, probe outcomes and each run's metrics. The
-[job timestamps](evidence/0002-ci-job-timings.csv) permit independent calculation.
-The first six probes used `40b3b81`; boundary/cancellation probes and all measured
-runs used `5bccd49`, which additionally preserves whitespace in directory names.
+The initial baseline was `aaab44d37f5f675dc6789ea377ffc5b63cc3fe0f` and the
+candidate was `5bccd49fb33a6c04d5332cb32754b28261b12103`. After
+[priming](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42283024208),
+the five measured pairs were
+[1](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42284009431),
+[2](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42284313836),
+[3](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42284695321),
+[4](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42285014018) and
+[5](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42285335029).
 
 The benchmark uses the existing preinstalled npm fixture with one test, an empty
-build and an immutable image digest. Baseline and candidate run together in each
-dispatch. One priming pair precedes five consecutive measured pairs; all measured
-pairs are retained. Measurement starts after the full implementation CI finishes.
+build and this immutable image in both series:
+
+```text
+ghcr.io/hoverkraft-tech/ci-github-nodejs/ci-npm@sha256:324a3de0633bb5f7f0d41394ccf902195665fdaf2c23798f6145922161511574
+```
+
+Baseline and candidate run together in each dispatch. One priming pair precedes
+five consecutive measured pairs; all measured pairs are retained. Measurement
+starts after the full implementation CI finishes.
 
 All five measured pairs passed. All 48 sampled job logs (including priming) used
 runner `2.338.2`, Ubuntu image `ubuntu-26.04` version `20261101.186.1`; container
@@ -113,23 +123,34 @@ is recorded separately; do not treat that series as measurements of a later SHA.
 The [integrated CI](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42288071590)
 passed at `2f87ce61c0641934d24c39162732660b90451004`, including requested-build
 artifact transfer and source packaging without compilation. Its workflow/action
-sources equal the measured candidate `540c5f4`. All eight failure, disabled-check
-and cancellation probes also matched their expected outcomes on that candidate.
+sources equal the measured candidate `540c5f4ea785d853affae704ee5c4c270d96abcd`.
+Eight probes matched their expected outcomes:
+[preparation failure](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42287006075),
+[disabled checks](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42287010624),
+[build failure](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42287014811),
+[test failure](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42287019554),
+[lint failure](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42287024618),
+[missing directory](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42287029142),
+[workspace boundary](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42287033354) and
+[cancellation](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42287037745).
 
 The preceding [integration run](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42286746512)
-exposed a fixture collision: upstream package-result collection groups reports by
-project directory. Two test calls packaged `tests/npm`, yielding duplicate results
-for one project. The no-build test now uses `tests/source-package`, whose build
-command deliberately fails if invoked. This isolates the two cases; it does not
-change the upstream collector's grouping contract.
+exposed duplicate reports when two cases packaged the same project. The no-build
+case uses `tests/source-package`, whose build command deliberately fails if invoked,
+to isolate it without changing the collector's project-based grouping.
 
-Five consecutive updated pairs after priming all passed. The
-[integrated measurement record](evidence/0002-ci-integration.json) and
-[job timestamps](evidence/0002-ci-integration-job-timings.csv) retain the same
-metric definitions as the initial series, run links, source revisions and all
-probe outcomes. All 48 sampled job logs again used runner `2.338.2` and Ubuntu
-image `20261101.186.1`; both variants used the recorded immutable fixture digest
-and passed the same one-suite, one-test inventory.
+The same method compared baseline `55afe8ef3c9b59932f87a99cb2620226f18b2062`
+with candidate `540c5f4ea785d853affae704ee5c4c270d96abcd`. After
+[priming](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42286929531),
+all five measured pairs passed:
+[1](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42289175642),
+[2](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42289482879),
+[3](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42289790837),
+[4](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42290030964) and
+[5](https://github.com/hoverkraft-tech/ci-github-nodejs/actions/runs/42290263969).
+The runs retain job timestamps and outcomes. All 48 sampled job logs again used
+runner `2.338.2` and Ubuntu image `20261101.186.1`; both variants used the image
+above and passed the same one-suite, one-test inventory.
 
 | Metric                                 | Baseline median (range) | Candidate median (range) | Median change |
 | -------------------------------------- | ----------------------- | ------------------------ | ------------- |
