@@ -1,0 +1,89 @@
+name: Internal - Tests for lint action
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  lint-report:
+    name: Lint - ${{ matrix.scenario }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scenario: explicit report
+            failure: false
+            reports: true
+            report-file: eslint-report.json
+            expected: success
+          - scenario: failed command with a clean report
+            failure: true
+            reports: true
+            report-file: eslint-report.json
+            expected: failure
+          - scenario: missing explicit report
+            failure: false
+            reports: true
+            report-file: missing.json
+            expected: failure
+          - scenario: unmatched glob
+            failure: false
+            reports: true
+            report-file: "missing-*.json"
+            expected: failure
+          - scenario: no automatic reports
+            failure: false
+            reports: false
+            report-file: ""
+            expected: success
+    steps:
+      - name: Arrange - Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Arrange - Create a dependency-free lint project
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            await io.mkdirP('lint-fixture');
+            await io.cp('.node-version', 'lint-fixture/.node-version');
+            fs.writeFileSync('lint-fixture/package.json', JSON.stringify({
+              name: 'lint-fixture', version: '1.0.0', private: true,
+              scripts: { 'lint:ci': 'node lint.cjs' },
+            }));
+            fs.writeFileSync('lint-fixture/lint.cjs', `
+              require('node:fs').writeFileSync('command-ran.txt', 'lint ran');
+              if (process.env.WRITE_REPORT === 'true') {
+                require('node:fs').writeFileSync('eslint-report.json', '[]');
+              }
+              process.exit(process.env.EXPECT_FAILURE === 'true' ? 1 : 0);
+            `);
+            await exec.exec('npm', ['install', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: 'lint-fixture' });
+      - name: Act - Run lint with report configuration
+        id: lint
+        continue-on-error: true
+        uses: $/actions/lint
+        env:
+          EXPECT_FAILURE: ${{ matrix.failure }}
+          WRITE_REPORT: ${{ matrix.reports }}
+        with:
+          working-directory: lint-fixture
+          report-file: ${{ matrix.report-file }}
+      - name: Assert - Verify the action outcome
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ACTUAL: ${{ steps.lint.outcome }}
+          EXPECTED: ${{ matrix.expected }}
+          EXPECT_REPORTS: ${{ matrix.reports }}
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            assert.equal(fs.readFileSync('lint-fixture/command-ran.txt', 'utf8'), 'lint ran');
+            assert.equal(fs.existsSync('lint-fixture/eslint-report.json'), process.env.EXPECT_REPORTS === 'true');
+            assert.equal(process.env.ACTUAL, process.env.EXPECTED);

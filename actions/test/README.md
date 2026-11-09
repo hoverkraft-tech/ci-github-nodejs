@@ -46,7 +46,7 @@ permissions:
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/test@02a04ad25ceaacdf3b7200e45fb7fec07fadf4fa # 2.1.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/test@0340fba99303d160fd476ff1e7766125b632dcf9 # ci/adopt-common-3
   with:
     # Disable project and dependency lifecycle scripts during installation.
     # Set false to allow installation hooks, subject to the package manager's script approval settings.
@@ -87,7 +87,9 @@ permissions:
     # Supports multiple formats (Cobertura, OpenCover, lcov, etc.).
     # Provide absolute paths or paths relative to the working directory.
     # Multiple entries can be separated by newlines, commas, or semicolons.
-    # When omitted, the action falls back to `auto:test,auto:coverage` detection.
+    # Each explicit path or glob must match a file after exclusions; missing reports fail the action.
+    # When omitted, `auto:test,auto:coverage` detection may find no reports.
+    # Applies only when coverage is `github`.
     report-file: ""
 
     # Optional path mapping to adjust file paths in test and coverage reports.
@@ -134,7 +136,9 @@ permissions:
 |                         | Supports multiple formats (Cobertura, OpenCover, lcov, etc.).                                                                                                                                       |              |             |
 |                         | Provide absolute paths or paths relative to the working directory.                                                                                                                                  |              |             |
 |                         | Multiple entries can be separated by newlines, commas, or semicolons.                                                                                                                               |              |             |
-|                         | When omitted, the action falls back to `auto:test,auto:coverage` detection.                                                                                                                         |              |             |
+|                         | Each explicit path or glob must match a file after exclusions; missing reports fail the action.                                                                                                     |              |             |
+|                         | When omitted, `auto:test,auto:coverage` detection may find no reports.                                                                                                                              |              |             |
+|                         | Applies only when coverage is `github`.                                                                                                                                                             |              |             |
 | **`path-mapping`**      | Optional path mapping to adjust file paths in test and coverage reports.                                                                                                                            | **false**    | -           |
 |                         | See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.                                               |              |             |
 | **`comment`**           | Publish an individual coverage PR comment. Set false when using the common ci-reports workflow; GitHub summaries and report artifacts remain enabled.                                               | **false**    | `true`      |

@@ -38,7 +38,8 @@ inputs:
     description: |
       Optional lint report path forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.
       Provide an absolute path or one relative to the working directory.
-      When omitted, the action falls back to `auto:lint` detection.
+      Each explicit path or glob must match a file after exclusions; missing reports fail the action.
+      When omitted, `auto:lint` detection may find no reports.
     required: false
     default: ""
   path-mapping:
@@ -53,7 +54,7 @@ runs:
   steps:
     # jscpd:ignore-start
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@90211d735aa0289702ddbd7eb95b218020ccadad # 2.0.2
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@ce885f8dd6bf7191a79e3eebdf37bca805d40932 # 3.0.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: ${{ inputs.container == 'true' && 'false' || 'true' }}
@@ -112,7 +113,7 @@ runs:
 
     - name: 📊 Parse lint reports
       if: always()
-      uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@90211d735aa0289702ddbd7eb95b218020ccadad # 2.0.2
+      uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@ce885f8dd6bf7191a79e3eebdf37bca805d40932 # 3.0.0
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         report-paths: ${{ inputs.report-file || 'auto:lint' }}
