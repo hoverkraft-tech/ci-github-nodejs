@@ -4,6 +4,16 @@
 # - Linting
 # - Build
 # - Test
+#
+# Set permissions on the calling job for the enabled features. Build, lint and
+# tests require contents: read and packages: read. CodeQL additionally requires
+# security-events: write; Codecov requires id-token: write; GitHub coverage
+# comments require pull-requests: write (unless using a separate github-token).
+# Disable coverage reporting with test: '{"coverage":null}' for read-only tests.
+# Test and CodeQL jobs inherit the caller's permissions; other jobs restrict
+# their permissions explicitly. Grant only the scopes your selected checks need.
+# The generated permission list below is the read-only baseline. Default checks
+# also need security-events: write and pull-requests: write on the calling job.
 
 name: Node.js Continuous Integration
 
@@ -227,8 +237,7 @@ on:
         description: "ID of the build artifact) uploaded during the build step."
         value: ${{ jobs.build.outputs.artifact-id }}
 
-permissions: {}
-
+# Optional reporting permissions are supplied by the calling job.
 jobs:
   prepare:
     name: 📦 Prepare configuration
@@ -484,8 +493,7 @@ jobs:
   code-ql:
     name: 🛡️ CodeQL Analysis
     if: inputs.checks == true && inputs.code-ql != ''
-    permissions:
-      security-events: write
+    # Inherit the caller's permission grant when CodeQL is enabled.
     runs-on: *ci-runner
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@ce885f8dd6bf7191a79e3eebdf37bca805d40932 # 3.0.0
@@ -643,11 +651,7 @@ jobs:
     needs:
       - prepare
       - build
-    permissions:
-      contents: read
-      id-token: write # Required for Codecov uploads with OIDC authentication
-      packages: read
-      pull-requests: write
+    # Inherit the caller's reporting permissions; coverage can be disabled.
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@ce885f8dd6bf7191a79e3eebdf37bca805d40932 # 3.0.0
         if: inputs.container == ''

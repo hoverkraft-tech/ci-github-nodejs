@@ -11,10 +11,7 @@ jobs:
     uses: $/.github/workflows/continuous-integration.yml
     permissions:
       contents: read
-      id-token: write
       packages: read
-      pull-requests: write
-      security-events: write
     with:
       working-directory: tests/continuous-integration
       build: ""
@@ -28,10 +25,7 @@ jobs:
     uses: $/.github/workflows/continuous-integration.yml
     permissions:
       contents: read
-      id-token: write
       packages: read
-      pull-requests: write
-      security-events: write
     with:
       checks: false
       container: invalid.example.invalid/must-not-be-pulled:latest
@@ -55,10 +49,7 @@ jobs:
     uses: $/.github/workflows/continuous-integration.yml
     permissions:
       contents: read
-      id-token: write
       packages: read
-      pull-requests: write
-      security-events: write
     with:
       working-directory: tests/source-package
       build: ""
@@ -354,10 +345,7 @@ jobs:
     needs: arrange-with-container
     permissions:
       contents: read
-      id-token: write
       packages: read
-      pull-requests: write
-      security-events: write
     with:
       container: ${{ fromJSON(needs.arrange-with-container.outputs.built-images).ci-npm.images[0] }}
       working-directory: /usr/src/app/
