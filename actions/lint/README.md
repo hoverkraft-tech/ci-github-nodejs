@@ -68,7 +68,8 @@ Action to lint Node.js projects with support for pull request reporting and anno
 
     # Optional lint report path forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.
     # Provide an absolute path or one relative to the working directory.
-    # When omitted, the action falls back to `auto:lint` detection.
+    # Each explicit path or glob must match a file after exclusions; missing reports fail the action.
+    # When omitted, `auto:lint` detection may find no reports.
     report-file: ""
 
     # Optional path mapping to adjust file paths in test and coverage reports.
@@ -99,7 +100,8 @@ Action to lint Node.js projects with support for pull request reporting and anno
 |                         | Astro: `astro check \| tee astro-report.txt`                                                                                                                          |              |             |
 | **`report-file`**       | Optional lint report path forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action. | **false**    | -           |
 |                         | Provide an absolute path or one relative to the working directory.                                                                                                    |              |             |
-|                         | When omitted, the action falls back to `auto:lint` detection.                                                                                                         |              |             |
+|                         | Each explicit path or glob must match a file after exclusions; missing reports fail the action.                                                                       |              |             |
+|                         | When omitted, `auto:lint` detection may find no reports.                                                                                                              |              |             |
 | **`path-mapping`**      | Optional path mapping to adjust file paths in test and coverage reports.                                                                                              | **false**    | -           |
 |                         | See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.                 |              |             |
 

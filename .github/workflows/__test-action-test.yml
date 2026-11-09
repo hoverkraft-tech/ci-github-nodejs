@@ -13,7 +13,44 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        failure: [false, true]
+        include:
+          - scenario: explicit reports
+            failure: false
+            reports: true
+            report-file: ".reports/junit.xml,.reports/lcov.info"
+            expected: success
+            artifact: true
+          - scenario: failed test with reports
+            failure: true
+            reports: true
+            report-file: ".reports/junit.xml,.reports/lcov.info"
+            expected: failure
+            artifact: true
+          - scenario: missing explicit report
+            failure: false
+            reports: true
+            report-file: .reports/missing.xml
+            expected: failure
+            artifact: false
+          - scenario: unmatched glob
+            failure: false
+            reports: true
+            report-file: ".reports/missing-*.xml"
+            expected: failure
+            artifact: false
+          - scenario: partially missing reports
+            failure: false
+            reports: true
+            report-file: ".reports/junit.xml,.reports/missing.xml"
+            expected: failure
+            artifact: false
+          - scenario: no automatic reports
+            failure: false
+            reports: false
+            report-file: ""
+            expected: success
+            artifact: false
+    name: Test - ${{ matrix.scenario }}
     steps:
       - name: Arrange - Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -31,6 +68,7 @@ jobs:
               scripts: {
                 'pretest:ci': 'node -e "require(\'node:fs\').mkdirSync(\'.reports\', {recursive:true})"',
                 'test:ci': 'node --experimental-test-coverage --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=.reports/junit.xml --test-reporter=lcov --test-reporter-destination=.reports/lcov.info test.cjs',
+                'test:no-reports': 'node --test test.cjs',
               },
             }));
             fs.writeFileSync('report-fixture/source.cjs', 'module.exports = value => value;\n');
@@ -45,9 +83,8 @@ jobs:
         with:
           working-directory: report-fixture
           comment: "false"
-          report-file: |
-            .reports/junit.xml
-            .reports/lcov.info
+          command: ${{ matrix.reports && 'test:ci' || 'test:no-reports' }}
+          report-file: ${{ matrix.report-file }}
       - name: Assert - Retrieve reports even after a failed test
         if: steps.test.outputs.report-artifact-id != ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -59,17 +96,27 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           ACTUAL: ${{ steps.test.outcome }}
-          EXPECTED: ${{ matrix.failure && 'failure' || 'success' }}
+          EXPECTED: ${{ matrix.expected }}
+          EXPECT_ARTIFACT: ${{ matrix.artifact }}
+          EXPECT_REPORTS: ${{ matrix.reports }}
+          EXPECT_FAILURE: ${{ matrix.failure }}
           ARTIFACT_ID: ${{ steps.test.outputs.report-artifact-id }}
         with:
           script: |
             const assert = require('node:assert/strict');
             const fs = require('node:fs');
             assert.equal(process.env.ACTUAL, process.env.EXPECTED);
+            for (const file of ['junit.xml', 'lcov.info']) {
+              assert.equal(fs.existsSync(`report-fixture/.reports/${file}`), process.env.EXPECT_REPORTS === 'true');
+            }
+            if (process.env.EXPECT_ARTIFACT !== 'true') {
+              assert.equal(process.env.ARTIFACT_ID, '');
+              return;
+            }
             assert.match(process.env.ARTIFACT_ID, /^\d+$/);
             const globber = await glob.create('downloaded-reports/**/*', { matchDirectories: false });
             const files = await globber.glob();
             assert.equal(files.length, 2);
             const junit = fs.readFileSync(files.find(file => file.endsWith('junit.xml')), 'utf8');
-            assert.equal(junit.includes('<failure'), process.env.EXPECTED === 'failure');
+            assert.equal(junit.includes('<failure'), process.env.EXPECT_FAILURE === 'true');
             assert.match(fs.readFileSync(files.find(file => file.endsWith('lcov.info')), 'utf8'), /SF:/);
