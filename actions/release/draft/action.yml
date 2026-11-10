@@ -34,7 +34,7 @@ runs:
         persist-credentials: false
     - id: configuration
       if: inputs.package-name != ''
-      uses: hoverkraft-tech/ci-github-publish/actions/release/get-configuration@b942fb00f3115ca70f98f45f2289cc9838eb9312 # 3.0.0
+      uses: hoverkraft-tech/ci-github-publish/actions/release/get-configuration@704e6c786af0f5dfd84a8851e428bb36b6cf180f # 3.0.1
       with:
         working-directory: ${{ inputs.working-directory }}
     - id: independent-configuration
@@ -83,7 +83,7 @@ runs:
             );
           await io.mkdirP(path.dirname(destination));
           fs.writeFileSync(destination, configuration);
-    - uses: hoverkraft-tech/ci-github-publish/actions/release/create@b942fb00f3115ca70f98f45f2289cc9838eb9312 # 3.0.0
+    - uses: hoverkraft-tech/ci-github-publish/actions/release/create@704e6c786af0f5dfd84a8851e428bb36b6cf180f # 3.0.1
       with:
         config-overrides: ${{ inputs.release-config }}
         tag: ${{ inputs.tag }}
