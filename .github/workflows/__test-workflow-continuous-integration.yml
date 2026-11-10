@@ -290,7 +290,7 @@ jobs:
           "artifact": "dist"
         }
       test: |
-        {"coverage": "github"}
+        {"comment": false, "report-group": "act-without-container-and-github-reports"}
     # jscpd:ignore-end
 
   assert-package-disabled:
@@ -302,6 +302,19 @@ jobs:
       - env:
           PACKAGE_ARTIFACT_ID: ${{ needs.act-without-container-and-github-reports.outputs.package-tarball-artifact-id }}
         run: test -z "$PACKAGE_ARTIFACT_ID"
+      - name: Retrieve coverage by the outer calling job ID
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ci-reports-${{ github.run_attempt }}-act-without-container-and-github-reports-*
+          path: native-reports
+      - name: Check that consolidated reporting can find the native coverage
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const files = await (await glob.create('native-reports/**/lcov.info')).glob();
+            assert.equal(files.length, 1);
+            assert.match(require('node:fs').readFileSync(files[0], 'utf8'), /SF:/);
 
   arrange-with-container:
     name: Arrange - Build container image for CI workflow

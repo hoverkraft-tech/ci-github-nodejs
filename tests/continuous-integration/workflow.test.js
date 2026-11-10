@@ -18,6 +18,88 @@ const defaults = Object.fromEntries(
 );
 const require = createRequire(import.meta.url);
 
+test("GitHub reports default to individual comments", async () => {
+  const { outputs } = await runScript("test", "prepare-test-options", {
+    TEST_INPUT: "true",
+  });
+  assert.equal(outputs.coverage, "github");
+  assert.equal(outputs.comment, true);
+  assert.equal(outputs["report-group"], "");
+});
+
+test("nested callers can group native reports without individual comments", async () => {
+  const { outputs } = await runScript("test", "prepare-test-options", {
+    TEST_INPUT: '{"comment":false,"report-group":"action-tests"}',
+  });
+  assert.equal(outputs.coverage, "github");
+  assert.equal(outputs.comment, false);
+  assert.equal(outputs["report-group"], "action-tests");
+  const action = workflow.jobs.test.steps.find(
+    (step) => step.name === "Run tests",
+  );
+  for (const name of ["comment", "report-group"]) {
+    assert.equal(
+      evaluate(action.with[name], {
+        steps: { "prepare-test-options": { outputs } },
+      }).value,
+      outputs[name],
+    );
+  }
+});
+
+for (const options of [
+  { comment: "false" },
+  { "report-group": "../bad" },
+  { "report-group": "one,two" },
+  { "report-group": false },
+]) {
+  test(`rejects invalid report options ${JSON.stringify(options)}`, async () => {
+    await assert.rejects(
+      runScript("test", "prepare-test-options", {
+        TEST_INPUT: JSON.stringify(options),
+      }),
+      /test\.(comment|report-group)/,
+    );
+  });
+}
+
+test("report artifacts retain group, package and attempt without matrix collisions", async () => {
+  const action = readYaml("actions/test/action.yml");
+  const step = action.runs.steps.find((item) => item.id === "report-artifact");
+  const names = [];
+  for (const source of ["first", "second", "first"]) {
+    const outputs = {};
+    await runInNewContext(`(async () => { ${step.with.script} })()`, {
+      require,
+      core: {
+        setOutput: (key, value) => {
+          outputs[key] = value;
+        },
+      },
+      process: {
+        env: {
+          GITHUB_WORKSPACE: "/workspace",
+          GITHUB_RUN_ATTEMPT: "2",
+          WORKING_DIRECTORY: `/workspace/actions/${source}`,
+          REPORT_GROUP: "action-tests",
+          REPORT_FILES:
+            '["/workspace/coverage/lcov.info","/workspace/coverage/junit.xml"]',
+        },
+      },
+    });
+    assert.match(
+      outputs.name,
+      new RegExp(`^ci-reports-2-action-tests-actions-${source}-[a-f0-9-]+$`),
+    );
+    assert.equal(
+      outputs.files,
+      "/workspace/coverage/lcov.info\n/workspace/coverage/junit.xml",
+    );
+    names.push(outputs.name);
+  }
+  assert.equal(new Set(names).size, 3);
+});
+
 async function runScript(job, stepId, env = {}) {
   const step = workflow.jobs[job].steps.find((item) => item.id === stepId);
   const outputs = {};

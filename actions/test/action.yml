@@ -73,6 +73,11 @@ inputs:
   comment:
     description: Publish an individual coverage PR comment. Set false when using the common ci-reports workflow; GitHub summaries and report artifacts remain enabled.
     default: "true"
+  report-group:
+    description: |
+      Job ID used to associate native reports with the common ci-reports workflow's job-results.
+      Defaults to the current job ID. Set the outer calling job ID for nested reusable workflows.
+      Matrix runs keep separate artifacts labeled with their working directory.
   github-token:
     description: |
       GitHub token for coverage PR comments.
@@ -183,17 +188,26 @@ runs:
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         REPORT_FILES: ${{ steps.parse-coverage-reports.outputs.parsed-files }}
+        REPORT_GROUP: ${{ inputs.report-group || github.job }}
+        WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
       with:
         script: |
+          const group = process.env.REPORT_GROUP;
+          if (!/^[\w-]+$/.test(group)) {
+            throw new Error('report-group must be a job ID containing letters, numbers, underscores or hyphens.');
+          }
+          const path = require('node:path');
+          const source = path.relative(process.env.GITHUB_WORKSPACE, process.env.WORKING_DIRECTORY)
+            .replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 120) || 'root';
           core.setOutput('files', JSON.parse(process.env.REPORT_FILES).join('\n'));
-          core.setOutput('id', require('node:crypto').randomUUID());
+          core.setOutput('name', `ci-reports-${process.env.GITHUB_RUN_ATTEMPT}-${group}-${source}-${require('node:crypto').randomUUID()}`);
 
     - name: Upload native test and coverage reports
       id: upload-reports
       if: always() && steps.report-artifact.outputs.files != ''
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        name: ci-reports-${{ github.run_attempt }}-${{ github.job }}-${{ steps.report-artifact.outputs.id }}
+        name: ${{ steps.report-artifact.outputs.name }}
         path: ${{ steps.report-artifact.outputs.files }}
         include-hidden-files: true
         if-no-files-found: error

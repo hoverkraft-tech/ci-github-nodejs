@@ -59,7 +59,9 @@ jobs:
             fs.writeFileSync('lint-fixture/lint.cjs', `
               require('node:fs').writeFileSync('command-ran.txt', 'lint ran');
               if (process.env.WRITE_REPORT === 'true') {
-                require('node:fs').writeFileSync('eslint-report.json', '[]');
+                require('node:fs').writeFileSync('eslint-report.json', JSON.stringify([
+                  { filePath: 'src/index.js', messages: [], errorCount: 0, warningCount: 0 },
+                ]));
               }
               process.exit(process.env.EXPECT_FAILURE === 'true' ? 1 : 0);
             `);

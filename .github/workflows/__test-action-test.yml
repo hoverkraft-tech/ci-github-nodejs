@@ -43,7 +43,8 @@ jobs:
             reports: true
             report-file: ".reports/junit.xml,.reports/missing.xml"
             expected: failure
-            artifact: false
+            artifact: true
+            artifact-files: '["junit.xml"]'
           - scenario: no automatic reports
             failure: false
             reports: false
@@ -101,6 +102,7 @@ jobs:
           EXPECT_REPORTS: ${{ matrix.reports }}
           EXPECT_FAILURE: ${{ matrix.failure }}
           ARTIFACT_ID: ${{ steps.test.outputs.report-artifact-id }}
+          ARTIFACT_FILES: ${{ matrix.artifact-files || '["junit.xml","lcov.info"]' }}
         with:
           script: |
             const assert = require('node:assert/strict');
@@ -116,7 +118,10 @@ jobs:
             assert.match(process.env.ARTIFACT_ID, /^\d+$/);
             const globber = await glob.create('downloaded-reports/**/*', { matchDirectories: false });
             const files = await globber.glob();
-            assert.equal(files.length, 2);
+            const expectedFiles = JSON.parse(process.env.ARTIFACT_FILES);
+            assert.deepEqual(files.map(file => require('node:path').basename(file)).sort(), expectedFiles.sort());
             const junit = fs.readFileSync(files.find(file => file.endsWith('junit.xml')), 'utf8');
             assert.equal(junit.includes('<failure'), process.env.EXPECT_FAILURE === 'true');
-            assert.match(fs.readFileSync(files.find(file => file.endsWith('lcov.info')), 'utf8'), /SF:/);
+            if (expectedFiles.includes('lcov.info')) {
+              assert.match(fs.readFileSync(files.find(file => file.endsWith('lcov.info')), 'utf8'), /SF:/);
+            }
