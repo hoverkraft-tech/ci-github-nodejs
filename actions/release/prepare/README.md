@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItZ2l0LWNvbW1pdCIgY29sb3I9ImJsdWUiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjQiPjwvY2lyY2xlPjxsaW5lIHgxPSIxLjA1IiB5MT0iMTIiIHgyPSI3IiB5Mj0iMTIiPjwvbGluZT48bGluZSB4MT0iMTcuMDEiIHkxPSIxMiIgeDI9IjIyLjk2IiB5Mj0iMTIiPjwvbGluZT48L3N2Zz4=) GitHub Action: Prepare Node.js package release
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/798861777139bae96adc7ee652339a4713d1b50ce3b11cfb3ce6c363f2339b53/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Prepare Node.js package release" />
+  <img src="https://opengraph.githubassets.com/e536ca1ff0560dd4286ebba478a741625c8d260f16fc06aa313d15935c2bb9aa/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Prepare Node.js package release" />
 </div>
 
 ---

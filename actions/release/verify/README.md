@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stY2lyY2xlIiBjb2xvcj0iYmx1ZSI+PHBhdGggZD0iTTIyIDExLjA4VjEyYTEwIDEwIDAgMSAxLTUuOTMtOS4xNCI+PC9wYXRoPjxwb2x5bGluZSBwb2ludHM9IjIyIDQgMTIgMTQuMDEgOSAxMS4wMSI+PC9wb2x5bGluZT48L3N2Zz4=) GitHub Action: Verify release inputs
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/798861777139bae96adc7ee652339a4713d1b50ce3b11cfb3ce6c363f2339b53/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Verify release inputs" />
+  <img src="https://opengraph.githubassets.com/e536ca1ff0560dd4286ebba478a741625c8d260f16fc06aa313d15935c2bb9aa/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Verify release inputs" />
 </div>
 
 ---
