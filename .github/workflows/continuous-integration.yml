@@ -490,7 +490,7 @@ jobs:
       security-events: write
     runs-on: *ci-runner
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@ce885f8dd6bf7191a79e3eebdf37bca805d40932 # 3.0.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@66882b24f9f13e45a6541896a5a7c638cb91c94c # 4.0.0
       - id: code-ql-options
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -533,7 +533,7 @@ jobs:
       contents: read
     runs-on: *ci-runner
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@ce885f8dd6bf7191a79e3eebdf37bca805d40932 # 3.0.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@66882b24f9f13e45a6541896a5a7c638cb91c94c # 4.0.0
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
 
   lint:
@@ -553,7 +553,7 @@ jobs:
       contents: read
       packages: read
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@ce885f8dd6bf7191a79e3eebdf37bca805d40932 # 3.0.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@66882b24f9f13e45a6541896a5a7c638cb91c94c # 4.0.0
         if: inputs.container == ''
 
       - id: preparel-lint-options
@@ -601,7 +601,7 @@ jobs:
     outputs:
       artifact-id: ${{ steps.build.outputs.artifact-id }}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@ce885f8dd6bf7191a79e3eebdf37bca805d40932 # 3.0.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@66882b24f9f13e45a6541896a5a7c638cb91c94c # 4.0.0
         if: inputs.container == ''
 
       - id: build-artifact
@@ -651,7 +651,7 @@ jobs:
       packages: read
       pull-requests: write
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/checkout@ce885f8dd6bf7191a79e3eebdf37bca805d40932 # 3.0.0
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@66882b24f9f13e45a6541896a5a7c638cb91c94c # 4.0.0
         if: inputs.container == ''
 
       - if: needs.build.outputs.artifact-id && inputs.container == ''
@@ -723,7 +723,7 @@ jobs:
         with:
           persist-credentials: false
       - id: working-directory
-        uses: hoverkraft-tech/ci-github-common/actions/working-directory@ce885f8dd6bf7191a79e3eebdf37bca805d40932 # 3.0.0
+        uses: hoverkraft-tech/ci-github-common/actions/working-directory@66882b24f9f13e45a6541896a5a7c638cb91c94c # 4.0.0
         with:
           working-directory: ${{ needs.prepare.outputs.working-directory }}
       - id: packages

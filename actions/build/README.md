@@ -35,7 +35,7 @@ Action to build Node.js projects with support for custom commands, environment v
 ## Usage
 
 ````yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/build@02a04ad25ceaacdf3b7200e45fb7fec07fadf4fa # 2.1.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/build@fbd3522b68c55a6314aadbededaa487825ba9b35 # chore/update-actions-stable
   with:
     # Disable project and dependency lifecycle scripts during installation.
     # Set false to allow installation hooks, subject to the package manager's script approval settings.

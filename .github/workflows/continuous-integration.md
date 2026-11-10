@@ -58,7 +58,7 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@02a04ad25ceaacdf3b7200e45fb7fec07fadf4fa # 2.1.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@fbd3522b68c55a6314aadbededaa487825ba9b35 # chore/update-actions-stable
     permissions:
       contents: read
       id-token: write
@@ -473,7 +473,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@02a04ad25ceaacdf3b7200e45fb7fec07fadf4fa # 2.1.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@fbd3522b68c55a6314aadbededaa487825ba9b35 # chore/update-actions-stable
     permissions:
       id-token: write
       security-events: write
@@ -539,7 +539,7 @@ jobs:
   # Run CI checks inside the Docker container
   continuous-integration:
     needs: build-image
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@02a04ad25ceaacdf3b7200e45fb7fec07fadf4fa # 2.1.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@fbd3522b68c55a6314aadbededaa487825ba9b35 # chore/update-actions-stable
     permissions:
       id-token: write
       security-events: write
@@ -563,7 +563,7 @@ on:
     branches: [main]
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@02a04ad25ceaacdf3b7200e45fb7fec07fadf4fa # 2.1.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@fbd3522b68c55a6314aadbededaa487825ba9b35 # chore/update-actions-stable
     permissions:
       id-token: write
       security-events: write
@@ -591,7 +591,7 @@ on:
 
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@02a04ad25ceaacdf3b7200e45fb7fec07fadf4fa # 2.1.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@fbd3522b68c55a6314aadbededaa487825ba9b35 # chore/update-actions-stable
     permissions:
       id-token: write
       security-events: write
