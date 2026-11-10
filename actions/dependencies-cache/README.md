@@ -45,7 +45,7 @@ Action to setup dependencies cache management.
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/dependencies-cache@02a04ad25ceaacdf3b7200e45fb7fec07fadf4fa # 2.1.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/dependencies-cache@fbd3522b68c55a6314aadbededaa487825ba9b35 # chore/update-actions-stable
   with:
     # List of dependencies for which the cache should be managed.
     # This input is required.

@@ -34,7 +34,7 @@ Action to setup Node.js and install dependencies according to the package manage
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/setup-node@02a04ad25ceaacdf3b7200e45fb7fec07fadf4fa # 2.1.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/setup-node@fbd3522b68c55a6314aadbededaa487825ba9b35 # chore/update-actions-stable
   with:
     # Install project dependencies after configuring Node.js and the package manager.
     # Set false when only tooling is needed, such as packaging prepared build files,

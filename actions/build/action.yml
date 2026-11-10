@@ -74,7 +74,7 @@ runs:
   steps:
     # jscpd:ignore-start
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@ce885f8dd6bf7191a79e3eebdf37bca805d40932 # 3.0.0
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@66882b24f9f13e45a6541896a5a7c638cb91c94c # 4.0.0
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: ${{ inputs.container == 'true' && 'false' || 'true' }}
