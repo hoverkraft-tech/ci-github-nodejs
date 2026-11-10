@@ -128,6 +128,8 @@ on:
           Set to `null` or empty to disable.
           Accepts a JSON object for test options. See [test action](../../actions/test/README.md).
           If coverage is enabled, it should generate test and coverage reports in standard formats.
+          For consolidated reports, set `comment` to false and `report-group` to the calling job ID
+          used in the common `ci-reports` workflow's `job-results`.
 
           Example:
 
@@ -680,7 +682,16 @@ jobs:
             if (testOptions.coverage === undefined) {
               testOptions.coverage = 'github';
             }
+            if (testOptions.comment !== undefined && typeof testOptions.comment !== 'boolean') {
+              throw new Error('test.comment must be a boolean.');
+            }
+            if (testOptions['report-group'] !== undefined &&
+                (typeof testOptions['report-group'] !== 'string' || !/^[\w-]+$/.test(testOptions['report-group']))) {
+              throw new Error('test.report-group must be a job ID containing letters, numbers, underscores or hyphens.');
+            }
             core.setOutput('coverage', testOptions.coverage );
+            core.setOutput('comment', testOptions.comment ?? true);
+            core.setOutput('report-group', testOptions['report-group'] || '');
             core.setOutput('report-file', testOptions['report-file'] || '');
             core.setOutput('command', testOptions.command || 'test:ci');
 
@@ -692,6 +703,8 @@ jobs:
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           command: ${{ steps.prepare-test-options.outputs.command }}
           coverage: ${{ steps.prepare-test-options.outputs.coverage }}
+          comment: ${{ steps.prepare-test-options.outputs.comment }}
+          report-group: ${{ steps.prepare-test-options.outputs.report-group }}
           report-file: ${{ steps.prepare-test-options.outputs.report-file }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
           github-token: ${{ secrets.github-token || github.token }}
