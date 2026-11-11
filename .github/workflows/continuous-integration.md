@@ -58,7 +58,7 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@fbd3522b68c55a6314aadbededaa487825ba9b35 # 3.0.0
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@18eb770c5d63c9b9809c367a91c55fb02c138ad4 # 3.0.1
     permissions:
       contents: read
       id-token: write
@@ -134,7 +134,9 @@ jobs:
       # - `test-project`: Optional consumer fixture directory relative to working-directory. Its dependencies and scripts are copied without node_modules or Git metadata. Requires `tests`.
       #
       # PACKAGE_INSTALL_PATH, PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION identify the tested package.
-      # The consumer is cleaned up on success or failure. Commands must not modify the tarball.
+      # All workspace tarballs are created before consumer tests. Declared workspace dependencies are installed
+      # from these local tarballs, so unpublished versions can be validated together.
+      # The consumer is cleaned up on success or failure. Commands must not modify tarballs.
       # Requires non-container CI with the default Ubuntu artifact layout.
       # Unknown options and invalid field types are rejected before build or packaging.
       #
@@ -297,7 +299,9 @@ jobs:
 |                         | - `test-project`: Optional consumer fixture directory relative to working-directory. Its dependencies and scripts are copied without node_modules or Git metadata. Requires `tests`.                                                                                                                                                                                                                |              |             |                     |
 |                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
 |                         | PACKAGE_INSTALL_PATH, PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION identify the tested package.                                                                                                                                                                                                                                                                                           |              |             |                     |
-|                         | The consumer is cleaned up on success or failure. Commands must not modify the tarball.                                                                                                                                                                                                                                                                                                             |              |             |                     |
+|                         | All workspace tarballs are created before consumer tests. Declared workspace dependencies are installed                                                                                                                                                                                                                                                                                             |              |             |                     |
+|                         | from these local tarballs, so unpublished versions can be validated together.                                                                                                                                                                                                                                                                                                                       |              |             |                     |
+|                         | The consumer is cleaned up on success or failure. Commands must not modify tarballs.                                                                                                                                                                                                                                                                                                                |              |             |                     |
 |                         | Requires non-container CI with the default Ubuntu artifact layout.                                                                                                                                                                                                                                                                                                                                  |              |             |                     |
 |                         | Unknown options and invalid field types are rejected before build or packaging.                                                                                                                                                                                                                                                                                                                     |              |             |                     |
 |                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
