@@ -6,6 +6,44 @@ on:
 permissions: {}
 
 jobs:
+  workspace-packages:
+    name: Validate unpublished workspace dependencies
+    uses: $/.github/workflows/continuous-integration.yml
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: write
+      security-events: write
+    with:
+      working-directory: tests/workspace-packages
+      build: ""
+      lint: ""
+      test: ""
+      code-ql: ""
+      dependency-review: false
+      package: |
+        {"tests":"node -e 'require(\"node:assert/strict\").equal(require(process.env.PACKAGE_NAME), 42)'"}
+
+  assert-workspace-packages:
+    name: Assert both unpublished packages were validated
+    needs: workspace-packages
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ARTIFACTS: ${{ needs.workspace-packages.outputs.package-tarball-artifacts }}
+          SINGLE_ARTIFACT: ${{ needs.workspace-packages.outputs.package-tarball-artifact-id }}
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const artifacts = JSON.parse(process.env.ARTIFACTS);
+            assert.deepEqual(Object.keys(artifacts).sort(), ['packages/consumer', 'packages/core']);
+            assert.equal(new Set(Object.values(artifacts)).size, 2);
+            for (const id of Object.values(artifacts)) assert.match(id, /^[1-9][0-9]*$/);
+            assert.equal(process.env.SINGLE_ARTIFACT, '');
+
   act-without-build:
     name: Act - Run contract tests without a build
     uses: $/.github/workflows/continuous-integration.yml

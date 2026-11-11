@@ -17,6 +17,9 @@ inputs:
   tarball-path:
     description: Absolute path to the package tarball.
     required: true
+  dependency-tarballs:
+    description: Optional JSON array of absolute paths to sibling workspace tarballs. Installs only declared runtime, optional and peer dependencies, including transitive siblings, alongside the tested tarball. npm still validates dependency version ranges. Tarball bytes are preserved.
+    default: "[]"
 runs:
   using: composite
   steps:
@@ -27,6 +30,7 @@ runs:
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
         PACKAGE_TEST_PROJECT: ${{ inputs.test-project }}
         PACKAGE_TARBALL_PATH: ${{ inputs.tarball-path }}
+        DEPENDENCY_TARBALLS: ${{ inputs.dependency-tarballs }}
       with:
         script: |
           const fs = require('node:fs');
@@ -37,8 +41,14 @@ runs:
           const testProject = process.env.PACKAGE_TEST_PROJECT.trim();
           if (testProject && !commands) throw new Error('test-project requires commands.');
           const tarball = path.resolve(process.env.PACKAGE_TARBALL_PATH);
-          const digest = () => createHash('sha256').update(fs.readFileSync(tarball)).digest('hex');
-          const expected = digest();
+          const dependencies = JSON.parse(process.env.DEPENDENCY_TARBALLS || '[]');
+          if (!Array.isArray(dependencies) || dependencies.length > 256 ||
+              dependencies.some(file => typeof file !== 'string' || !path.isAbsolute(file))) {
+            throw new Error('dependency-tarballs must be a JSON array of up to 256 absolute paths.');
+          }
+          const tarballs = [...new Set([tarball, ...dependencies.map(file => path.resolve(file))])];
+          const digest = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const expected = new Map(tarballs.map(file => [file, digest(file)]));
           const directory = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP, 'package-test-'));
           try {
             await exec.exec('tar', ['-xzf', tarball, '-C', directory]);
@@ -115,7 +125,24 @@ runs:
               } else {
                 fs.writeFileSync(path.join(consumer, 'package.json'), JSON.stringify({ name: 'package-consumer', version: '0.0.0', private: true }));
               }
-              await exec.exec('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--workspaces=false', tarball], { cwd: consumer });
+              const siblings = new Map([[name, { manifest, tarball }]]);
+              for (const file of tarballs.filter(file => file !== tarball)) {
+                const { stdout } = await exec.getExecOutput('tar', ['-xOf', file, 'package/package.json'], { silent: true });
+                const sibling = JSON.parse(stdout);
+                if (typeof sibling.name !== 'string' || !sibling.name.trim() || typeof sibling.version !== 'string' || !sibling.version.trim()) {
+                  throw new Error('Dependency tarballs must declare their name and version.');
+                }
+                if (siblings.has(sibling.name)) throw new Error(`Duplicate workspace package: ${sibling.name}.`);
+                siblings.set(sibling.name, { manifest: sibling, tarball: file });
+              }
+              const selected = new Map([[name, siblings.get(name)]]);
+              for (const { manifest: current } of selected.values()) {
+                for (const dependency of Object.keys({ ...current.dependencies, ...current.optionalDependencies, ...current.peerDependencies })) {
+                  if (siblings.has(dependency) && !selected.has(dependency)) selected.set(dependency, siblings.get(dependency));
+                }
+              }
+              await exec.exec('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--workspaces=false',
+                ...[...selected.values()].map(item => item.tarball)], { cwd: consumer });
               const installed = path.resolve(consumer, 'node_modules', name);
               if (!installed.startsWith(`${consumer}${path.sep}`)) throw new Error('Installed package must stay inside the consumer.');
               const installedManifest = JSON.parse(fs.readFileSync(path.join(installed, 'package.json'), 'utf8'));
@@ -128,7 +155,7 @@ runs:
                 },
               });
             }
-            if (digest() !== expected) throw new Error('Package tests must not modify the package tarball.');
+            if (tarballs.some(file => digest(file) !== expected.get(file))) throw new Error('Package tests must not modify package tarballs.');
           } finally {
             await io.rmRF(directory);
           }

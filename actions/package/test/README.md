@@ -30,12 +30,13 @@ Validate packaged entry points and run optional tests in an isolated consumer wi
 
 ## Inputs
 
-| **Input**               | **Description**                                                                                                                                                                                                                                                                                                   | **Required** | **Default** |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
-| **`commands`**          | Optional shell commands run in a temporary npm consumer after installing the tarball with lifecycle scripts disabled. Installed binaries are on PATH; PACKAGE_INSTALL_PATH, PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION describe the tested package. The consumer is removed after success or failure. | **false**    | -           |
-| **`working-directory`** | Project or workspace root used to resolve test-project. Commands run in the temporary consumer; use GITHUB_WORKSPACE to access checked-out source.                                                                                                                                                                | **false**    | `.`         |
-| **`test-project`**      | Optional consumer project directory relative to working-directory, copied before installing the tarball. Must contain package.json. Copies files without node_modules or Git metadata; the original project is unchanged. Requires commands.                                                                      | **false**    | -           |
-| **`tarball-path`**      | Absolute path to the package tarball.                                                                                                                                                                                                                                                                             | **true**     | -           |
+| **Input**                 | **Description**                                                                                                                                                                                                                                                                                                   | **Required** | **Default** |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
+| **`commands`**            | Optional shell commands run in a temporary npm consumer after installing the tarball with lifecycle scripts disabled. Installed binaries are on PATH; PACKAGE_INSTALL_PATH, PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION describe the tested package. The consumer is removed after success or failure. | **false**    | -           |
+| **`working-directory`**   | Project or workspace root used to resolve test-project. Commands run in the temporary consumer; use GITHUB_WORKSPACE to access checked-out source.                                                                                                                                                                | **false**    | `.`         |
+| **`test-project`**        | Optional consumer project directory relative to working-directory, copied before installing the tarball. Must contain package.json. Copies files without node_modules or Git metadata; the original project is unchanged. Requires commands.                                                                      | **false**    | -           |
+| **`tarball-path`**        | Absolute path to the package tarball.                                                                                                                                                                                                                                                                             | **true**     | -           |
+| **`dependency-tarballs`** | Optional JSON array of absolute paths to sibling workspace tarballs. Installs only declared runtime, optional and peer dependencies, including transitive siblings, alongside the tested tarball. npm still validates dependency version ranges. Tarball bytes are preserved.                                     | **false**    | `[]`        |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
@@ -76,7 +77,7 @@ This documentation was automatically generated by [CI Dokumentor](https://github
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/package/test@02a04ad25ceaacdf3b7200e45fb7fec07fadf4fa # 2.1.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/package/test@18eb770c5d63c9b9809c367a91c55fb02c138ad4 # 3.0.1
   with:
     # Optional shell commands run in a temporary npm consumer after installing the tarball with lifecycle scripts disabled. Installed binaries are on PATH; PACKAGE_INSTALL_PATH, PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION describe the tested package. The consumer is removed after success or failure.
     commands: ""
@@ -91,6 +92,10 @@ This documentation was automatically generated by [CI Dokumentor](https://github
     # Absolute path to the package tarball.
     # This input is required.
     tarball-path: ""
+
+    # Optional JSON array of absolute paths to sibling workspace tarballs. Installs only declared runtime, optional and peer dependencies, including transitive siblings, alongside the tested tarball. npm still validates dependency version ranges. Tarball bytes are preserved.
+    # Default: `[]`
+    dependency-tarballs: "[]"
 ```
 
 <!-- usage:end -->

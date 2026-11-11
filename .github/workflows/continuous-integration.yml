@@ -65,7 +65,9 @@ on:
           - `test-project`: Optional consumer fixture directory relative to working-directory. Its dependencies and scripts are copied without node_modules or Git metadata. Requires `tests`.
 
           PACKAGE_INSTALL_PATH, PACKAGE_TARBALL_PATH, PACKAGE_NAME and PACKAGE_VERSION identify the tested package.
-          The consumer is cleaned up on success or failure. Commands must not modify the tarball.
+          All workspace tarballs are created before consumer tests. Declared workspace dependencies are installed
+          from these local tarballs, so unpublished versions can be validated together.
+          The consumer is cleaned up on success or failure. Commands must not modify tarballs.
           Requires non-container CI with the default Ubuntu artifact layout.
           Unknown options and invalid field types are rejected before build or packaging.
 
@@ -733,7 +735,7 @@ jobs:
           directories: ${{ needs.prepare.outputs.package-directories }}
 
   package:
-    name: Validate package ${{ matrix.directory }}
+    name: Create package ${{ matrix.directory }}
     if: >-
       ${{ !cancelled() && inputs.checks == true && needs.prepare.outputs.package-enabled == 'true' &&
           needs.prepare.result == 'success' && needs.discover-packages.result == 'success' &&
@@ -768,42 +770,29 @@ jobs:
           package-directory: ${{ matrix.directory }}
           build-artifact-id: ${{ needs.build.outputs.artifact-id }}
           build-artifact-path: /
-      - name: Test the package as a consumer
-        uses: $/actions/package/test
-        with:
-          working-directory: ${{ inputs.working-directory }}
-          tarball-path: ${{ steps.package.outputs.package-tarball-path }}
-          commands: ${{ needs.prepare.outputs.package-tests }}
-          test-project: ${{ needs.prepare.outputs.package-test-project }}
-      - name: Validate npm publication without publishing
-        uses: $/actions/package/publish
-        with:
-          package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
-          dry-run: "true"
-          provenance: "false"
-          github-token: ""
-      - name: Record successful validation
+      - name: Record package artifact
         id: report
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           DIRECTORY: ${{ matrix.directory }}
           PROJECT: ${{ inputs.working-directory }}
           ARTIFACT_ID: ${{ steps.package.outputs.package-tarball-artifact-id }}
+          TARBALL: ${{ steps.package.outputs.package-tarball-path }}
         with:
           script: |
             const fs = require('node:fs');
             const path = require('node:path');
             const report = path.join(process.env.RUNNER_TEMP, `${process.env.ARTIFACT_ID}.json`);
-            fs.writeFileSync(report, JSON.stringify({ directory: process.env.DIRECTORY, project: process.env.PROJECT, artifactId: process.env.ARTIFACT_ID, attempt: Number(process.env.GITHUB_RUN_ATTEMPT) }));
+            fs.writeFileSync(report, JSON.stringify({ directory: process.env.DIRECTORY, project: process.env.PROJECT, artifactId: process.env.ARTIFACT_ID, tarball: path.basename(process.env.TARBALL), attempt: Number(process.env.GITHUB_RUN_ATTEMPT) }));
             core.setOutput('path', report);
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ci-package-validation-${{ steps.package.outputs.package-tarball-artifact-id }}
+          name: ci-package-manifest-${{ steps.package.outputs.package-tarball-artifact-id }}
           path: ${{ steps.report.outputs.path }}
           if-no-files-found: error
 
-  package-results:
-    name: Collect validated packages
+  package-manifests:
+    name: Collect package artifacts
     if: >-
       ${{ !cancelled() && inputs.checks == true && needs.prepare.outputs.package-enabled == 'true' &&
           needs.prepare.result == 'success' && needs.discover-packages.result == 'success' &&
@@ -815,10 +804,12 @@ jobs:
     outputs:
       artifact-id: ${{ steps.collect.outputs.artifact-id }}
       artifacts: ${{ steps.collect.outputs.artifacts }}
+      artifact-ids: ${{ steps.collect.outputs.artifact-ids }}
+      matrix: ${{ steps.collect.outputs.matrix }}
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: ci-package-validation-*
+          pattern: ci-package-manifest-*
           merge-multiple: true
           path: ${{ runner.temp }}/package-validation
       - id: collect
@@ -834,15 +825,87 @@ jobs:
             const directories = JSON.parse(process.env.DIRECTORIES);
             const files = await (await glob.create(path.join(process.env.REPORT_DIRECTORY, '*.json'), { followSymbolicLinks: false, matchDirectories: false })).glob();
             const reports = files.map(file => JSON.parse(fs.readFileSync(file, 'utf8'))).filter(report => report.project === process.env.PROJECT);
-            const artifacts = Object.fromEntries(directories.map(directory => {
+            const matrix = directories.map(directory => {
               const matches = reports.filter(report => report.directory === directory).sort((a, b) => b.attempt - a.attempt);
               const latest = matches[0];
-              if (!latest || !/^[1-9][0-9]*$/.test(latest.artifactId) || !Number.isSafeInteger(Number(latest.artifactId)) ||
+              if (!latest || !/^[1-9][0-9]*$/.test(latest.artifactId) || !Number.isSafeInteger(Number(latest.artifactId)) || !/^[a-zA-Z0-9._-]+\.tgz$/.test(latest.tarball || '') ||
                   !Number.isSafeInteger(latest.attempt) || latest.attempt < 1 ||
                   (matches[1] && latest.attempt === matches[1].attempt)) {
-                throw new Error(`Expected one validated package result for ${directory}.`);
+                throw new Error(`Expected one package artifact for ${directory}.`);
               }
-              return [directory, latest.artifactId];
-            }));
+              return { directory, artifactId: latest.artifactId, tarball: latest.tarball };
+            });
+            const artifacts = Object.fromEntries(matrix.map(item => [item.directory, item.artifactId]));
+            core.setOutput('matrix', matrix);
+            core.setOutput('artifact-ids', matrix.map(item => item.artifactId).join(','));
             core.setOutput('artifacts', artifacts);
             if (directories.length === 1) core.setOutput('artifact-id', artifacts[directories[0]]);
+
+  package-validation:
+    name: Validate package ${{ matrix.directory }}
+    if: ${{ !cancelled() && needs.package-manifests.result == 'success' }}
+    needs: [prepare, package-manifests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.package-manifests.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/actions/setup-node
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          install-dependencies: "false"
+      - name: Download workspace tarballs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.package-manifests.outputs.artifact-ids }}
+          path: ${{ runner.temp }}/workspace-tarballs
+          skip-decompress: true
+          merge-multiple: true
+      - id: tarballs
+        name: Locate package and dependency tarballs
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          TARBALL_NAME: ${{ matrix.tarball }}
+        with:
+          script: |
+            const path = require('node:path');
+            const files = await (await glob.create(path.join(process.env.RUNNER_TEMP, 'workspace-tarballs', '**/*.tgz'), {
+              followSymbolicLinks: false, matchDirectories: false,
+            })).glob();
+            const matches = files.filter(file => path.basename(file) === process.env.TARBALL_NAME);
+            if (matches.length !== 1) throw new Error('Expected exactly one target package tarball.');
+            core.setOutput('target', matches[0]);
+            core.setOutput('dependencies', files.filter(file => file !== matches[0]));
+      - name: Test the package as a consumer
+        uses: $/actions/package/test
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          tarball-path: ${{ steps.tarballs.outputs.target }}
+          dependency-tarballs: ${{ steps.tarballs.outputs.dependencies }}
+          commands: ${{ needs.prepare.outputs.package-tests }}
+          test-project: ${{ needs.prepare.outputs.package-test-project }}
+      - name: Validate npm publication without publishing
+        uses: $/actions/package/publish
+        with:
+          package-tarball-artifact-id: ${{ matrix.artifactId }}
+          dry-run: "true"
+          provenance: "false"
+          github-token: ""
+
+  package-results:
+    name: Report validated packages
+    if: ${{ !cancelled() && needs.package-validation.result == 'success' }}
+    needs: [package-manifests, package-validation]
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      artifact-id: ${{ needs.package-manifests.outputs.artifact-id }}
+      artifacts: ${{ needs.package-manifests.outputs.artifacts }}
+    steps:
+      - run: echo "All package validations passed."

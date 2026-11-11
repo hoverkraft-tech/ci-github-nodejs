@@ -289,3 +289,97 @@ jobs:
             assert.equal(fs.readFileSync(path.join(project, 'node_modules', 'must-not-copy', 'sentinel'), 'utf8'), 'preserve');
             assert.equal(fs.readFileSync(path.join(project, '.git', 'sentinel'), 'utf8'), 'preserve');
             assert.equal(fs.existsSync(path.join(project, 'package-lock.json')), false);
+
+  workspace-dependencies:
+    name: Workspace consumer (${{ matrix.scenario }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario:
+          [
+            transitive dependencies,
+            incompatible version,
+            duplicate package,
+            modified dependency,
+          ]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: fixture
+        name: Arrange unpublished packages and an unrelated broken package
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { createHash } = require('node:crypto');
+            const directory = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP, 'workspace-fixture-'));
+            const pack = async (id, manifest, code) => {
+              const source = path.join(directory, id, 'package');
+              await io.mkdirP(source);
+              fs.writeFileSync(path.join(source, 'package.json'), JSON.stringify({
+                name: `@hoverkraft-workspace-fixture/${id}`, version: '1.2.3', main: 'index.cjs',
+                scripts: { preinstall: 'exit 91', install: 'exit 91', postinstall: 'exit 91' }, ...manifest,
+              }));
+              fs.writeFileSync(path.join(source, 'index.cjs'), code);
+              const tarball = path.join(directory, `${id}.tgz`);
+              await exec.exec('tar', ['-czf', tarball, '-C', path.dirname(source), 'package']);
+              return tarball;
+            };
+            const coreTarball = await pack('core', { version: process.env.SCENARIO === 'incompatible version' ? '2.0.0' : '1.2.3' }, 'module.exports = 42;');
+            const bridge = await pack('bridge', { dependencies: { '@hoverkraft-workspace-fixture/core': '^1.2.3' } }, 'module.exports = require("@hoverkraft-workspace-fixture/core");');
+            const unrelated = await pack('unrelated', { dependencies: { missing: 'file:/must-not-install/missing.tgz' } }, 'throw new Error("Unrelated package must not be loaded");');
+            const target = await pack('target', {
+              peerDependencies: { '@hoverkraft-workspace-fixture/bridge': '1.2.3' },
+              devDependencies: { '@hoverkraft-workspace-fixture/unrelated': '1.2.3' },
+            }, 'module.exports = require("@hoverkraft-workspace-fixture/bridge");');
+            const dependencies = [unrelated, coreTarball, bridge];
+            if (process.env.SCENARIO === 'duplicate package') {
+              dependencies.push(await pack('duplicate', { name: '@hoverkraft-workspace-fixture/core' }, 'module.exports = 0;'));
+            }
+            core.setOutput('tarball', target);
+            core.setOutput('dependencies', dependencies);
+            core.setOutput('core', coreTarball);
+            core.setOutput('digests', Object.fromEntries([target, ...dependencies].map(file => [file, createHash('sha256').update(fs.readFileSync(file)).digest('hex')])));
+      - id: consumer
+        name: Act - Install only declared workspace dependencies without registry access
+        continue-on-error: true
+        uses: $/actions/package/test
+        env:
+          npm_config_offline: "true"
+          SCENARIO: ${{ matrix.scenario }}
+          DEPENDENCY_TARBALL: ${{ steps.fixture.outputs.core }}
+        with:
+          tarball-path: ${{ steps.fixture.outputs.tarball }}
+          dependency-tarballs: ${{ steps.fixture.outputs.dependencies }}
+          commands: |
+            node -e 'require("node:assert/strict").equal(require(process.env.PACKAGE_NAME), 42)'
+            test ! -d node_modules/@hoverkraft-workspace-fixture/unrelated
+            if [ "$SCENARIO" = "modified dependency" ]; then
+              printf '\n' >> "$DEPENDENCY_TARBALL"
+            fi
+      - name: Assert outcomes, cleanup and package integrity
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+          OUTCOME: ${{ steps.consumer.outcome }}
+          DIGESTS: ${{ steps.fixture.outputs.digests }}
+          DEPENDENCY_TARBALL: ${{ steps.fixture.outputs.core }}
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            const { createHash } = require('node:crypto');
+            assert.equal(process.env.OUTCOME, process.env.SCENARIO === 'transitive dependencies' ? 'success' : 'failure');
+            assert.deepEqual(fs.readdirSync(process.env.RUNNER_TEMP).filter(name => name.startsWith('package-test-')), []);
+            for (const [file, expected] of Object.entries(JSON.parse(process.env.DIGESTS))) {
+              const digest = createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+              if (process.env.SCENARIO === 'modified dependency' && file === process.env.DEPENDENCY_TARBALL) assert.notEqual(digest, expected);
+              else assert.equal(digest, expected);
+            }

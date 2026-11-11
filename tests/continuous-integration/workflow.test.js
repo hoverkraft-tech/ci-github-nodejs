@@ -403,21 +403,36 @@ for (const discovery of ["failure", "cancelled", "skipped"]) {
   test(`package validation requires successful discovery: ${discovery}`, () => {
     assert.equal(canRun("package", { discovery }), false);
     assert.equal(canRun("test", { discovery }), true);
-    assert.equal(canRun("package-results", { discovery }), false);
+    assert.equal(canRun("package-manifests", { discovery }), false);
   });
 }
 
-test("package results require completed validation even when compilation is omitted", () => {
+test("package artifact collection requires completed creation even without compilation", () => {
   assert.equal(
-    canRun("package-results", { build: "skipped", commands: "" }),
+    canRun("package-manifests", { build: "skipped", commands: "" }),
     true,
   );
   for (const packageResult of ["failure", "cancelled", "skipped"]) {
-    assert.equal(canRun("package-results", { packageResult }), false);
+    assert.equal(canRun("package-manifests", { packageResult }), false);
   }
-  assert.equal(canRun("package-results", { packageEnabled: false }), false);
-  assert.equal(canRun("package-results", { cancelled: true }), false);
-  assert.equal(canRun("package-results", { prepare: "failure" }), false);
+  assert.equal(canRun("package-manifests", { packageEnabled: false }), false);
+  assert.equal(canRun("package-manifests", { cancelled: true }), false);
+  assert.equal(canRun("package-manifests", { prepare: "failure" }), false);
+});
+
+test("package outputs require successful validation and a live workflow", () => {
+  for (const result of ["success", "failure", "cancelled", "skipped"]) {
+    for (const cancelled of [false, true]) {
+      assert.equal(
+        evaluate(
+          workflow.jobs["package-results"].if,
+          { needs: { "package-validation": { result } } },
+          { cancelled },
+        ).value,
+        result === "success" && !cancelled,
+      );
+    }
+  }
 });
 
 test("package configuration retains source packaging without a build", async () => {
