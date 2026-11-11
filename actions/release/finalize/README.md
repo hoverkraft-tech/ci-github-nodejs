@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItdGFnIiBjb2xvcj0iYmx1ZSI+PHBhdGggZD0iTTIwLjU5IDEzLjQxbC03LjE3IDcuMTdhMiAyIDAgMCAxLTIuODMgMEwyIDEyVjJoMTBsOC41OSA4LjU5YTIgMiAwIDAgMSAwIDIuODJ6Ij48L3BhdGg+PGxpbmUgeDE9IjciIHkxPSI3IiB4Mj0iNy4wMSIgeTI9IjciPjwvbGluZT48L3N2Zz4=) GitHub Action: Finalize Node.js release
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/d9cd52bf22b0cc49eba1d47cc303f026b56d689bb5da0c23e1f3d9ba361e3ec9/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Finalize Node.js release" />
+  <img src="https://opengraph.githubassets.com/a22f9dcf814bdd0d5795133bda9e14111bf935a24db61f25ed4a9e4b5e66d5d5/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Finalize Node.js release" />
 </div>
 
 ---
