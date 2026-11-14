@@ -22,9 +22,9 @@ jobs:
       security-events: write
     with:
       working-directory: actions/${{ matrix.action }}
-      build: null
-      lint: null
-      test: '{ "coverage": null }'
+      build: ""
+      lint: ""
+      test: '{ "comment": false, "report-group": "test-release" }'
 
   integration-tests:
     name: Test release action inputs, outputs and failures

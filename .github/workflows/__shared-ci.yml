@@ -6,8 +6,9 @@ on:
 permissions: {}
 
 jobs:
-  linter:
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@66882b24f9f13e45a6541896a5a7c638cb91c94c # 4.0.0
+  lint:
+    name: linter
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@2fa562bd44f9e752a99a374c85ae14644e7f2bdd # 4.2.2
     permissions:
       actions: read
       contents: read
@@ -16,6 +17,8 @@ jobs:
       pull-requests: write
       security-events: write
       statuses: write
+    with:
+      comment: false
 
   test-release:
     name: Test release preparation and recovery
@@ -30,56 +33,56 @@ jobs:
 
   test-action-dependencies-cache:
     name: Test action "dependencies-cache"
-    needs: linter
+    needs: lint
     uses: $/.github/workflows/__test-action-dependencies-cache.yml
     permissions:
       contents: read
 
   test-action-get-package-manager:
     name: Test action "get-package-manager"
-    needs: linter
+    needs: lint
     uses: $/.github/workflows/__test-action-get-package-manager.yml
     permissions:
       contents: read
 
   test-action-has-installed-dependencies:
     name: Test action "has-installed-dependencies"
-    needs: linter
+    needs: lint
     uses: $/.github/workflows/__test-action-has-installed-dependencies.yml
     permissions:
       contents: read
 
   test-action-package-create:
     name: Test action "package/create"
-    needs: linter
+    needs: lint
     uses: $/.github/workflows/__test-action-package-create.yml
     permissions:
       contents: read
 
   test-action-package-test:
     name: Test action "package/test"
-    needs: linter
+    needs: lint
     uses: $/.github/workflows/__test-action-package-test.yml
     permissions:
       contents: read
 
   test-action-package-discover:
     name: Test action "package/discover"
-    needs: linter
+    needs: lint
     uses: $/.github/workflows/__test-action-package-discover.yml
     permissions:
       contents: read
 
   test-action-setup-node:
     name: Test action "setup-node"
-    needs: linter
+    needs: lint
     uses: $/.github/workflows/__test-action-setup-node.yml
     permissions:
       contents: read
 
   test-action-package-publish:
     name: Test action "package/publish"
-    needs: linter
+    needs: lint
     uses: $/.github/workflows/__test-action-package-publish.yml
     permissions:
       actions: read
@@ -87,7 +90,7 @@ jobs:
 
   test-workflow-continuous-integration:
     name: Test workflow "continuous-integration"
-    needs: linter
+    needs: lint
     uses: $/.github/workflows/__test-workflow-continuous-integration.yml
     permissions:
       actions: read
@@ -100,13 +103,23 @@ jobs:
       security-events: write
 
   test-action-test:
-    needs: linter
+    needs: lint
     uses: $/.github/workflows/__test-action-test.yml
     permissions:
       contents: read
 
   test-action-lint:
-    needs: linter
+    needs: lint
     uses: $/.github/workflows/__test-action-lint.yml
     permissions:
       contents: read
+
+  reports:
+    needs: [lint, test-release]
+    if: always()
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@2fa562bd44f9e752a99a374c85ae14644e7f2bdd # 4.2.2
+    permissions:
+      contents: read
+      pull-requests: write
+    with:
+      job-results: ${{ toJSON(needs) }}
