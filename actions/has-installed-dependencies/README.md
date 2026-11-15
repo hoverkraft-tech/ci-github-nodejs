@@ -34,7 +34,7 @@ Action to check if dependencies have been installed according to the package man
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/has-installed-dependencies@a60704c5e9902675a1b4a5141411d95733e80ff5 # 3.0.2
+- uses: hoverkraft-tech/ci-github-nodejs/actions/has-installed-dependencies@6dee39a2a74172ea5539caa886a12b32765d5bd1 # 3.0.3
   with:
     # The dependencies to check.
     # This input is required.

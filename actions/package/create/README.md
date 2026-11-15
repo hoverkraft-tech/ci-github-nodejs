@@ -37,7 +37,7 @@ Packaging never installs dependencies, changes versions or runs lifecycle script
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/package/create@a60704c5e9902675a1b4a5141411d95733e80ff5 # 3.0.2
+- uses: hoverkraft-tech/ci-github-nodejs/actions/package/create@6dee39a2a74172ea5539caa886a12b32765d5bd1 # 3.0.3
   with:
     # Prepared project directory containing the package manager configuration.
     # Can be absolute or relative to the repository root.
@@ -113,7 +113,7 @@ jobs:
       package-tarball-artifact-id: ${{ steps.package.outputs.package-tarball-artifact-id }}
     steps:
       - id: package
-        uses: hoverkraft-tech/ci-github-nodejs/actions/package/create@a60704c5e9902675a1b4a5141411d95733e80ff5 # 3.0.2
+        uses: hoverkraft-tech/ci-github-nodejs/actions/package/create@6dee39a2a74172ea5539caa886a12b32765d5bd1 # 3.0.3
 
   consume:
     needs: package
