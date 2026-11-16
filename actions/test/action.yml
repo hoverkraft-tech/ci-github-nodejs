@@ -41,7 +41,7 @@ inputs:
       This should be a script defined in your `package.json`.
       The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).
 
-      Vitest: `vitest run --reporter=default --reporter=junit --outputFile=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`
+      Vitest: `vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`
       Jest: `jest --ci --reporters=default --reporters=jest-junit --coverage`
     required: false
     default: "test:ci"
@@ -53,6 +53,33 @@ inputs:
       - `""` or `null`: No coverage reporting
     required: false
     default: "github"
+  arguments:
+    description: |
+      JSON array of arguments passed to the package script without shell expansion.
+      npm receives its required `--` separator; pnpm and Yarn receive arguments directly.
+    default: "[]"
+  shard:
+    description: |
+      Optional Vitest shard as index/total, for example `1/2`. Requires shard-group.
+      Adds native shard/blob arguments, sets CI_TEST_SHARD, and uploads a checked blob payload
+      after tests, including failures. Individual reporting is disabled for shards.
+      Use reporter-specific --outputFile.junit rather than scalar --outputFile in the package script.
+      Keep coverage collection enabled; defer configured coverage thresholds to the merge
+      when CI_TEST_SHARD is nonempty. The workflow normally supplies these orchestration inputs.
+    default: ""
+  shard-group:
+    description: |
+      Unique artifact group for this project, workflow invocation, run and attempt.
+      Use only letters, numbers, underscores and hyphens. Never reuse across attempts.
+      All shards and their merge must use the same group and absolute project directory.
+    default: ""
+  merge-shards:
+    description: |
+      Optional expected Vitest shard count (2-256). Requires shard-group and excludes shard.
+      Downloads this run's matching payloads, validates the complete set and adds --merge-reports.
+      The package script must enable final reporters and original coverage thresholds.
+      A failed shard remains fatal even if merging succeeds. Partial reruns require a full workflow rerun.
+    default: ""
   report-file:
     description: |
       Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.
@@ -93,6 +120,9 @@ outputs:
   report-artifact-id:
     description: Native test and coverage artifact ID, empty when GitHub reports are unavailable.
     value: ${{ steps.upload-reports.outputs.artifact-id }}
+  shard-artifact-id:
+    description: Blob and manifest artifact ID for an executing shard, including failed tests with a blob.
+    value: ${{ steps.upload-shard.outputs.artifact-id }}
 
 runs:
   using: "composite"
@@ -104,6 +134,38 @@ runs:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: ${{ inputs.container == 'true' && 'false' || 'true' }}
     # jscpd:ignore-end
+
+    - id: prepare-test
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        NODE_ACTION_PATH: ${{ github.action_path }}
+        WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
+        TEST_ARGUMENTS: ${{ inputs.arguments }}
+        TEST_SHARD: ${{ inputs.shard }}
+        SHARD_GROUP: ${{ inputs.shard-group }}
+        MERGE_SHARDS: ${{ inputs.merge-shards }}
+      with:
+        script: |
+          const { TestShards } = require(`${process.env.NODE_ACTION_PATH}/TestShards.cjs`);
+          const configuration = {
+            workingDirectory: process.env.WORKING_DIRECTORY,
+            temporaryDirectory: process.env.RUNNER_TEMP,
+            group: process.env.SHARD_GROUP,
+            shard: process.env.TEST_SHARD,
+            mergeShards: process.env.MERGE_SHARDS,
+            identity: {
+              runId: process.env.GITHUB_RUN_ID,
+              attempt: process.env.GITHUB_RUN_ATTEMPT,
+              sha: process.env.GITHUB_SHA
+            }
+          };
+          const shards = new TestShards(configuration);
+          core.setOutput('arguments', shards.prepare(TestShards.arguments(process.env.TEST_ARGUMENTS)));
+          core.setOutput('configuration', configuration);
+          core.setOutput('directory', shards.directory || '');
+          core.setOutput('payload', shards.index ? shards.payload : '');
+          core.setOutput('incoming', shards.incoming || '');
+          core.setOutput('group', shards.group || '');
 
     - id: setup-node
       if: inputs.container != 'true'
@@ -122,13 +184,36 @@ runs:
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
 
+    - name: Download shard payloads
+      if: inputs.merge-shards != ''
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        pattern: ${{ steps.prepare-test.outputs.group }}-*
+        path: ${{ steps.prepare-test.outputs.incoming }}
+
+    - id: validate-shards
+      if: inputs.merge-shards != ''
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        NODE_ACTION_PATH: ${{ github.action_path }}
+        SHARD_CONFIGURATION: ${{ steps.prepare-test.outputs.configuration }}
+      with:
+        script: |
+          const { TestShards } = require(`${process.env.NODE_ACTION_PATH}/TestShards.cjs`);
+          const shards = new TestShards(JSON.parse(process.env.SHARD_CONFIGURATION));
+          core.setOutput('failed', shards.validate());
+
     - id: run-test
       name: 🧪 Run tests
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        NODE_ACTION_PATH: ${{ github.action_path }}
         RUN_TEST_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
         TEST_COMMAND: ${{ inputs.command }}
+        TEST_ARGUMENTS: ${{ steps.prepare-test.outputs.arguments }}
+        TEST_SHARD: ${{ inputs.shard }}
+        SHARDS_FAILED: ${{ steps.validate-shards.outputs.failed }}
       with:
         script: |
           const workingDirectory = process.env.WORKING_DIRECTORY;
@@ -137,13 +222,15 @@ runs:
 
           const runScriptCommand = process.env.RUN_TEST_COMMAND;
           const testCommand = process.env.TEST_COMMAND || 'test:ci';
+          const { TestShards } = require(`${process.env.NODE_ACTION_PATH}/TestShards.cjs`);
+          const args = TestShards.scriptArguments(runScriptCommand, testCommand, TestShards.arguments(process.env.TEST_ARGUMENTS));
 
           core.info(`🧪 Running test command: ${testCommand}...`);
 
           try {
-            const exitCode = await exec.exec(runScriptCommand, [testCommand], {
+            const exitCode = await exec.exec(runScriptCommand, args, {
               cwd: workingDirectory,
-              env: { ...process.env, CI: 'true' },
+              env: { ...process.env, CI: 'true', CI_TEST_SHARD: process.env.TEST_SHARD || '' },
               ignoreReturnCode: true
             });
 
@@ -151,14 +238,45 @@ runs:
 
             if (exitCode !== 0) {
               core.setFailed(`Tests failed with exit code ${exitCode}`);
+            } else if (process.env.SHARDS_FAILED === 'true') {
+              core.setFailed('One or more test shards failed, even though report merging succeeded.');
             }
           } catch (error) {
             core.setOutput('test-exit-code', 1);
             core.setFailed(`Test execution error: ${error.message}`);
           }
 
+    - name: Record shard payload
+      id: shard-payload
+      if: always() && inputs.shard != '' && steps.prepare-test.outputs.payload != ''
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        NODE_ACTION_PATH: ${{ github.action_path }}
+        SHARD_CONFIGURATION: ${{ steps.prepare-test.outputs.configuration }}
+        TEST_EXIT_CODE: ${{ steps.run-test.outputs.test-exit-code }}
+      with:
+        script: |
+          const { TestShards } = require(`${process.env.NODE_ACTION_PATH}/TestShards.cjs`);
+          const shards = new TestShards(JSON.parse(process.env.SHARD_CONFIGURATION));
+          shards.record(process.env.TEST_EXIT_CODE);
+          core.setOutput('ready', true);
+          core.setOutput('name', `${shards.group}-${shards.index}`);
+
+    - name: Upload shard payload
+      id: upload-shard
+      if: always() && steps.shard-payload.outputs.ready == 'true'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ${{ steps.shard-payload.outputs.name }}
+        path: |
+          ${{ steps.prepare-test.outputs.payload }}/blob.json
+          ${{ steps.prepare-test.outputs.payload }}/manifest.json
+        include-hidden-files: true
+        if-no-files-found: error
+        retention-days: 7
+
     - name: 📊 Parse coverage reports
-      if: always() && inputs.coverage == 'github'
+      if: always() && inputs.shard == '' && (inputs.merge-shards == '' || steps.validate-shards.outcome == 'success') && inputs.coverage == 'github'
       id: parse-coverage-reports
       uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@c63b4ce928082260ab263abc01faf3c1fa20c52b # 4.2.3
       with:
@@ -169,7 +287,7 @@ runs:
         output-format: "summary,markdown"
 
     - name: 📊 Add coverage PR comment
-      if: always() && inputs.comment == 'true' && inputs.coverage == 'github' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.parse-coverage-reports.outputs.markdown
+      if: always() && inputs.shard == '' && inputs.comment == 'true' && inputs.coverage == 'github' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.parse-coverage-reports.outputs.markdown
       uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@c63b4ce928082260ab263abc01faf3c1fa20c52b # 4.2.3
       with:
         title: "Code Coverage Report"
@@ -177,7 +295,7 @@ runs:
         body: ${{ steps.parse-coverage-reports.outputs.markdown }}
 
     - name: 📊 Upload coverage to Codecov
-      if: always() && inputs.coverage == 'codecov'
+      if: always() && inputs.shard == '' && (inputs.merge-shards == '' || steps.validate-shards.outcome == 'success') && inputs.coverage == 'codecov'
       uses: hoverkraft-tech/ci-github-common/actions/quality/codecov@c63b4ce928082260ab263abc01faf3c1fa20c52b # 4.2.3
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
@@ -212,3 +330,11 @@ runs:
         include-hidden-files: true
         if-no-files-found: error
         retention-days: 7
+
+    - name: Clean shard workspace
+      if: always() && steps.prepare-test.outputs.directory != ''
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        SHARD_DIRECTORY: ${{ steps.prepare-test.outputs.directory }}
+      with:
+        script: await io.rmRF(process.env.SHARD_DIRECTORY);

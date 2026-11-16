@@ -3,7 +3,7 @@
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stc3F1YXJlIiBjb2xvcj0iYmx1ZSI+PHBvbHlsaW5lIHBvaW50cz0iOSAxMSAxMiAxNCAyMiA0Ij48L3BvbHlsaW5lPjxwYXRoIGQ9Ik0yMSAxMnY3YTIgMiAwIDAgMS0yIDJINWEyIDIgMCAwIDEtMi0yVjVhMiAyIDAgMCAxIDItMmgxMSI+PC9wYXRoPjwvc3ZnPg==) GitHub Action: Test
 
 <div align="center">
-  <img src="https://opengraph.githubassets.com/f86f31978df7be794acaa15f706c9262251de152735c1be87055a4436cc1083e/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Test" />
+  <img src="https://opengraph.githubassets.com/dd439f24a43a659779a2354d45d4908f35e39feb263e8b6bfd6009c9c69daaf5/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Test" />
 </div>
 
 ---
@@ -69,7 +69,7 @@ permissions:
     # This should be a script defined in your `package.json`.
     # The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).
     #
-    # Vitest: `vitest run --reporter=default --reporter=junit --outputFile=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`
+    # Vitest: `vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`
     # Jest: `jest --ci --reporters=default --reporters=jest-junit --coverage`
     #
     # Default: `test:ci`
@@ -82,6 +82,31 @@ permissions:
     #
     # Default: `github`
     coverage: github
+
+    # JSON array of arguments passed to the package script without shell expansion.
+    # npm receives its required `--` separator; pnpm and Yarn receive arguments directly.
+    #
+    # Default: `[]`
+    arguments: "[]"
+
+    # Optional Vitest shard as index/total, for example `1/2`. Requires shard-group.
+    # Adds native shard/blob arguments, sets CI_TEST_SHARD, and uploads a checked blob payload
+    # after tests, including failures. Individual reporting is disabled for shards.
+    # Use reporter-specific --outputFile.junit rather than scalar --outputFile in the package script.
+    # Keep coverage collection enabled; defer configured coverage thresholds to the merge
+    # when CI_TEST_SHARD is nonempty. The workflow normally supplies these orchestration inputs.
+    shard: ""
+
+    # Unique artifact group for this project, workflow invocation, run and attempt.
+    # Use only letters, numbers, underscores and hyphens. Never reuse across attempts.
+    # All shards and their merge must use the same group and absolute project directory.
+    shard-group: ""
+
+    # Optional expected Vitest shard count (2-256). Requires shard-group and excludes shard.
+    # Downloads this run's matching payloads, validates the complete set and adds --merge-reports.
+    # The package script must enable final reporters and original coverage thresholds.
+    # A failed shard remains fatal even if merging succeeds. Partial reruns require a full workflow rerun.
+    merge-shards: ""
 
     # Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.
     # Supports multiple formats (Cobertura, OpenCover, lcov, etc.).
@@ -131,12 +156,27 @@ permissions:
 |                         | This should be a script defined in your `package.json`.                                                                                                                                             |              |             |
 |                         | The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).                                                                                                 |              |             |
 |                         |                                                                                                                                                                                                     |              |             |
-|                         | Vitest: `vitest run --reporter=default --reporter=junit --outputFile=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`                                                |              |             |
+|                         | Vitest: `vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`                                          |              |             |
 |                         | Jest: `jest --ci --reporters=default --reporters=jest-junit --coverage`                                                                                                                             |              |             |
 | **`coverage`**          | Code coverage reporter to use. Supported values:                                                                                                                                                    | **false**    | `github`    |
 |                         | - `github`: Parse coverage reports via [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action, with GitHub summaries/PR comments |              |             |
 |                         | - `codecov`: Upload coverage to Codecov                                                                                                                                                             |              |             |
 |                         | - `""` or `null`: No coverage reporting                                                                                                                                                             |              |             |
+| **`arguments`**         | JSON array of arguments passed to the package script without shell expansion.                                                                                                                       | **false**    | `[]`        |
+|                         | npm receives its required `--` separator; pnpm and Yarn receive arguments directly.                                                                                                                 |              |             |
+| **`shard`**             | Optional Vitest shard as index/total, for example `1/2`. Requires shard-group.                                                                                                                      | **false**    | -           |
+|                         | Adds native shard/blob arguments, sets CI_TEST_SHARD, and uploads a checked blob payload                                                                                                            |              |             |
+|                         | after tests, including failures. Individual reporting is disabled for shards.                                                                                                                       |              |             |
+|                         | Use reporter-specific --outputFile.junit rather than scalar --outputFile in the package script.                                                                                                     |              |             |
+|                         | Keep coverage collection enabled; defer configured coverage thresholds to the merge                                                                                                                 |              |             |
+|                         | when CI_TEST_SHARD is nonempty. The workflow normally supplies these orchestration inputs.                                                                                                          |              |             |
+| **`shard-group`**       | Unique artifact group for this project, workflow invocation, run and attempt.                                                                                                                       | **false**    | -           |
+|                         | Use only letters, numbers, underscores and hyphens. Never reuse across attempts.                                                                                                                    |              |             |
+|                         | All shards and their merge must use the same group and absolute project directory.                                                                                                                  |              |             |
+| **`merge-shards`**      | Optional expected Vitest shard count (2-256). Requires shard-group and excludes shard.                                                                                                              | **false**    | -           |
+|                         | Downloads this run's matching payloads, validates the complete set and adds --merge-reports.                                                                                                        |              |             |
+|                         | The package script must enable final reporters and original coverage thresholds.                                                                                                                    |              |             |
+|                         | A failed shard remains fatal even if merging succeeds. Partial reruns require a full workflow rerun.                                                                                                |              |             |
 | **`report-file`**       | Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.                 | **false**    | -           |
 |                         | Supports multiple formats (Cobertura, OpenCover, lcov, etc.).                                                                                                                                       |              |             |
 |                         | Provide absolute paths or paths relative to the working directory.                                                                                                                                  |              |             |
@@ -164,9 +204,10 @@ permissions:
 
 ## Outputs
 
-| **Output**               | **Description**                                                                  |
-| ------------------------ | -------------------------------------------------------------------------------- |
-| **`report-artifact-id`** | Native test and coverage artifact ID, empty when GitHub reports are unavailable. |
+| **Output**               | **Description**                                                                           |
+| ------------------------ | ----------------------------------------------------------------------------------------- |
+| **`report-artifact-id`** | Native test and coverage artifact ID, empty when GitHub reports are unavailable.          |
+| **`shard-artifact-id`**  | Blob and manifest artifact ID for an executing shard, including failed tests with a blob. |
 
 <!-- outputs:end -->
 <!-- examples:start -->

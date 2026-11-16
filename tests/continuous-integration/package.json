@@ -4,10 +4,13 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "test:ci": "node --test"
+    "test:ci": "node --test",
+    "test:vitest": "vitest run --config fixtures/vitest.config.mjs --reporter=default --reporter=junit --outputFile.junit=coverage/sharding/junit.xml"
   },
   "devDependencies": {
     "@actions/expressions": "0.3.61",
-    "yaml": "2.9.1"
+    "yaml": "2.9.1",
+    "vitest": "5.1.0",
+    "@vitest/coverage-v8": "5.1.0"
   }
 }
