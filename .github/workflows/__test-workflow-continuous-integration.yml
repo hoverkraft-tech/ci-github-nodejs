@@ -6,6 +6,88 @@ on:
 permissions: {}
 
 jobs:
+  sharded-host:
+    name: Validate sharded Vitest with checkout
+    uses: $/.github/workflows/continuous-integration.yml
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: write
+      security-events: write
+    with:
+      working-directory: tests/continuous-integration
+      build: ""
+      lint: ""
+      code-ql: ""
+      dependency-review: false
+      test: |
+        {"command":"test:vitest","shards":2,"comment":false,"report-group":"sharded-host","report-file":"coverage/sharding/junit.xml,coverage/sharding/lcov.info"}
+
+  sharded-container:
+    name: Validate sharded Vitest in the existing fixture image
+    uses: $/.github/workflows/continuous-integration.yml
+    needs: arrange-with-container
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: write
+      security-events: write
+    with:
+      working-directory: /usr/src/app/workflow-tests
+      container: |
+        {
+          "image": ${{ toJSON(fromJSON(needs.arrange-with-container.outputs.built-images).ci-npm.images[0]) }},
+          "pathMapping": {
+            "/usr/src/app/workflow-tests": "tests/continuous-integration",
+            "fixtures/": "tests/continuous-integration/fixtures/"
+          }
+        }
+      build: ""
+      lint: ""
+      code-ql: ""
+      dependency-review: false
+      test: |
+        {"command":"test:vitest","shards":2,"comment":false,"report-group":"sharded-container","report-file":"coverage/sharding/junit.xml,coverage/sharding/lcov.info"}
+
+  assert-sharded-reports:
+    name: Verify complete merged reports from host and container
+    needs: [sharded-host, sharded-container]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ci-reports-${{ github.run_attempt }}-sharded-*
+          path: merged-reports
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const assert = require('node:assert/strict');
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const reports = fs.readdirSync('merged-reports');
+            assert.equal(reports.length, 2, 'Publish one final report artifact per caller');
+            for (const group of ['sharded-host', 'sharded-container']) {
+              const directory = reports.find(name => name.includes(`-${group}-`));
+              assert.ok(directory, group);
+              const files = await (await glob.create(path.join('merged-reports', directory, '**/*'), { matchDirectories: false })).glob();
+              assert.equal(files.length, 2);
+              const junit = fs.readFileSync(files.find(file => file.endsWith('junit.xml')), 'utf8');
+              assert.equal((junit.match(/<testcase /g) || []).length, 2);
+              assert.match(junit, /enabled answer/);
+              assert.match(junit, /disabled answer/);
+              assert.doesNotMatch(junit, /<failure/);
+              const lcov = fs.readFileSync(files.find(file => file.endsWith('lcov.info')), 'utf8');
+              assert.match(lcov, /source\.js/);
+              const counts = Object.fromEntries([...lcov.matchAll(/^(LF|LH|BRF|BRH|FNF|FNH):(\d+)$/gm)].map(([, key, value]) => [key, Number(value)]));
+              assert.ok(counts.LF > 0 && counts.BRF > 0 && counts.FNF > 0);
+              assert.equal(counts.LH, counts.LF);
+              assert.equal(counts.BRH, counts.BRF);
+              assert.equal(counts.FNH, counts.FNF);
+            }
+
   workspace-packages:
     name: Validate unpublished workspace dependencies
     uses: $/.github/workflows/continuous-integration.yml

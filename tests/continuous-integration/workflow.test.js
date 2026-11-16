@@ -19,7 +19,7 @@ const defaults = Object.fromEntries(
 const require = createRequire(import.meta.url);
 
 test("GitHub reports default to individual comments", async () => {
-  const { outputs } = await runScript("test", "prepare-test-options", {
+  const { outputs } = await runScript("prepare", "test-options", {
     TEST_INPUT: "true",
   });
   assert.equal(outputs.coverage, "github");
@@ -28,7 +28,7 @@ test("GitHub reports default to individual comments", async () => {
 });
 
 test("nested callers can group native reports without individual comments", async () => {
-  const { outputs } = await runScript("test", "prepare-test-options", {
+  const { outputs } = await runScript("prepare", "test-options", {
     TEST_INPUT: '{"comment":false,"report-group":"action-tests"}',
   });
   assert.equal(outputs.coverage, "github");
@@ -40,7 +40,16 @@ test("nested callers can group native reports without individual comments", asyn
   for (const name of ["comment", "report-group"]) {
     assert.equal(
       evaluate(action.with[name], {
-        steps: { "prepare-test-options": { outputs } },
+        needs: {
+          prepare: {
+            outputs: Object.fromEntries(
+              Object.entries(outputs).map(([key, value]) => [
+                `test-${key}`,
+                value,
+              ]),
+            ),
+          },
+        },
       }).value,
       outputs[name],
     );
@@ -55,7 +64,7 @@ for (const options of [
 ]) {
   test(`rejects invalid report options ${JSON.stringify(options)}`, async () => {
     await assert.rejects(
-      runScript("test", "prepare-test-options", {
+      runScript("prepare", "test-options", {
         TEST_INPUT: JSON.stringify(options),
       }),
       /test\.(comment|report-group)/,
@@ -115,11 +124,15 @@ async function runScript(job, stepId, env = {}) {
         CONTAINER_INPUT: "",
         CONTAINER_PASSWORD: "",
         PACKAGE_INPUT: defaults.package,
+        TEST_INPUT: defaults.test,
         ...env,
       },
     },
     require: (name) => {
-      assert.equal(name, "node:path", "metadata must not inspect a filesystem");
+      assert.ok(
+        ["node:path", "node:crypto"].includes(name),
+        "metadata must not inspect a filesystem",
+      );
       return require(name);
     },
     core: {
@@ -163,6 +176,9 @@ function canRun(
     packageEnabled = true,
     discovery = "success",
     packageResult = "success",
+    testResult = "success",
+    testEnabled = true,
+    shards = 1,
   } = {},
 ) {
   const job = workflow.jobs[jobId];
@@ -172,6 +188,8 @@ function canRun(
       outputs: {
         "build-commands": commands,
         "package-enabled": String(packageEnabled),
+        "test-enabled": String(testEnabled),
+        "test-shards": String(shards),
       },
     },
     build: { result: build, outputs: {} },
@@ -180,6 +198,7 @@ function canRun(
       outputs: { directories: '["."]' },
     },
     package: { result: packageResult, outputs: {} },
+    test: { result: testResult, outputs: {} },
   };
   const dependencies = [job.needs ?? []].flat();
   const needs = Object.fromEntries(
@@ -480,3 +499,80 @@ for (const action of ["build", "lint", "test"]) {
     }
   });
 }
+
+test("prepares isolated shard groups and forwards script arguments", async () => {
+  const input = JSON.stringify({
+    shards: 2,
+    command: "test:ci",
+    "merge-command": "test:merge",
+    arguments: ["--config", "config with spaces.js"],
+  });
+  const first = await runScript("prepare", "test-options", {
+    TEST_INPUT: input,
+  });
+  const second = await runScript("prepare", "test-options", {
+    TEST_INPUT: input,
+  });
+  assert.deepEqual(first.errors, []);
+  assert.deepEqual(JSON.parse(JSON.stringify(first.outputs.matrix)), {
+    shard: [1, 2],
+  });
+  assert.equal(first.outputs.shards, 2);
+  assert.equal(first.outputs["merge-command"], "test:merge");
+  assert.notEqual(first.outputs.group, second.outputs.group);
+  assert.deepEqual(Array.from(first.outputs.arguments), [
+    "--config",
+    "config with spaces.js",
+  ]);
+  const defaults = await runScript("prepare", "test-options");
+  assert.equal(defaults.outputs.shards, 1);
+  assert.equal(defaults.outputs.group, "");
+  assert.equal(defaults.outputs["merge-command"], defaults.outputs.command);
+});
+
+for (const options of [
+  { shards: 0 },
+  { shards: 257 },
+  { shards: 1.5 },
+  { shards: "2" },
+  { shards: null },
+  { arguments: "--coverage" },
+  { arguments: [42] },
+  { arguments: null },
+  { "merge-command": "" },
+]) {
+  test(`rejects invalid sharding options ${JSON.stringify(options)}`, async () => {
+    await assert.rejects(
+      runScript("prepare", "test-options", {
+        TEST_INPUT: JSON.stringify(options),
+      }),
+      /test\.(shards|arguments|merge-command)/,
+    );
+  });
+}
+
+for (const input of ["", "null", "false"]) {
+  test(`does not schedule disabled tests ${JSON.stringify(input)}`, async () => {
+    const { outputs } = await runScript("prepare", "test-options", {
+      TEST_INPUT: input,
+    });
+    assert.equal(outputs.enabled, false);
+    assert.equal(canRun("test", { testEnabled: outputs.enabled }), false);
+  });
+}
+
+test("merging runs after successful or failed shards but not cancellation or skipped shards", () => {
+  assert.equal(canRun("test-merge", { shards: 1 }), false);
+  assert.equal(
+    canRun("test-merge", { shards: 2, commands: "", build: "skipped" }),
+    true,
+  );
+  assert.equal(
+    canRun("test-merge", { shards: 2, testResult: "failure" }),
+    true,
+  );
+  for (const testResult of ["skipped", "cancelled"])
+    assert.equal(canRun("test-merge", { shards: 2, testResult }), false);
+  assert.equal(canRun("test-merge", { shards: 2, cancelled: true }), false);
+  assert.equal(canRun("test-merge", { shards: 2, prepare: "failure" }), false);
+});

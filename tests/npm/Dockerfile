@@ -15,6 +15,11 @@ RUN --mount=type=secret,mode=0644,id=npmrc,target=/usr/src/app/.npmrc \
 
 COPY --chown=node:node $APP_PATH/ /usr/src/app/
 
+COPY --chown=node:node tests/continuous-integration/package*.json /usr/src/app/workflow-tests/
+WORKDIR /usr/src/app/workflow-tests
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY --chown=node:node tests/continuous-integration/fixtures/ /usr/src/app/workflow-tests/fixtures/
+
 FROM base AS ci
 
 COPY --chown=node:node --from=build /usr/src/app/ /usr/src/app/

@@ -130,6 +130,23 @@ on:
           Set to `null` or empty to disable.
           Accepts a JSON object for test options. See [test action](../../actions/test/README.md).
           If coverage is enabled, it should generate test and coverage reports in standard formats.
+          Optional `arguments` is a JSON array passed to the package script without shell expansion.
+          Set `shards` to an integer from 2 to 256 to enable Vitest blob sharding (default: 1).
+          Only tests are replicated; shards run with fail-fast disabled and concurrency limited to their count.
+          A single merge job validates every payload and publishes final reports, even after test failures.
+          `merge-command` defaults to `command`; use a separate package script when reporter settings differ.
+          Sharding owns --shard, --merge-reports and --outputFile.blob; do not put these in package scripts or arguments.
+          Use reporter-specific output paths such as --outputFile.junit=junit.xml; the scalar --outputFile form conflicts with blob output.
+          Keep the same project source, dependencies, Vitest config and absolute project path across jobs.
+          Rerun the entire workflow after failure; previous-attempt shard artifacts are never reused.
+
+          CI_TEST_SHARD is index/total during shards and empty during merging. If coverage thresholds are configured,
+          defer them to merging with `thresholds: process.env.CI_TEST_SHARD ? undefined : yourThresholds`.
+          Keep coverage enabled in both commands, and set coverage.reportOnFailure to retain failed-test coverage.
+          Final reporters and report-file must describe the merged JUnit/LCOV outputs.
+          Blob payloads include coverage; file-based attachments are not transferred by this workflow.
+          Example: `{"command":"test:ci","shards":2,"report-file":"junit.xml,coverage/lcov.info"}`.
+
           For consolidated reports, set `comment` to false and `report-group` to the calling job ID
           used in the common `ci-reports` workflow's `job-results`.
 
@@ -137,7 +154,7 @@ on:
 
           ```json:package.json
           {
-            "test:ci": "vitest run --reporter=default --reporter=junit --outputFile=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text"
+            "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text"
           }
           ```
         type: string
@@ -254,7 +271,76 @@ jobs:
       build-env: ${{ steps.build-variables.outputs.env }}
       build-commands: ${{ steps.build-variables.outputs.commands }}
       build-artifact: ${{ steps.build-variables.outputs.artifact }}
+      test-enabled: ${{ steps.test-options.outputs.enabled }}
+      test-command: ${{ steps.test-options.outputs.command }}
+      test-coverage: ${{ steps.test-options.outputs.coverage }}
+      test-comment: ${{ steps.test-options.outputs.comment }}
+      test-report-group: ${{ steps.test-options.outputs.report-group }}
+      test-report-file: ${{ steps.test-options.outputs.report-file }}
+      test-arguments: ${{ steps.test-options.outputs.arguments }}
+      test-shards: ${{ steps.test-options.outputs.shards }}
+      test-matrix: ${{ steps.test-options.outputs.matrix }}
+      test-group: ${{ steps.test-options.outputs.group }}
+      test-merge-command: ${{ steps.test-options.outputs.merge-command }}
     steps:
+      - id: test-options
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          TEST_INPUT: ${{ inputs.test }}
+        with:
+          script: |
+            const testInput = process.env.TEST_INPUT.trim();
+
+            const enabled = !['', 'null', 'false'].includes(testInput);
+            let testOptions = {};
+            if (enabled && testInput !== 'true') {
+              try {
+                const parsed = JSON.parse(testInput);
+                if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                  throw new Error('test must be true, disabled, or a JSON object.');
+                }
+                testOptions = parsed;
+              } catch (error) {
+                core.setFailed(`Failed to parse test input as JSON: ${error.message}`);
+                return;
+              }
+            }
+
+            if (testOptions.coverage === undefined) {
+              testOptions.coverage = 'github';
+            }
+            if (testOptions.comment !== undefined && typeof testOptions.comment !== 'boolean') {
+              throw new Error('test.comment must be a boolean.');
+            }
+            if (testOptions['report-group'] !== undefined &&
+                (typeof testOptions['report-group'] !== 'string' || !/^[\w-]+$/.test(testOptions['report-group']))) {
+              throw new Error('test.report-group must be a job ID containing letters, numbers, underscores or hyphens.');
+            }
+            const shards = testOptions.shards === undefined ? 1 : testOptions.shards;
+            if (!Number.isInteger(shards) || shards < 1 || shards > 256) {
+              throw new Error('test.shards must be an integer from 1 to 256.');
+            }
+            const args = testOptions.arguments === undefined ? [] : testOptions.arguments;
+            if (!Array.isArray(args) || args.some(arg => typeof arg !== 'string' || arg.includes('\0'))) {
+              throw new Error('test.arguments must be an array of strings without null bytes.');
+            }
+            for (const key of ['command', 'merge-command']) {
+              if (testOptions[key] !== undefined && !(key === 'command' && testOptions[key] === '') && (typeof testOptions[key] !== 'string' || !testOptions[key].trim())) {
+                throw new Error(`test.${key} must be a nonempty package-script name.`);
+              }
+            }
+            core.setOutput('enabled', enabled);
+            core.setOutput('shards', shards);
+            core.setOutput('matrix', { shard: Array.from({ length: shards }, (_, i) => i + 1) });
+            core.setOutput('group', shards > 1 ? require('node:crypto').randomUUID() : '');
+            core.setOutput('arguments', args);
+            core.setOutput('merge-command', testOptions['merge-command'] || testOptions.command || 'test:ci');
+            core.setOutput('coverage', testOptions.coverage );
+            core.setOutput('comment', testOptions.comment ?? true);
+            core.setOutput('report-group', testOptions['report-group'] || '');
+            core.setOutput('report-file', testOptions['report-file'] || '');
+            core.setOutput('command', testOptions.command || 'test:ci');
+
       - id: package-config
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -637,11 +723,11 @@ jobs:
 
   test:
     if: >-
-      ${{ !cancelled() && inputs.checks == true && inputs.test &&
+      ${{ !cancelled() && inputs.checks == true && inputs.test && needs.prepare.outputs.test-enabled == 'true' &&
           needs.prepare.result == 'success' &&
           (needs.build.result == 'success' ||
            (needs.build.result == 'skipped' && needs.prepare.outputs.build-commands == '')) }}
-    name: 🧪 Test
+    name: ${{ needs.prepare.outputs.test-shards == '1' && '🧪 Test' || format('🧪 Test shard {0}/{1}', matrix.shard, needs.prepare.outputs.test-shards) }}
     runs-on: *ci-runner
     container: *ci-container
     needs:
@@ -650,6 +736,51 @@ jobs:
     permissions:
       contents: read
       id-token: write # Required for Codecov uploads with OIDC authentication
+      packages: read
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(needs.prepare.outputs.test-shards) }}
+      matrix: ${{ fromJSON(needs.prepare.outputs.test-matrix) }}
+    steps:
+      - uses: hoverkraft-tech/ci-github-common/actions/checkout@c63b4ce928082260ab263abc01faf3c1fa20c52b # 4.2.3
+        if: inputs.container == ''
+
+      - if: needs.build.outputs.artifact-id && inputs.container == ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          path: "/"
+
+      - name: Run tests
+        uses: $/actions/test
+        with:
+          ignore-scripts: ${{ inputs.ignore-scripts }}
+          working-directory: ${{ needs.prepare.outputs.working-directory }}
+          container: ${{ inputs.container != '' && 'true' || 'false' }}
+          command: ${{ needs.prepare.outputs.test-command }}
+          arguments: ${{ needs.prepare.outputs.test-arguments }}
+          shard: ${{ needs.prepare.outputs.test-shards != '1' && format('{0}/{1}', matrix.shard, needs.prepare.outputs.test-shards) || '' }}
+          shard-group: ${{ format('ci-test-{0}-{1}-{2}', github.run_id, github.run_attempt, needs.prepare.outputs.test-group) }}
+          coverage: ${{ needs.prepare.outputs.test-coverage }}
+          comment: ${{ needs.prepare.outputs.test-comment }}
+          report-group: ${{ needs.prepare.outputs.test-report-group }}
+          report-file: ${{ needs.prepare.outputs.test-report-file }}
+          path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
+          github-token: ${{ secrets.github-token || github.token }}
+
+  test-merge:
+    name: Merge test results
+    if: >-
+      ${{ !cancelled() && inputs.checks == true && inputs.test &&
+          needs.prepare.result == 'success' && needs.prepare.outputs.test-shards != '1' &&
+          (needs.test.result == 'success' || needs.test.result == 'failure') }}
+    needs: [prepare, build, test]
+    runs-on: *ci-runner
+    container: *ci-container
+    permissions:
+      contents: read
+      id-token: write
       packages: read
       pull-requests: write
     steps:
@@ -662,54 +793,33 @@ jobs:
           artifact-ids: ${{ needs.build.outputs.artifact-id }}
           path: "/"
 
-      - id: prepare-test-options
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          TEST_INPUT: ${{ inputs.test }}
-        with:
-          script: |
-            const testInput = process.env.TEST_INPUT.trim();
-
-            let testOptions = {};
-            if (testInput && testInput !== 'true') {
-              try {
-                const parsed = JSON.parse(testInput);
-                testOptions = { ...testOptions, ...parsed };
-              } catch (error) {
-                core.setFailed(`Failed to parse test input as JSON: ${error.message}`);
-                return;
-              }
-            }
-
-            if (testOptions.coverage === undefined) {
-              testOptions.coverage = 'github';
-            }
-            if (testOptions.comment !== undefined && typeof testOptions.comment !== 'boolean') {
-              throw new Error('test.comment must be a boolean.');
-            }
-            if (testOptions['report-group'] !== undefined &&
-                (typeof testOptions['report-group'] !== 'string' || !/^[\w-]+$/.test(testOptions['report-group']))) {
-              throw new Error('test.report-group must be a job ID containing letters, numbers, underscores or hyphens.');
-            }
-            core.setOutput('coverage', testOptions.coverage );
-            core.setOutput('comment', testOptions.comment ?? true);
-            core.setOutput('report-group', testOptions['report-group'] || '');
-            core.setOutput('report-file', testOptions['report-file'] || '');
-            core.setOutput('command', testOptions.command || 'test:ci');
-
-      - name: Run tests
+      - name: Merge tests and publish reports
         uses: $/actions/test
         with:
           ignore-scripts: ${{ inputs.ignore-scripts }}
           working-directory: ${{ needs.prepare.outputs.working-directory }}
           container: ${{ inputs.container != '' && 'true' || 'false' }}
-          command: ${{ steps.prepare-test-options.outputs.command }}
-          coverage: ${{ steps.prepare-test-options.outputs.coverage }}
-          comment: ${{ steps.prepare-test-options.outputs.comment }}
-          report-group: ${{ steps.prepare-test-options.outputs.report-group }}
-          report-file: ${{ steps.prepare-test-options.outputs.report-file }}
+          command: ${{ needs.prepare.outputs.test-merge-command }}
+          arguments: ${{ needs.prepare.outputs.test-arguments }}
+          merge-shards: ${{ needs.prepare.outputs.test-shards }}
+          shard-group: ${{ format('ci-test-{0}-{1}-{2}', github.run_id, github.run_attempt, needs.prepare.outputs.test-group) }}
+          coverage: ${{ needs.prepare.outputs.test-coverage }}
+          comment: ${{ needs.prepare.outputs.test-comment }}
+          report-group: ${{ needs.prepare.outputs.test-report-group }}
+          report-file: ${{ needs.prepare.outputs.test-report-file }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
           github-token: ${{ secrets.github-token || github.token }}
+
+      - name: Require successful shards
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          SHARD_RESULT: ${{ needs.test.result }}
+        with:
+          script: |
+            if (process.env.SHARD_RESULT !== 'success') {
+              core.setFailed('Every test shard must succeed, including setup and artifact upload.');
+            }
 
   discover-packages:
     name: Discover public packages
