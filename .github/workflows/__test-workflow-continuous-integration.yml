@@ -445,7 +445,7 @@ jobs:
       issues: read
       packages: write
       pull-requests: read
-    uses: hoverkraft-tech/ci-github-container/.github/workflows/docker-build-images.yml@0592b66c9ed74d8cb7b0c015881ca590fc5d550b # 2.0.0
+    uses: hoverkraft-tech/ci-github-container/.github/workflows/docker-build-images.yml@7442ea53022a6365d3be7259634aaaf095bf5d3f # 4.0.0
     with:
       sign: false
       attest: false
