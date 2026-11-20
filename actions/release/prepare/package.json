@@ -8,8 +8,8 @@
   },
   "devDependencies": {
     "@actions/exec": "^3.0.0",
-    "lerna": "10.1.1",
-    "pnpm": "12.18.0",
+    "lerna": "10.1.2",
+    "pnpm": "12.20.0",
     "pnpm10": "npm:pnpm@10.33.0"
   }
 }
