@@ -264,6 +264,7 @@ jobs:
       container-username: ${{ steps.parse.outputs.container-username }}
       path-mapping: ${{ steps.parse.outputs.path-mapping }}
       package-enabled: ${{ steps.package-config.outputs.enabled }}
+      package-manifest-prefix: ${{ steps.package-config.outputs.manifest-prefix }}
       package-directories: ${{ steps.package-config.outputs.directories }}
       package-tests: ${{ steps.package-config.outputs.tests }}
       package-test-project: ${{ steps.package-config.outputs.test-project }}
@@ -380,6 +381,7 @@ jobs:
               throw new Error('Package validation requires non-container CI with the default Ubuntu artifact layout.');
             }
             core.setOutput('enabled', enabled);
+            core.setOutput('manifest-prefix', `ci-package-manifest-${require('node:crypto').randomUUID()}`);
             core.setOutput('directories', directories === undefined ? '' : directories);
             core.setOutput('tests', tests);
             core.setOutput('test-project', testProject);
@@ -897,7 +899,7 @@ jobs:
             core.setOutput('path', report);
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ci-package-manifest-${{ steps.package.outputs.package-tarball-artifact-id }}
+          name: ${{ needs.prepare.outputs.package-manifest-prefix }}-${{ steps.package.outputs.package-tarball-artifact-id }}
           path: ${{ steps.report.outputs.path }}
           if-no-files-found: error
 
@@ -919,7 +921,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: ci-package-manifest-*
+          pattern: ${{ needs.prepare.outputs.package-manifest-prefix }}-*
           merge-multiple: true
           path: ${{ runner.temp }}/package-validation
       - id: collect
