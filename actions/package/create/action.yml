@@ -65,7 +65,7 @@ runs:
 
     # jscpd:ignore-start
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@d606f77fad305ef07dfde3db5270f5e324019c97 # 4.2.4
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: "false"
@@ -73,7 +73,7 @@ runs:
 
     - name: Download build artifacts
       if: inputs.build-artifact-id != ''
-      uses: hoverkraft-tech/ci-github-common/actions/download-artifact@53fa326bbb9960d2cb31f853613f7a91830fc845 # fix/artifact-discovery (pending release)
+      uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
       with:
         artifact-ids: ${{ inputs.build-artifact-id }}
         path: ${{ inputs.build-artifact-path }}

@@ -129,7 +129,7 @@ runs:
   steps:
     # jscpd:ignore-start
     - id: working-directory
-      uses: hoverkraft-tech/ci-github-common/actions/working-directory@d606f77fad305ef07dfde3db5270f5e324019c97 # 4.2.4
+      uses: hoverkraft-tech/ci-github-common/actions/working-directory@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
       with:
         working-directory: ${{ inputs.working-directory }}
         enforce-path-in-workspace: ${{ inputs.container == 'true' && 'false' || 'true' }}
@@ -278,7 +278,7 @@ runs:
     - name: 📊 Parse coverage reports
       if: always() && inputs.shard == '' && (inputs.merge-shards == '' || steps.validate-shards.outcome == 'success') && inputs.coverage == 'github'
       id: parse-coverage-reports
-      uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@d606f77fad305ef07dfde3db5270f5e324019c97 # 4.2.4
+      uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         report-name: "Coverage Results"
@@ -288,7 +288,7 @@ runs:
 
     - name: 📊 Add coverage PR comment
       if: always() && inputs.shard == '' && inputs.comment == 'true' && inputs.coverage == 'github' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.parse-coverage-reports.outputs.markdown
-      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@d606f77fad305ef07dfde3db5270f5e324019c97 # 4.2.4
+      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
       with:
         title: "Code Coverage Report"
         token: ${{ inputs.github-token }}
@@ -296,7 +296,7 @@ runs:
 
     - name: 📊 Upload coverage to Codecov
       if: always() && inputs.shard == '' && (inputs.merge-shards == '' || steps.validate-shards.outcome == 'success') && inputs.coverage == 'codecov'
-      uses: hoverkraft-tech/ci-github-common/actions/quality/codecov@d606f77fad305ef07dfde3db5270f5e324019c97 # 4.2.4
+      uses: hoverkraft-tech/ci-github-common/actions/quality/codecov@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
 
