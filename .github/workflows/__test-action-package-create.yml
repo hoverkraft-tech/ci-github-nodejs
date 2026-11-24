@@ -198,7 +198,7 @@ jobs:
 
       - name: Assert - Download package tarball artifact by ID
         id: download-package-tarball
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        uses: hoverkraft-tech/ci-github-common/actions/download-artifact@53fa326bbb9960d2cb31f853613f7a91830fc845 # fix/artifact-discovery (pending release)
         with:
           artifact-ids: ${{ matrix.package-tarball-artifact-id }}
           path: ${{ runner.temp }}
