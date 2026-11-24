@@ -45,7 +45,7 @@ runs:
           core.setOutput('releases', releases);
           core.setOutput('packages', packages);
     - id: identity
-      uses: hoverkraft-tech/ci-github-publish/actions/release/verify@d034b96d52f6f32c58a93bcd87a06932f50d8b26 # 3.1.0
+      uses: hoverkraft-tech/ci-github-publish/actions/release/verify@79515002f850e714d4c76f07983e6eb1ba97bea5 # 3.1.1
       with:
         artifact-ids: ${{ steps.prepare.outputs.artifact-ids }}
         tags: ${{ steps.prepare.outputs.tags }}
