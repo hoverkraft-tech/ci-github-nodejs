@@ -251,6 +251,10 @@ jobs:
             for (const tests of [true, 1, [], {}, null]) {
               await assert.rejects(() => parse(JSON.stringify({ tests })), /must be.*string/);
             }
+            const firstInvocation = await parse('true');
+            const secondInvocation = await parse('true');
+            assert.match(firstInvocation['manifest-prefix'], /^ci-package-manifest-[a-f0-9-]{36}$/);
+            assert.notEqual(firstInvocation['manifest-prefix'], secondInvocation['manifest-prefix'], 'Parallel workflow calls must not share package manifests');
             assert.equal((await parse('true')).directories, '', 'Default enables automatic discovery');
             assert.equal((await parse('true'))['test-project'], '');
             const configured = await parse(JSON.stringify({ directories: ['packages/core', 'packages/cli'], tests: commands, 'test-project': 'examples/app' }));
