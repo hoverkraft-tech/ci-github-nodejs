@@ -746,6 +746,11 @@ jobs:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@d606f77fad305ef07dfde3db5270f5e324019c97 # 4.2.4
         if: inputs.container == ''
 
+      - name: Wait for artifact discovery
+        uses: hoverkraft-tech/ci-github-common/actions/wait-for-artifacts@6f439721e3124a9d689cc75936ab638240a05fdc # fix/artifact-discovery (pending release)
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+
       - if: needs.build.outputs.artifact-id && inputs.container == ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -786,6 +791,11 @@ jobs:
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@d606f77fad305ef07dfde3db5270f5e324019c97 # 4.2.4
         if: inputs.container == ''
+
+      - name: Wait for artifact discovery
+        uses: hoverkraft-tech/ci-github-common/actions/wait-for-artifacts@6f439721e3124a9d689cc75936ab638240a05fdc # fix/artifact-discovery (pending release)
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
 
       - if: needs.build.outputs.artifact-id && inputs.container == ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -970,6 +980,11 @@ jobs:
         with:
           working-directory: ${{ inputs.working-directory }}
           install-dependencies: "false"
+      - name: Wait for artifact discovery
+        uses: hoverkraft-tech/ci-github-common/actions/wait-for-artifacts@6f439721e3124a9d689cc75936ab638240a05fdc # fix/artifact-discovery (pending release)
+        with:
+          artifact-ids: ${{ needs.package-manifests.outputs.artifact-ids }}
+
       - name: Download workspace tarballs
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
