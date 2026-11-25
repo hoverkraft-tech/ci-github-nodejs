@@ -702,7 +702,7 @@ on:
 permissions: {}
 jobs:
   release:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@6dee39a2a74172ea5539caa886a12b32765d5bd1 # 3.0.3
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/release.yml@191d7230d57982bfc11d57f68b005f386a6d7fbf # 3.1.1
     permissions:
       actions: read
       contents: write

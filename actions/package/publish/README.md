@@ -25,7 +25,7 @@ Publish an existing Node.js package tarball to an npm-compatible registry
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/package/publish@98d91b1cc347efc64cd5fb20bc0ebc076acad114 # 3.1.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/package/publish@191d7230d57982bfc11d57f68b005f386a6d7fbf # 3.1.1
   with:
     # Expected package name, paired with version to reject an unintended release tarball before publication.
     name: ""
@@ -113,7 +113,7 @@ For npm token authentication, use an npm publishing token stored in a repository
 For GitHub Packages, use a scoped package name, set the registry URL, and grant the job `packages: write`:
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/package/publish@98d91b1cc347efc64cd5fb20bc0ebc076acad114 # 3.1.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/package/publish@191d7230d57982bfc11d57f68b005f386a6d7fbf # 3.1.1
   with:
     package-tarball-artifact-id: ${{ needs.package.outputs.package-tarball-artifact-id }}
     registry-url: https://npm.pkg.github.com
@@ -129,7 +129,7 @@ The `github-token` input only authenticates artifact downloads; it is not an npm
 A dry run downloads the same tarball and executes `npm publish --dry-run` without publishing:
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/package/publish@98d91b1cc347efc64cd5fb20bc0ebc076acad114 # 3.1.0
+- uses: hoverkraft-tech/ci-github-nodejs/actions/package/publish@191d7230d57982bfc11d57f68b005f386a6d7fbf # 3.1.1
   with:
     package-tarball-artifact-id: ${{ needs.package.outputs.package-tarball-artifact-id }}
     dry-run: "true"
