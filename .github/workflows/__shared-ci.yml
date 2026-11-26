@@ -8,7 +8,7 @@ permissions: {}
 jobs:
   lint:
     name: linter
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@11c842902d003cc4ee2fa1d42f6d80bc6828461a # unified reports (PR #683, unreleased)
     permissions:
       actions: read
       contents: read
@@ -116,7 +116,7 @@ jobs:
   reports:
     needs: [lint, test-release]
     if: always()
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@11c842902d003cc4ee2fa1d42f6d80bc6828461a # unified reports (PR #683, unreleased)
     permissions:
       contents: read
       pull-requests: write

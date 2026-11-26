@@ -58,7 +58,7 @@ jobs:
     permissions: {}
     steps:
       - id: discover
-        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
+        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@11c842902d003cc4ee2fa1d42f6d80bc6828461a # unified reports (PR #683, unreleased)
         with:
           operation: discover
           job-results: ${{ toJSON(needs) }}
@@ -435,7 +435,7 @@ jobs:
           PACKAGE_ARTIFACT_ID: ${{ needs.act-without-container-and-github-reports.outputs.package-tarball-artifact-id }}
         run: test -z "$PACKAGE_ARTIFACT_ID"
       - id: discover
-        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
+        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@11c842902d003cc4ee2fa1d42f6d80bc6828461a # unified reports (PR #683, unreleased)
         with:
           operation: discover
           job-results: ${{ toJSON(needs) }}
@@ -592,7 +592,7 @@ jobs:
   collect-native-coverage:
     name: Verify coverage after the complete shard merge
     needs: sharded-host
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@11c842902d003cc4ee2fa1d42f6d80bc6828461a # unified reports (PR #683, unreleased)
     permissions:
       contents: read
       pull-requests: write

@@ -2,12 +2,6 @@
 
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
-<div align="center">
-  <img src="https://opengraph.githubassets.com/dd439f24a43a659779a2354d45d4908f35e39feb263e8b6bfd6009c9c69daaf5/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
-</div>
-
----
-
 <!-- header:end -->
 
 <!-- badges:start -->
@@ -35,12 +29,56 @@ Workflow to performs continuous integration steps against a Node.js project:
 - Build
 - Test
 
+### Reports and coverage
+
+Lint and test jobs retain native diagnostics in one artifact per execution.
+They post no PR comments and need no publication permissions. Configure native
+test reports (JUnit or TAP) and lint reports (for example Checkstyle or SARIF).
+Missing required reports fail even when the tool command exits successfully.
+Available reports are retained after failures.
+
+Tests require Cobertura by default. The highest configured runtime contributes
+coverage; every runtime retains its test results. Set `test: '{"coverage":false}'`
+for tests that deliberately produce no Cobertura. The command still controls
+instrumentation. Custom `test.coverage-reports` describes Cobertura file paths,
+Linguist languages and stable component labels; it belongs beside the producer.
+Separate components stay separate. Merge shards in the framework first.
+
+Call the common workflow once after producer workflows. It reads their complete
+report plans from `needs`, regardless of calling job names:
+
+```yaml
+reports:
+  needs: [checks]
+  if: ${{ always() }}
+  uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@<commit-sha>
+  permissions:
+    contents: read
+    pull-requests: write
+    code-quality: write
+    id-token: write
+  with:
+    job-results: ${{ toJSON(needs) }}
+    coverage: github
+```
+
+Select `coverage: none` (default) for summaries, `github` for native GitHub
+coverage, or `codecov`. Both publishers consume validated Cobertura. Native
+GitHub coverage requires repository enablement and a default-branch baseline.
+The reporting workflow owns one CI comment and the `CI reports complete` check.
+Forks retain diagnostics without write operations. Partial reruns require
+rerunning all producers. Producer workflows test the PR head or push revision.
+
+Standalone action jobs forward their `report-plan` output. Custom outer matrices
+must forward a complete plan derived from their configuration; GitHub's last
+successful matrix output does not describe all executions. See the common
+[recording action](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/record-ci-reports)
+for the advanced contract. No collector-side coverage inventory is needed.
+
 ### Permissions
 
 - **`contents`**: `read`
-- **`id-token`**: `write`
 - **`packages`**: `read`
-- **`pull-requests`**: `write`
 - **`security-events`**: `write`
 
 <!-- overview:end -->
@@ -58,12 +96,10 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@191d7230d57982bfc11d57f68b005f386a6d7fbf # 3.1.1
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@11636b817040a2a7d61b389c28fa1b401c37a2fa # feat/native-github-coverage
     permissions:
       contents: read
-      id-token: write
       packages: read
-      pull-requests: write
       security-events: write
     secrets:
       # Secrets to be used during the build step.
@@ -194,14 +230,13 @@ jobs:
       # Whether to enable testing.
       # Set to `null` or empty to disable.
       # Accepts a JSON object for test options. See [test action](../../actions/test/README.md).
-      # If coverage is enabled, it should generate test and coverage reports in standard formats.
-      # `coverage: github-code-quality` prepares Cobertura for the common native publication workflow.
-      # Configure the project's Cobertura reporter; the default path is coverage/cobertura-coverage.xml.
-      # Optional `coverage-reports` is an array of {file, language, label} for distinct components.
-      # Builds, tests and shard merges use the PR head in native mode; retain merge-result testing
-      # separately when required. Set report-group to the outer caller job ID and list every
-      # component in the common ci-reports coverage inventory before calling publish-coverage.
-      # Prebuilt containers without Git metadata require coverage-source-sha and coverage-source-prefix.
+      # `coverage` is a boolean, true by default. The project must generate native test results
+      # and Cobertura at coverage/cobertura-coverage.xml, or describe other component files
+      # with `coverage-reports` (file, language and optional label).
+      # Builds and tests use the PR head. Run merge-result validation separately if required.
+      # Prebuilt containers need coverage-source-sha and coverage-source-prefix for coverage.
+      # Set coverage to false for diagnostics without required Cobertura. Provider selection
+      # belongs in the common ci-reports workflow, which reads this workflow's report-plan.
       # Shards publish only the final merged reports; never upload individual shards.
       # Optional `arguments` is a JSON array passed to the package script without shell expansion.
       # Set `shards` to an integer from 2 to 256 to enable Vitest blob sharding (default: 1).
@@ -216,18 +251,15 @@ jobs:
       # CI_TEST_SHARD is index/total during shards and empty during merging. If coverage thresholds are configured,
       # defer them to merging with `thresholds: process.env.CI_TEST_SHARD ? undefined : yourThresholds`.
       # Keep coverage enabled in both commands, and set coverage.reportOnFailure to retain failed-test coverage.
-      # Final reporters and report-file must describe the merged JUnit/LCOV outputs.
+      # Final reporters and report-file must describe the merged JUnit/Cobertura outputs.
       # Blob payloads include coverage; file-based attachments are not transferred by this workflow.
-      # Example: `{"command":"test:ci","shards":2,"report-file":"junit.xml,coverage/lcov.info"}`.
-      #
-      # For consolidated reports, set `comment` to false and `report-group` to the calling job ID
-      # used in the common `ci-reports` workflow's `job-results`.
+      # Example: `{"command":"test:ci","shards":2,"report-file":"junit.xml"}`.
       #
       # Example:
       #
       # ```json:package.json
       # {
-      # "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text"
+      # "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=cobertura --coverage.reporter=text"
       # }
       # ```
       #
@@ -285,6 +317,9 @@ jobs:
       # When specified, steps will execute inside this container instead of checking out code.
       # The container should have the project code and dependencies pre-installed.
       container: ""
+
+      # Expected producer metadata for a custom outer orchestration. Leave empty for automatic planning.
+      report-plan: ""
 ````
 
 <!-- usage:end -->
@@ -356,14 +391,13 @@ jobs:
 | **`test`**              | Whether to enable testing.                                                                                                                                                                                                                                                                                                                                                                          | **false**    | **string**  | `true`              |
 |                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                                                                                                                                                  |              |             |                     |
 |                         | Accepts a JSON object for test options. See [test action](../../actions/test/README.md).                                                                                                                                                                                                                                                                                                            |              |             |                     |
-|                         | If coverage is enabled, it should generate test and coverage reports in standard formats.                                                                                                                                                                                                                                                                                                           |              |             |                     |
-|                         | `coverage: github-code-quality` prepares Cobertura for the common native publication workflow.                                                                                                                                                                                                                                                                                                      |              |             |                     |
-|                         | Configure the project's Cobertura reporter; the default path is coverage/cobertura-coverage.xml.                                                                                                                                                                                                                                                                                                    |              |             |                     |
-|                         | Optional `coverage-reports` is an array of {file, language, label} for distinct components.                                                                                                                                                                                                                                                                                                         |              |             |                     |
-|                         | Builds, tests and shard merges use the PR head in native mode; retain merge-result testing                                                                                                                                                                                                                                                                                                          |              |             |                     |
-|                         | separately when required. Set report-group to the outer caller job ID and list every                                                                                                                                                                                                                                                                                                                |              |             |                     |
-|                         | component in the common ci-reports coverage inventory before calling publish-coverage.                                                                                                                                                                                                                                                                                                              |              |             |                     |
-|                         | Prebuilt containers without Git metadata require coverage-source-sha and coverage-source-prefix.                                                                                                                                                                                                                                                                                                    |              |             |                     |
+|                         | `coverage` is a boolean, true by default. The project must generate native test results                                                                                                                                                                                                                                                                                                             |              |             |                     |
+|                         | and Cobertura at coverage/cobertura-coverage.xml, or describe other component files                                                                                                                                                                                                                                                                                                                 |              |             |                     |
+|                         | with `coverage-reports` (file, language and optional label).                                                                                                                                                                                                                                                                                                                                        |              |             |                     |
+|                         | Builds and tests use the PR head. Run merge-result validation separately if required.                                                                                                                                                                                                                                                                                                               |              |             |                     |
+|                         | Prebuilt containers need coverage-source-sha and coverage-source-prefix for coverage.                                                                                                                                                                                                                                                                                                               |              |             |                     |
+|                         | Set coverage to false for diagnostics without required Cobertura. Provider selection                                                                                                                                                                                                                                                                                                                |              |             |                     |
+|                         | belongs in the common ci-reports workflow, which reads this workflow's report-plan.                                                                                                                                                                                                                                                                                                                 |              |             |                     |
 |                         | Shards publish only the final merged reports; never upload individual shards.                                                                                                                                                                                                                                                                                                                       |              |             |                     |
 |                         | Optional `arguments` is a JSON array passed to the package script without shell expansion.                                                                                                                                                                                                                                                                                                          |              |             |                     |
 |                         | Set `shards` to an integer from 2 to 256 to enable Vitest blob sharding (default: 1).                                                                                                                                                                                                                                                                                                               |              |             |                     |
@@ -378,16 +412,13 @@ jobs:
 |                         | CI_TEST_SHARD is index/total during shards and empty during merging. If coverage thresholds are configured,                                                                                                                                                                                                                                                                                         |              |             |                     |
 |                         | defer them to merging with `thresholds: process.env.CI_TEST_SHARD ? undefined : yourThresholds`.                                                                                                                                                                                                                                                                                                    |              |             |                     |
 |                         | Keep coverage enabled in both commands, and set coverage.reportOnFailure to retain failed-test coverage.                                                                                                                                                                                                                                                                                            |              |             |                     |
-|                         | Final reporters and report-file must describe the merged JUnit/LCOV outputs.                                                                                                                                                                                                                                                                                                                        |              |             |                     |
+|                         | Final reporters and report-file must describe the merged JUnit/Cobertura outputs.                                                                                                                                                                                                                                                                                                                   |              |             |                     |
 |                         | Blob payloads include coverage; file-based attachments are not transferred by this workflow.                                                                                                                                                                                                                                                                                                        |              |             |                     |
-|                         | Example: `{"command":"test:ci","shards":2,"report-file":"junit.xml,coverage/lcov.info"}`.                                                                                                                                                                                                                                                                                                           |              |             |                     |
-|                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
-|                         | For consolidated reports, set `comment` to false and `report-group` to the calling job ID                                                                                                                                                                                                                                                                                                           |              |             |                     |
-|                         | used in the common `ci-reports` workflow's `job-results`.                                                                                                                                                                                                                                                                                                                                           |              |             |                     |
+|                         | Example: `{"command":"test:ci","shards":2,"report-file":"junit.xml"}`.                                                                                                                                                                                                                                                                                                                              |              |             |                     |
 |                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
 |                         | Example:                                                                                                                                                                                                                                                                                                                                                                                            |              |             |                     |
 |                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
-|                         | <!-- textlint-disable --><pre lang="json:package.json">{&#13; "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text"&#13;}</pre><!-- textlint-enable -->                                                                                                                                     |              |             |                     |
+|                         | <!-- textlint-disable --><pre lang="json:package.json">{&#13; "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=cobertura --coverage.reporter=text"&#13;}</pre><!-- textlint-enable -->                                                                                                                                |              |             |                     |
 | **`working-directory`** | Working directory where dependencies and application commands run.                                                                                                                                                                                                                                                                                                                                  | **false**    | **string**  | `.`                 |
 |                         | Relative paths resolve against the workspace of each application job.                                                                                                                                                                                                                                                                                                                               |              |             |                     |
 |                         | Directory existence and non-container workspace boundaries are validated in those jobs.                                                                                                                                                                                                                                                                                                             |              |             |                     |
@@ -414,6 +445,7 @@ jobs:
 |                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
 |                         | When specified, steps will execute inside this container instead of checking out code.                                                                                                                                                                                                                                                                                                              |              |             |                     |
 |                         | The container should have the project code and dependencies pre-installed.                                                                                                                                                                                                                                                                                                                          |              |             |                     |
+| **`report-plan`**       | Expected producer metadata for a custom outer orchestration. Leave empty for automatic planning.                                                                                                                                                                                                                                                                                                    | **false**    | **string**  | -                   |
 
 <!-- inputs:end -->
 
@@ -507,6 +539,7 @@ When specified, steps will execute inside this container instead of checking out
 | **`package-tarball-artifact-id`** | Artifact ID of the package validated by the packaging job. Available when package is enabled and validation succeeds.                          |
 | **`package-tarball-artifacts`**   | JSON object mapping package directories to validated tarball artifact IDs when packaging is enabled. Require successful CI before publication. |
 | **`build-artifact-id`**           | ID of the build artifact) uploaded during the build step.                                                                                      |
+| **`report-plan`**                 | Complete expected report metadata, consumed automatically by ci-reports.                                                                       |
 
 <!-- outputs:end -->
 

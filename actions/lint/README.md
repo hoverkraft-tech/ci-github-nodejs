@@ -2,12 +2,6 @@
 
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stY2lyY2xlIiBjb2xvcj0iYmx1ZSI+PHBhdGggZD0iTTIyIDExLjA4VjEyYTEwIDEwIDAgMSAxLTUuOTMtOS4xNCI+PC9wYXRoPjxwb2x5bGluZSBwb2ludHM9IjIyIDQgMTIgMTQuMDEgOSAxMS4wMSI+PC9wb2x5bGluZT48L3N2Zz4=) GitHub Action: Lint
 
-<div align="center">
-  <img src="https://opengraph.githubassets.com/f86f31978df7be794acaa15f706c9262251de152735c1be87055a4436cc1083e/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Lint" />
-</div>
-
----
-
 <!-- header:end -->
 <!-- badges:start -->
 
@@ -27,7 +21,13 @@
 
 ## Overview
 
-Action to lint Node.js projects with support for pull request reporting and annotations
+Run project lint commands and retain native reports for consolidated CI feedback.
+The common ci-reports workflow owns comments and external coverage publication.
+Forward report-plan from standalone jobs; reusable workflows do this automatically.
+Required reports remain required after command failures. This action keeps local
+diagnostics and never grants publication permissions to project code.
+
+Generate supported lint reports such as SARIF, ESLint JSON or Checkstyle XML.
 
 <!-- overview:end -->
 <!-- usage:start -->
@@ -35,7 +35,7 @@ Action to lint Node.js projects with support for pull request reporting and anno
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@191d7230d57982bfc11d57f68b005f386a6d7fbf # 3.1.1
+- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@11636b817040a2a7d61b389c28fa1b401c37a2fa # feat/native-github-coverage
   with:
     # Disable project and dependency lifecycle scripts during installation.
     # Set false to allow installation hooks, subject to the package manager's script approval settings.
@@ -75,6 +75,9 @@ Action to lint Node.js projects with support for pull request reporting and anno
     # Optional path mapping to adjust file paths in test and coverage reports.
     # See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.
     path-mapping: ""
+
+    # Expected producer metadata supplied by reusable workflows. Leave empty for standalone use.
+    report-plan: ""
 ```
 
 <!-- usage:end -->
@@ -104,11 +107,20 @@ Action to lint Node.js projects with support for pull request reporting and anno
 |                         | When omitted, `auto:lint` detection may find no reports.                                                                                                              |              |             |
 | **`path-mapping`**      | Optional path mapping to adjust file paths in test and coverage reports.                                                                                              | **false**    | -           |
 |                         | See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.                 |              |             |
+| **`report-plan`**       | Expected producer metadata supplied by reusable workflows. Leave empty for standalone use.                                                                            | **false**    | -           |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
 <!-- secrets:end -->
 <!-- outputs:start -->
+
+## Outputs
+
+| **Output**               | **Description**                                                       |
+| ------------------------ | --------------------------------------------------------------------- |
+| **`report-plan`**        | Expected report metadata. Forward from standalone jobs.               |
+| **`report-artifact-id`** | Native report bundle, including available diagnostics after failures. |
+
 <!-- outputs:end -->
 <!-- examples:start -->
 <!-- examples:end -->

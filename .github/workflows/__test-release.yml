@@ -285,7 +285,7 @@ jobs:
             core.setOutput('matrix',matrix);
             core.setOutput('producers',matrix.map(item=>({key:item.key,type:'test',directory:'actions/'+item.action,coverage:[]})));
       - id: plan
-        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
+        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@11c842902d003cc4ee2fa1d42f6d80bc6828461a # unified reports (PR #683, unreleased)
         with:
           operation: plan
           producers: ${{ steps.actions.outputs.producers }}
