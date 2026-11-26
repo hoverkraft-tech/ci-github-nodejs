@@ -20,6 +20,14 @@ jobs:
             report-file: ".reports/junit.xml,.reports/lcov.info"
             expected: success
             artifact: true
+          - scenario: coverage disabled retains test diagnostics
+            failure: false
+            reports: true
+            report-file: .reports/junit.xml
+            coverage-disabled: true
+            expected: success
+            artifact: true
+            artifact-files: '["junit.xml"]'
           - scenario: failed test with reports
             failure: true
             reports: true
@@ -86,6 +94,7 @@ jobs:
           comment: "false"
           command: ${{ matrix.reports && 'test:ci' || 'test:no-reports' }}
           report-file: ${{ matrix.report-file }}
+          coverage: ${{ !matrix.coverage-disabled && 'github' || '' }}
       - name: Assert - Retrieve reports even after a failed test
         if: steps.test.outputs.report-artifact-id != ''
         uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3

@@ -25,19 +25,37 @@ test("GitHub reports default to individual comments", async () => {
   assert.equal(outputs.coverage, "github");
   assert.equal(outputs.comment, true);
   assert.equal(outputs["report-group"], "");
+  const disabled = await runScript("prepare", "test-options", {
+    TEST_INPUT: '{"coverage":null}',
+  });
+  assert.equal(disabled.outputs.coverage, "");
 });
 
 test("nested callers can group native reports without individual comments", async () => {
+  const reports = [
+    { file: "coverage/custom.xml", language: "TypeScript", label: "frontend" },
+  ];
   const { outputs } = await runScript("prepare", "test-options", {
-    TEST_INPUT: '{"comment":false,"report-group":"action-tests"}',
+    TEST_INPUT: JSON.stringify({
+      comment: false,
+      "report-group": "action-tests",
+      coverage: "github-code-quality",
+      "coverage-reports": reports,
+    }),
   });
-  assert.equal(outputs.coverage, "github");
+  assert.equal(outputs.coverage, "github-code-quality");
+  assert.deepEqual(JSON.parse(outputs["coverage-reports"]), reports);
   assert.equal(outputs.comment, false);
   assert.equal(outputs["report-group"], "action-tests");
   const action = workflow.jobs.test.steps.find(
     (step) => step.name === "Run tests",
   );
-  for (const name of ["comment", "report-group"]) {
+  for (const name of [
+    "comment",
+    "report-group",
+    "coverage",
+    "coverage-reports",
+  ]) {
     assert.equal(
       evaluate(action.with[name], {
         needs: {
@@ -61,13 +79,15 @@ for (const options of [
   { "report-group": "../bad" },
   { "report-group": "one,two" },
   { "report-group": false },
+  { "coverage-reports": {} },
+  { "coverage-source-sha": 42 },
 ]) {
   test(`rejects invalid report options ${JSON.stringify(options)}`, async () => {
     await assert.rejects(
       runScript("prepare", "test-options", {
         TEST_INPUT: JSON.stringify(options),
       }),
-      /test\.(comment|report-group)/,
+      /test\.(comment|report-group|coverage-reports|coverage-source-sha)/,
     );
   });
 }

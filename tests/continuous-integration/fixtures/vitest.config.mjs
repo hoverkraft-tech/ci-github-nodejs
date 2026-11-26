@@ -9,7 +9,7 @@ export default defineConfig({
       enabled: true,
       provider: "v8",
       include: ["fixtures/vitest/source.js"],
-      reporter: ["lcov", "json-summary"],
+      reporter: ["lcov", "json-summary", "cobertura"],
       reportsDirectory: "coverage/sharding",
       reportOnFailure: true,
       thresholds: process.env.CI_TEST_SHARD

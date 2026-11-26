@@ -22,7 +22,7 @@ jobs:
       code-ql: ""
       dependency-review: false
       test: |
-        {"command":"test:vitest","shards":2,"comment":false,"report-group":"sharded-host","report-file":"coverage/sharding/junit.xml,coverage/sharding/lcov.info"}
+        {"command":"test:vitest","shards":2,"comment":false,"report-group":"sharded-host","coverage":"github-code-quality","coverage-reports":[{"file":"coverage/sharding/cobertura-coverage.xml","language":"JavaScript","label":"sharded-host"}],"report-file":"coverage/sharding/junit.xml,coverage/sharding/lcov.info"}
 
   sharded-container:
     name: Validate sharded Vitest in the existing fixture image
@@ -570,3 +570,15 @@ jobs:
       - name: Check the build artifacts
         run: test -f ${{ runner.temp }}/usr/src/app/dist/test.txt
     # jscpd:ignore-end
+
+  collect-native-coverage:
+    name: Verify coverage after the complete shard merge
+    needs: sharded-host
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@71ce8b3ff53d6673617b19fa01d6637c916d4948 # coverage support (PR #683, unreleased)
+    permissions:
+      contents: read
+      pull-requests: write
+    with:
+      comment: false
+      job-results: ${{ toJSON(needs) }}
+      coverage-reports: '[{"job":"sharded-host","label":"sharded-host"}]'

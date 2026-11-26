@@ -130,6 +130,14 @@ on:
           Set to `null` or empty to disable.
           Accepts a JSON object for test options. See [test action](../../actions/test/README.md).
           If coverage is enabled, it should generate test and coverage reports in standard formats.
+          `coverage: github-code-quality` prepares Cobertura for the common native publication workflow.
+          Configure the project's Cobertura reporter; the default path is coverage/cobertura-coverage.xml.
+          Optional `coverage-reports` is an array of {file, language, label} for distinct components.
+          Builds, tests and shard merges use the PR head in native mode; retain merge-result testing
+          separately when required. Set report-group to the outer caller job ID and list every
+          component in the common ci-reports coverage inventory before calling publish-coverage.
+          Prebuilt containers without Git metadata require coverage-source-sha and coverage-source-prefix.
+          Shards publish only the final merged reports; never upload individual shards.
           Optional `arguments` is a JSON array passed to the package script without shell expansion.
           Set `shards` to an integer from 2 to 256 to enable Vitest blob sharding (default: 1).
           Only tests are replicated; shards run with fail-fast disabled and concurrency limited to their count.
@@ -275,6 +283,9 @@ jobs:
       test-enabled: ${{ steps.test-options.outputs.enabled }}
       test-command: ${{ steps.test-options.outputs.command }}
       test-coverage: ${{ steps.test-options.outputs.coverage }}
+      test-coverage-reports: ${{ steps.test-options.outputs.coverage-reports }}
+      test-coverage-source-sha: ${{ steps.test-options.outputs.coverage-source-sha }}
+      test-coverage-source-prefix: ${{ steps.test-options.outputs.coverage-source-prefix }}
       test-comment: ${{ steps.test-options.outputs.comment }}
       test-report-group: ${{ steps.test-options.outputs.report-group }}
       test-report-file: ${{ steps.test-options.outputs.report-file }}
@@ -310,6 +321,14 @@ jobs:
             if (testOptions.coverage === undefined) {
               testOptions.coverage = 'github';
             }
+            if (testOptions.coverage === null || testOptions.coverage === 'null') testOptions.coverage = '';
+            if (!['', 'github', 'github-code-quality', 'codecov'].includes(testOptions.coverage)) throw new Error('Unsupported test.coverage destination.');
+            if (testOptions['coverage-reports'] !== undefined && !Array.isArray(testOptions['coverage-reports'])) throw new Error('test.coverage-reports must be an array.');
+            for (const key of ['coverage-source-sha', 'coverage-source-prefix']) {
+              if (testOptions[key] !== undefined && typeof testOptions[key] !== 'string') throw new Error(`test.${key} must be a string.`);
+              core.setOutput(key, testOptions[key] || '');
+            }
+            core.setOutput('coverage-reports', testOptions['coverage-reports']?.length ? JSON.stringify(testOptions['coverage-reports']) : '');
             if (testOptions.comment !== undefined && typeof testOptions.comment !== 'boolean') {
               throw new Error('test.comment must be a boolean.');
             }
@@ -693,6 +712,8 @@ jobs:
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
         if: inputs.container == ''
+        with:
+          ref: ${{ needs.prepare.outputs.test-coverage == 'github-code-quality' && github.event.pull_request.head.sha || github.sha }}
 
       - id: build-artifact
         if: needs.prepare.outputs.build-artifact
@@ -747,6 +768,8 @@ jobs:
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
         if: inputs.container == ''
+        with:
+          ref: ${{ needs.prepare.outputs.test-coverage == 'github-code-quality' && github.event.pull_request.head.sha || github.sha }}
 
       - if: needs.build.outputs.artifact-id && inputs.container == ''
         uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
@@ -765,6 +788,9 @@ jobs:
           shard: ${{ needs.prepare.outputs.test-shards != '1' && format('{0}/{1}', matrix.shard, needs.prepare.outputs.test-shards) || '' }}
           shard-group: ${{ format('ci-test-{0}-{1}-{2}', github.run_id, github.run_attempt, needs.prepare.outputs.test-group) }}
           coverage: ${{ needs.prepare.outputs.test-coverage }}
+          coverage-reports: ${{ needs.prepare.outputs.test-coverage-reports }}
+          coverage-source-sha: ${{ needs.prepare.outputs.test-coverage-source-sha }}
+          coverage-source-prefix: ${{ needs.prepare.outputs.test-coverage-source-prefix }}
           comment: ${{ needs.prepare.outputs.test-comment }}
           report-group: ${{ needs.prepare.outputs.test-report-group }}
           report-file: ${{ needs.prepare.outputs.test-report-file }}
@@ -788,6 +814,8 @@ jobs:
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
         if: inputs.container == ''
+        with:
+          ref: ${{ needs.prepare.outputs.test-coverage == 'github-code-quality' && github.event.pull_request.head.sha || github.sha }}
 
       - if: needs.build.outputs.artifact-id && inputs.container == ''
         uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
@@ -806,6 +834,9 @@ jobs:
           merge-shards: ${{ needs.prepare.outputs.test-shards }}
           shard-group: ${{ format('ci-test-{0}-{1}-{2}', github.run_id, github.run_attempt, needs.prepare.outputs.test-group) }}
           coverage: ${{ needs.prepare.outputs.test-coverage }}
+          coverage-reports: ${{ needs.prepare.outputs.test-coverage-reports }}
+          coverage-source-sha: ${{ needs.prepare.outputs.test-coverage-source-sha }}
+          coverage-source-prefix: ${{ needs.prepare.outputs.test-coverage-source-prefix }}
           comment: ${{ needs.prepare.outputs.test-comment }}
           report-group: ${{ needs.prepare.outputs.test-report-group }}
           report-file: ${{ needs.prepare.outputs.test-report-file }}

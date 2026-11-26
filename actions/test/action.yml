@@ -13,6 +13,14 @@ description: |
     id-token: write
   ```
 
+  Native `coverage: github-code-quality` prepares Cobertura artifacts for the common
+  [CI reports workflow](https://github.com/hoverkraft-tech/ci-github-common/blob/main/.github/workflows/ci-reports.md)
+  and its opt-in publication workflow. Set `report-group` to the outer calling job
+  and list every expected component in the collector. The default label is the
+  repository-relative working directory, or `root`. Multiple reports need explicit
+  stable labels. Reports must measure the PR head commit, not the PR merge commit.
+  Keep merge-result validation separately when required. No upload permission is
+  needed in this test action; only the publication job needs `code-quality: write`.
 author: hoverkraft
 branding:
   icon: check-square
@@ -45,10 +53,24 @@ inputs:
       Jest: `jest --ci --reporters=default --reporters=jest-junit --coverage`
     required: false
     default: "test:ci"
+  coverage-source-sha:
+    description: Tested source commit for a prebuilt container without Git metadata. Must equal the PR head or push SHA.
+    default: ""
+  coverage-source-prefix:
+    description: Repository-relative directory represented by the container working-directory. Required with coverage-source-sha when Git metadata is absent; use a dot for the repository root.
+    default: ""
+  coverage-reports:
+    description: |
+      Native GitHub coverage reports as a JSON array of file, language and optional label.
+      Empty uses coverage/cobertura-coverage.xml; multiple reports require explicit unique labels.
+      Every file must be Cobertura XML produced by the test command. Paths are relative
+      to working-directory. Example: [{"file":"coverage.xml","language":"JavaScript","label":"backend"}].
+    default: ""
   coverage:
     description: |
       Code coverage reporter to use. Supported values:
       - `github`: Parse coverage reports via [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action, with GitHub summaries/PR comments
+      - `github-code-quality`: Prepare Cobertura for the common native publication workflow
       - `codecov`: Upload coverage to Codecov
       - `""` or `null`: No coverage reporting
     required: false
@@ -88,7 +110,7 @@ inputs:
       Multiple entries can be separated by newlines, commas, or semicolons.
       Each explicit path or glob must match a file after exclusions; missing reports fail the action.
       When omitted, `auto:test,auto:coverage` detection may find no reports.
-      Applies only when coverage is `github`.
+      Test reports are collected independently of the coverage destination.
     required: false
     default: ""
   path-mapping:
@@ -117,6 +139,9 @@ inputs:
     default: ""
 
 outputs:
+  native-coverage-artifact-id:
+    description: Cobertura artifact for native GitHub publication, empty unless github-code-quality is selected.
+    value: ${{ steps.native-coverage.outputs.artifact-id }}
   report-artifact-id:
     description: Native test and coverage artifact ID, empty when GitHub reports are unavailable.
     value: ${{ steps.upload-reports.outputs.artifact-id }}
@@ -140,12 +165,15 @@ runs:
       env:
         NODE_ACTION_PATH: ${{ github.action_path }}
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
+        COVERAGE_DESTINATION: ${{ inputs.coverage }}
+        TEST_COMMIT: ${{ inputs.coverage == 'github-code-quality' && (github.event.pull_request.head.sha || github.sha) || github.sha }}
         TEST_ARGUMENTS: ${{ inputs.arguments }}
         TEST_SHARD: ${{ inputs.shard }}
         SHARD_GROUP: ${{ inputs.shard-group }}
         MERGE_SHARDS: ${{ inputs.merge-shards }}
       with:
         script: |
+          if (!['', 'null', 'github', 'github-code-quality', 'codecov'].includes(process.env.COVERAGE_DESTINATION)) throw new Error('Unsupported coverage destination.');
           const { TestShards } = require(`${process.env.NODE_ACTION_PATH}/TestShards.cjs`);
           const configuration = {
             workingDirectory: process.env.WORKING_DIRECTORY,
@@ -156,7 +184,7 @@ runs:
             identity: {
               runId: process.env.GITHUB_RUN_ID,
               attempt: process.env.GITHUB_RUN_ATTEMPT,
-              sha: process.env.GITHUB_SHA
+              sha: process.env.TEST_COMMIT
             }
           };
           const shards = new TestShards(configuration);
@@ -275,14 +303,14 @@ runs:
         if-no-files-found: error
         retention-days: 7
 
-    - name: 📊 Parse coverage reports
-      if: always() && inputs.shard == '' && (inputs.merge-shards == '' || steps.validate-shards.outcome == 'success') && inputs.coverage == 'github'
+    - name: 📊 Parse test and coverage reports
+      if: always() && inputs.shard == '' && (inputs.merge-shards == '' || steps.validate-shards.outcome == 'success')
       id: parse-coverage-reports
       uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
-        report-name: "Coverage Results"
-        report-paths: ${{ inputs.report-file || 'auto:test,auto:coverage' }}
+        report-name: "Test and Coverage Results"
+        report-paths: ${{ inputs.report-file || ((inputs.coverage == 'github' || inputs.coverage == 'github-code-quality') && 'auto:test,auto:coverage' || 'auto:test') }}
         path-mapping: ${{ inputs.path-mapping }}
         output-format: "summary,markdown"
 
@@ -338,3 +366,14 @@ runs:
         SHARD_DIRECTORY: ${{ steps.prepare-test.outputs.directory }}
       with:
         script: await io.rmRF(process.env.SHARD_DIRECTORY);
+
+    - name: Prepare native GitHub coverage
+      id: native-coverage
+      if: ${{ !cancelled() && steps.run-test.outcome != 'skipped' && inputs.shard == '' && (inputs.merge-shards == '' || steps.validate-shards.outcome == 'success') && inputs.coverage == 'github-code-quality' }}
+      uses: hoverkraft-tech/ci-github-common/actions/quality/coverage-reports@71ce8b3ff53d6673617b19fa01d6637c916d4948 # coverage support (PR #683, unreleased)
+      with:
+        working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+        report-group: ${{ inputs.report-group || github.job }}
+        reports: ${{ inputs.coverage-reports || '[{"file":"coverage/cobertura-coverage.xml","language":"JavaScript"}]' }}
+        source-sha: ${{ inputs.coverage-source-sha }}
+        source-prefix: ${{ inputs.coverage-source-prefix }}
