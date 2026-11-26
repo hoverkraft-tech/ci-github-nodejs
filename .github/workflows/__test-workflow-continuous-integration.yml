@@ -404,7 +404,7 @@ jobs:
 
   act-without-container-and-github-reports:
     # jscpd:ignore-start
-    name: Act - Run the continuous integration workflow (without container and GitHub reports)
+    name: Act - Run CI with test diagnostics and coverage disabled
     uses: $/.github/workflows/continuous-integration.yml
     permissions:
       contents: read
@@ -439,19 +439,21 @@ jobs:
         with:
           operation: discover
           job-results: ${{ toJSON(needs) }}
-      - name: Retrieve coverage by the outer calling job ID
+      - name: Retrieve native test reports from the workflow plan
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ${{ steps.discover.outputs.pattern }}
           path: native-reports
-      - name: Check that consolidated reporting can find the native coverage
+      - name: Verify test diagnostics are retained without coverage
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const assert = require('node:assert/strict');
-            const files = await (await glob.create('native-reports/**/lcov.info')).glob();
+            const files = await (await glob.create('native-reports/**/junit.xml')).glob();
             assert.equal(files.length, 1);
-            assert.match(require('node:fs').readFileSync(files[0], 'utf8'), /SF:/);
+            assert.match(require('node:fs').readFileSync(files[0], 'utf8'), /<testcase\b/);
+            const coverage = await (await glob.create('native-reports/**/lcov.info\nnative-reports/**/coverage/report-*.xml')).glob();
+            assert.deepEqual(coverage, []);
 
   arrange-with-container:
     name: Arrange - Build container image for CI workflow
