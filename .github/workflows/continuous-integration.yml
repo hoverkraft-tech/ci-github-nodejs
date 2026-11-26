@@ -659,7 +659,7 @@ jobs:
             core.setOutput('producers',producers);
             core.setOutput('lint-enabled',lint);
       - id: report-plan
-        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@a49432bffa7e7c2fda3a608e242f5e058926c166 # unified reports (PR #683, unreleased)
+        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@f349bccfa78e0c9676af97f002297b857ede2f8a # unified reports (PR #683, unreleased)
         with:
           operation: plan
           producers: ${{ steps.report-producers.outputs.producers }}
