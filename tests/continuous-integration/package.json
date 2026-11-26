@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "test:ci": "node --test",
-    "test:vitest": "vitest run --config fixtures/vitest.config.mjs --reporter=default --reporter=junit --outputFile.junit=coverage/sharding/junit.xml"
+    "test:ci": "node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=coverage/junit.xml",
+    "test:vitest": "vitest run --config fixtures/vitest.config.mjs --reporter=default --reporter=junit --outputFile.junit=coverage/sharding/junit.xml",
+    "pretest:ci": "node -e \"require('node:fs').mkdirSync('coverage', {recursive:true})\""
   },
   "devDependencies": {
     "@actions/expressions": "0.3.61",

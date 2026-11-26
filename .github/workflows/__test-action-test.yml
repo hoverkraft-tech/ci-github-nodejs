@@ -39,13 +39,15 @@ jobs:
             reports: true
             report-file: .reports/missing.xml
             expected: failure
-            artifact: false
+            artifact: true
+            artifact-files: "[]"
           - scenario: unmatched glob
             failure: false
             reports: true
             report-file: ".reports/missing-*.xml"
             expected: failure
-            artifact: false
+            artifact: true
+            artifact-files: "[]"
           - scenario: partially missing reports
             failure: false
             reports: true
@@ -57,14 +59,16 @@ jobs:
             failure: false
             reports: false
             report-file: ""
-            expected: success
-            artifact: false
+            expected: failure
+            artifact: true
+            artifact-files: "[]"
     name: Test - ${{ matrix.scenario }}
     steps:
       - name: Arrange - Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Arrange - Create a dependency-free native test project
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -91,10 +95,9 @@ jobs:
           EXPECT_FAILURE: ${{ matrix.failure }}
         with:
           working-directory: report-fixture
-          comment: "false"
           command: ${{ matrix.reports && 'test:ci' || 'test:no-reports' }}
           report-file: ${{ matrix.report-file }}
-          coverage: ${{ !matrix.coverage-disabled && 'github' || '' }}
+          coverage: "false"
       - name: Assert - Retrieve reports even after a failed test
         if: steps.test.outputs.report-artifact-id != ''
         uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
@@ -126,11 +129,13 @@ jobs:
             }
             assert.match(process.env.ARTIFACT_ID, /^\d+$/);
             const globber = await glob.create('downloaded-reports/**/*', { matchDirectories: false });
-            const files = await globber.glob();
+            const files = (await globber.glob()).filter(file => !file.endsWith('/ci-report.json'));
             const expectedFiles = JSON.parse(process.env.ARTIFACT_FILES);
             assert.deepEqual(files.map(file => require('node:path').basename(file)).sort(), expectedFiles.sort());
-            const junit = fs.readFileSync(files.find(file => file.endsWith('junit.xml')), 'utf8');
-            assert.equal(junit.includes('<failure'), process.env.EXPECT_FAILURE === 'true');
+            if (expectedFiles.includes('junit.xml')) {
+              const junit = fs.readFileSync(files.find(file => file.endsWith('junit.xml')), 'utf8');
+              assert.equal(junit.includes('<failure'), process.env.EXPECT_FAILURE === 'true');
+            }
             if (expectedFiles.includes('lcov.info')) {
               assert.match(fs.readFileSync(files.find(file => file.endsWith('lcov.info')), 'utf8'), /SF:/);
             }

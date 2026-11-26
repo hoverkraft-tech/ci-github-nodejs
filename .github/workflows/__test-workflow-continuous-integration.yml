@@ -21,8 +21,8 @@ jobs:
       lint: ""
       code-ql: ""
       dependency-review: false
-      test: |
-        {"command":"test:vitest","shards":2,"comment":false,"report-group":"sharded-host","coverage":"github-code-quality","coverage-reports":[{"file":"coverage/sharding/cobertura-coverage.xml","language":"JavaScript","label":"sharded-host"}],"report-file":"coverage/sharding/junit.xml,coverage/sharding/lcov.info"}
+      test: |-
+        {"command":"test:vitest","shards":2,"coverage":true,"coverage-reports":[{"file":"coverage/sharding/cobertura-coverage.xml","language":"JavaScript","label":"sharded-host"}],"report-file":"coverage/sharding/junit.xml,coverage/sharding/lcov.info"}
 
   sharded-container:
     name: Validate sharded Vitest in the existing fixture image
@@ -48,8 +48,8 @@ jobs:
       lint: ""
       code-ql: ""
       dependency-review: false
-      test: |
-        {"command":"test:vitest","shards":2,"comment":false,"report-group":"sharded-container","report-file":"coverage/sharding/junit.xml,coverage/sharding/lcov.info"}
+      test: |-
+        {"command":"test:vitest","shards":2,"report-file":"coverage/sharding/junit.xml,coverage/sharding/lcov.info","coverage":false}
 
   assert-sharded-reports:
     name: Verify complete merged reports from host and container
@@ -57,9 +57,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     steps:
+      - id: discover
+        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
+        with:
+          operation: discover
+          job-results: ${{ toJSON(needs) }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: ci-reports-${{ github.run_attempt }}-sharded-*
+          pattern: ${{ steps.discover.outputs.pattern }}
           path: merged-reports
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -69,11 +74,9 @@ jobs:
             const path = require('node:path');
             const reports = fs.readdirSync('merged-reports');
             assert.equal(reports.length, 2, 'Publish one final report artifact per caller');
-            for (const group of ['sharded-host', 'sharded-container']) {
-              const directory = reports.find(name => name.includes(`-${group}-`));
-              assert.ok(directory, group);
+            for (const directory of reports) {
               const files = await (await glob.create(path.join('merged-reports', directory, '**/*'), { matchDirectories: false })).glob();
-              assert.equal(files.length, 2);
+              assert.equal(files.filter(file=>file.endsWith('ci-report.json')).length,1);
               const junit = fs.readFileSync(files.find(file => file.endsWith('junit.xml')), 'utf8');
               assert.equal((junit.match(/<testcase /g) || []).length, 2);
               assert.match(junit, /enabled answer/);
@@ -141,7 +144,7 @@ jobs:
       lint: ""
       code-ql: ""
       dependency-review: false
-      test: '{"coverage":""}'
+      test: '{"coverage":false}'
 
   act-with-checks-disabled:
     name: Act - Disable all application checks without starting a container
@@ -156,6 +159,7 @@ jobs:
       checks: false
       container: invalid.example.invalid/must-not-be-pulled:latest
       working-directory: /unmounted/application
+      lint: ""
 
   assert-without-build:
     name: Assert - Disabled builds produce no artifact
@@ -211,6 +215,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -301,6 +306,7 @@ jobs:
         {
           "artifact": "dist"
         }
+      lint: ""
 
   assert-without-container:
     name: Assert - Ensure build artifact has been uploaded (without container)
@@ -313,6 +319,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
         with:
           artifact-ids: ${{ needs.act-without-container.outputs.build-artifact-id }}
@@ -413,8 +420,9 @@ jobs:
         {
           "artifact": "dist"
         }
-      test: |
-        {"comment": false, "report-group": "act-without-container-and-github-reports"}
+      test: |-
+        {"coverage":false}
+      lint: ""
     # jscpd:ignore-end
 
   assert-package-disabled:
@@ -426,10 +434,15 @@ jobs:
       - env:
           PACKAGE_ARTIFACT_ID: ${{ needs.act-without-container-and-github-reports.outputs.package-tarball-artifact-id }}
         run: test -z "$PACKAGE_ARTIFACT_ID"
+      - id: discover
+        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
+        with:
+          operation: discover
+          job-results: ${{ toJSON(needs) }}
       - name: Retrieve coverage by the outer calling job ID
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: ci-reports-${{ github.run_attempt }}-act-without-container-and-github-reports-*
+          pattern: ${{ steps.discover.outputs.pattern }}
           path: native-reports
       - name: Check that consolidated reporting can find the native coverage
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -482,8 +495,9 @@ jobs:
         {
           "artifact": "dist"
         }
-      test: |
-        {"coverage": "codecov"}
+      test: |-
+        {"coverage":false}
+      lint: ""
 
   act-with-container-without-build:
     name: Act - Run container checks without a build
@@ -501,7 +515,8 @@ jobs:
       build: ""
       code-ql: ""
       dependency-review: false
-      test: '{"coverage":""}'
+      test: '{"coverage":false}'
+      lint: ""
 
   assert-with-container:
     name: Assert - Ensure build artifact has been uploaded (with container)
@@ -511,6 +526,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
         with:
           artifact-ids: ${{ needs.act-with-container.outputs.build-artifact-id }}
@@ -548,8 +564,9 @@ jobs:
         {
           "artifact": "dist"
         }
-      test: |
-        {"coverage": "codecov"}
+      test: |-
+        {"coverage":false}
+      lint: ""
     secrets:
       container-password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -562,6 +579,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
         with:
           artifact-ids: ${{ needs.act-with-container-advanced.outputs.build-artifact-id }}
@@ -574,12 +592,12 @@ jobs:
   collect-native-coverage:
     name: Verify coverage after the complete shard merge
     needs: sharded-host
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@d52648f1645f1318908149af3f35b71b897ca566 # coverage support (PR #683, unreleased)
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
     permissions:
       contents: read
       pull-requests: write
+      code-quality: write
+      id-token: write
     with:
       comment: false
-      concurrency-group: test-native-nodejs-${{ github.run_id }}-${{ github.run_attempt }}
       job-results: ${{ toJSON(needs) }}
-      coverage-reports: '[{"job":"sharded-host","label":"sharded-host"}]'

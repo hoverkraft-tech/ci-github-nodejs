@@ -1,5 +1,12 @@
 name: "Lint"
-description: "Action to lint Node.js projects with support for pull request reporting and annotations"
+description: |
+  Run project lint commands and retain native reports for consolidated CI feedback.
+  The common ci-reports workflow owns comments and external coverage publication.
+  Forward report-plan from standalone jobs; reusable workflows do this automatically.
+  Required reports remain required after command failures. This action keeps local
+  diagnostics and never grants publication permissions to project code.
+
+  Generate supported lint reports such as SARIF, ESLint JSON or Checkstyle XML.
 author: hoverkraft
 branding:
   icon: check-circle
@@ -48,6 +55,9 @@ inputs:
       See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.
     required: false
     default: ""
+  report-plan:
+    description: Expected producer metadata supplied by reusable workflows. Leave empty for standalone use.
+    default: ""
 
 runs:
   using: "composite"
@@ -74,6 +84,12 @@ runs:
       uses: $/actions/get-package-manager
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+    - id: report-plan
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
+      with:
+        operation: plan
+        report-plan: ${{ inputs.report-plan }}
+        producers: '[{"key":"lint","type":"lint","directory":${{ toJSON(inputs.container == ''true'' && ''.'' || steps.working-directory.outputs.workspace-relative-path || ''.'') }},"coverage":[]}]'
     # jscpd:ignore-end
 
     - id: run-lint
@@ -110,13 +126,19 @@ runs:
             core.setOutput('lint-exit-code', 1);
             core.setFailed(`Linting error: ${error.message}`);
           }
-
-    - name: 📊 Parse lint reports
-      if: always()
-      uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
+    - id: reports
+      name: Record lint results
+      if: ${{ !cancelled() && steps.report-plan.outcome == 'success' }}
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+        report-plan: ${{ steps.report-plan.outputs.report-plan }}
         report-paths: ${{ inputs.report-file || 'auto:lint' }}
         path-mapping: ${{ inputs.path-mapping }}
-        report-name: "Lint Results"
-        output-format: "annotations,summary"
+outputs:
+  report-plan:
+    description: Expected report metadata. Forward from standalone jobs.
+    value: ${{ steps.report-plan.outputs.report-plan }}
+  report-artifact-id:
+    description: Native report bundle, including available diagnostics after failures.
+    value: ${{ steps.reports.outputs.artifact-id }}

@@ -5,6 +5,52 @@
 # - Build
 # - Test
 
+# ### Reports and coverage
+#
+# Lint and test jobs retain native diagnostics in one artifact per execution.
+# They post no PR comments and need no publication permissions. Configure native
+# test reports (JUnit or TAP) and lint reports (for example Checkstyle or SARIF).
+# Missing required reports fail even when the tool command exits successfully.
+# Available reports are retained after failures.
+#
+# Tests require Cobertura by default. The highest configured runtime contributes
+# coverage; every runtime retains its test results. Set `test: '{"coverage":false}'`
+# for tests that deliberately produce no Cobertura. The command still controls
+# instrumentation. Custom `test.coverage-reports` describes Cobertura file paths,
+# Linguist languages and stable component labels; it belongs beside the producer.
+# Separate components stay separate. Merge shards in the framework first.
+#
+# Call the common workflow once after producer workflows. It reads their complete
+# report plans from `needs`, regardless of calling job names:
+#
+# ```yaml
+# reports:
+#   needs: [checks]
+#   if: ${{ always() }}
+#   uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@<commit-sha>
+#   permissions:
+#     contents: read
+#     pull-requests: write
+#     code-quality: write
+#     id-token: write
+#   with:
+#     job-results: ${{ toJSON(needs) }}
+#     coverage: github
+# ```
+#
+# Select `coverage: none` (default) for summaries, `github` for native GitHub
+# coverage, or `codecov`. Both publishers consume validated Cobertura. Native
+# GitHub coverage requires repository enablement and a default-branch baseline.
+# The reporting workflow owns one CI comment and the `CI reports complete` check.
+# Forks retain diagnostics without write operations. Partial reruns require
+# rerunning all producers. Producer workflows test the PR head or push revision.
+#
+# Standalone action jobs forward their `report-plan` output. Custom outer matrices
+# must forward a complete plan derived from their configuration; GitHub's last
+# successful matrix output does not describe all executions. See the common
+# [recording action](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/record-ci-reports)
+# for the advanced contract. No collector-side coverage inventory is needed.
+#
 name: Node.js Continuous Integration
 
 on:
@@ -129,14 +175,13 @@ on:
           Whether to enable testing.
           Set to `null` or empty to disable.
           Accepts a JSON object for test options. See [test action](../../actions/test/README.md).
-          If coverage is enabled, it should generate test and coverage reports in standard formats.
-          `coverage: github-code-quality` prepares Cobertura for the common native publication workflow.
-          Configure the project's Cobertura reporter; the default path is coverage/cobertura-coverage.xml.
-          Optional `coverage-reports` is an array of {file, language, label} for distinct components.
-          Builds, tests and shard merges use the PR head in native mode; retain merge-result testing
-          separately when required. Set report-group to the outer caller job ID and list every
-          component in the common ci-reports coverage inventory before calling publish-coverage.
-          Prebuilt containers without Git metadata require coverage-source-sha and coverage-source-prefix.
+          `coverage` is a boolean, true by default. The project must generate native test results
+          and Cobertura at coverage/cobertura-coverage.xml, or describe other component files
+          with `coverage-reports` (file, language and optional label).
+          Builds and tests use the PR head. Run merge-result validation separately if required.
+          Prebuilt containers need coverage-source-sha and coverage-source-prefix for coverage.
+          Set coverage to false for diagnostics without required Cobertura. Provider selection
+          belongs in the common ci-reports workflow, which reads this workflow's report-plan.
           Shards publish only the final merged reports; never upload individual shards.
           Optional `arguments` is a JSON array passed to the package script without shell expansion.
           Set `shards` to an integer from 2 to 256 to enable Vitest blob sharding (default: 1).
@@ -151,18 +196,15 @@ on:
           CI_TEST_SHARD is index/total during shards and empty during merging. If coverage thresholds are configured,
           defer them to merging with `thresholds: process.env.CI_TEST_SHARD ? undefined : yourThresholds`.
           Keep coverage enabled in both commands, and set coverage.reportOnFailure to retain failed-test coverage.
-          Final reporters and report-file must describe the merged JUnit/LCOV outputs.
+          Final reporters and report-file must describe the merged JUnit/Cobertura outputs.
           Blob payloads include coverage; file-based attachments are not transferred by this workflow.
-          Example: `{"command":"test:ci","shards":2,"report-file":"junit.xml,coverage/lcov.info"}`.
-
-          For consolidated reports, set `comment` to false and `report-group` to the calling job ID
-          used in the common `ci-reports` workflow's `job-results`.
+          Example: `{"command":"test:ci","shards":2,"report-file":"junit.xml"}`.
 
           Example:
 
           ```json:package.json
           {
-            "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text"
+            "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=cobertura --coverage.reporter=text"
           }
           ```
         type: string
@@ -224,6 +266,10 @@ on:
         type: string
         required: false
         default: ""
+      report-plan:
+        description: Expected producer metadata for a custom outer orchestration. Leave empty for automatic planning.
+        type: string
+        default: ""
     secrets:
       build-secrets:
         description: |
@@ -255,6 +301,9 @@ on:
       build-artifact-id:
         description: "ID of the build artifact) uploaded during the build step."
         value: ${{ jobs.build.outputs.artifact-id }}
+      report-plan:
+        description: Complete expected report metadata, consumed automatically by ci-reports.
+        value: ${{ jobs.prepare.outputs.report-plan }}
 
 permissions: {}
 
@@ -286,14 +335,15 @@ jobs:
       test-coverage-reports: ${{ steps.test-options.outputs.coverage-reports }}
       test-coverage-source-sha: ${{ steps.test-options.outputs.coverage-source-sha }}
       test-coverage-source-prefix: ${{ steps.test-options.outputs.coverage-source-prefix }}
-      test-comment: ${{ steps.test-options.outputs.comment }}
-      test-report-group: ${{ steps.test-options.outputs.report-group }}
       test-report-file: ${{ steps.test-options.outputs.report-file }}
       test-arguments: ${{ steps.test-options.outputs.arguments }}
       test-shards: ${{ steps.test-options.outputs.shards }}
       test-matrix: ${{ steps.test-options.outputs.matrix }}
       test-group: ${{ steps.test-options.outputs.group }}
       test-merge-command: ${{ steps.test-options.outputs.merge-command }}
+      report-plan: ${{ steps.report-plan.outputs.report-plan }}
+      report-selections: ${{ steps.report-plan.outputs.selections }}
+      lint-enabled: ${{ steps.report-producers.outputs.lint-enabled }}
     steps:
       - id: test-options
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -318,24 +368,19 @@ jobs:
               }
             }
 
+            const allowed = ['coverage','coverage-reports','coverage-source-sha','coverage-source-prefix','command','merge-command','report-file','arguments','shards'];
+            const unknown = Object.keys(testOptions).filter(key => !allowed.includes(key));
+            if (unknown.length) throw new Error('Unknown test options: ' + unknown.join(', ') + '. Configure publication in ci-reports.');
             if (testOptions.coverage === undefined) {
-              testOptions.coverage = 'github';
+              testOptions.coverage = true;
             }
-            if (testOptions.coverage === null || testOptions.coverage === 'null') testOptions.coverage = '';
-            if (!['', 'github', 'github-code-quality', 'codecov'].includes(testOptions.coverage)) throw new Error('Unsupported test.coverage destination.');
+            if (typeof testOptions.coverage !== 'boolean') throw new Error('test.coverage must be a boolean.');
             if (testOptions['coverage-reports'] !== undefined && !Array.isArray(testOptions['coverage-reports'])) throw new Error('test.coverage-reports must be an array.');
             for (const key of ['coverage-source-sha', 'coverage-source-prefix']) {
               if (testOptions[key] !== undefined && typeof testOptions[key] !== 'string') throw new Error(`test.${key} must be a string.`);
               core.setOutput(key, testOptions[key] || '');
             }
             core.setOutput('coverage-reports', testOptions['coverage-reports']?.length ? JSON.stringify(testOptions['coverage-reports']) : '');
-            if (testOptions.comment !== undefined && typeof testOptions.comment !== 'boolean') {
-              throw new Error('test.comment must be a boolean.');
-            }
-            if (testOptions['report-group'] !== undefined &&
-                (typeof testOptions['report-group'] !== 'string' || !/^[\w-]+$/.test(testOptions['report-group']))) {
-              throw new Error('test.report-group must be a job ID containing letters, numbers, underscores or hyphens.');
-            }
             const shards = testOptions.shards === undefined ? 1 : testOptions.shards;
             if (!Number.isInteger(shards) || shards < 1 || shards > 256) {
               throw new Error('test.shards must be an integer from 1 to 256.');
@@ -356,8 +401,6 @@ jobs:
             core.setOutput('arguments', args);
             core.setOutput('merge-command', testOptions['merge-command'] || testOptions.command || 'test:ci');
             core.setOutput('coverage', testOptions.coverage );
-            core.setOutput('comment', testOptions.comment ?? true);
-            core.setOutput('report-group', testOptions['report-group'] || '');
             core.setOutput('report-file', testOptions['report-file'] || '');
             core.setOutput('command', testOptions.command || 'test:ci');
 
@@ -591,6 +634,36 @@ jobs:
 
             core.setOutput('commands', sanitizedCommands.join('\n'));
             core.setOutput('env', JSON.stringify(env));
+      - id: report-producers
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CHECKS: ${{ inputs.checks }}
+          LINT: ${{ inputs.lint }}
+          TEST_ENABLED: ${{ steps.test-options.outputs.enabled }}
+          COVERAGE: ${{ steps.test-options.outputs.coverage }}
+          COVERAGE_REPORTS: ${{ steps.test-options.outputs.coverage-reports }}
+          DIRECTORY: ${{ inputs.working-directory }}
+          CONTAINER: ${{ inputs.container }}
+          SOURCE_PREFIX: ${{ steps.test-options.outputs.coverage-source-prefix }}
+        with:
+          script: |
+            const path = require('node:path');
+            let directory = process.env.DIRECTORY || '.';
+            if (path.isAbsolute(directory)) directory = process.env.CONTAINER ? process.env.SOURCE_PREFIX || '.' : path.relative(process.env.GITHUB_WORKSPACE,directory);
+            directory = directory || '.';
+            const lint = process.env.CHECKS === 'true' && !['','false','null'].includes(process.env.LINT.trim());
+            const producers = [];
+            if (lint) producers.push({key:'lint',type:'lint',directory,coverage:[]});
+            if (process.env.CHECKS === 'true' && process.env.TEST_ENABLED === 'true') producers.push({key:'test',type:'test',directory,
+              coverage:process.env.COVERAGE === 'true' ? JSON.parse(process.env.COVERAGE_REPORTS || '[{"file":"coverage/cobertura-coverage.xml","language":"JavaScript"}]') : []});
+            core.setOutput('producers',producers);
+            core.setOutput('lint-enabled',lint);
+      - id: report-plan
+        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
+        with:
+          operation: plan
+          producers: ${{ steps.report-producers.outputs.producers }}
+          report-plan: ${{ inputs.report-plan }}
 
   code-ql:
     name: 🛡️ CodeQL Analysis
@@ -646,7 +719,7 @@ jobs:
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
 
   lint:
-    if: inputs.checks == true && inputs.lint
+    if: needs.prepare.outputs.lint-enabled == 'true'
     name: 👕 Lint
     runs-on: *ci-runner
     container: &ci-container
@@ -664,6 +737,8 @@ jobs:
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
         if: inputs.container == ''
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - id: preparel-lint-options
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -696,6 +771,7 @@ jobs:
           command: ${{ steps.preparel-lint-options.outputs.command }}
           report-file: ${{ steps.preparel-lint-options.outputs.report-file }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
+          report-plan: ${{ toJSON(fromJSON(needs.prepare.outputs.report-selections).lint) }}
 
   build:
     if: inputs.checks == true && needs.prepare.outputs.build-commands != ''
@@ -713,7 +789,7 @@ jobs:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
         if: inputs.container == ''
         with:
-          ref: ${{ needs.prepare.outputs.test-coverage == 'github-code-quality' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - id: build-artifact
         if: needs.prepare.outputs.build-artifact
@@ -758,9 +834,7 @@ jobs:
       - build
     permissions:
       contents: read
-      id-token: write # Required for Codecov uploads with OIDC authentication
       packages: read
-      pull-requests: write
     strategy:
       fail-fast: false
       max-parallel: ${{ fromJSON(needs.prepare.outputs.test-shards) }}
@@ -769,7 +843,7 @@ jobs:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
         if: inputs.container == ''
         with:
-          ref: ${{ needs.prepare.outputs.test-coverage == 'github-code-quality' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - if: needs.build.outputs.artifact-id && inputs.container == ''
         uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
@@ -787,15 +861,13 @@ jobs:
           arguments: ${{ needs.prepare.outputs.test-arguments }}
           shard: ${{ needs.prepare.outputs.test-shards != '1' && format('{0}/{1}', matrix.shard, needs.prepare.outputs.test-shards) || '' }}
           shard-group: ${{ format('ci-test-{0}-{1}-{2}', github.run_id, github.run_attempt, needs.prepare.outputs.test-group) }}
-          coverage: ${{ needs.prepare.outputs.test-coverage }}
+          coverage: ${{ needs.prepare.outputs.test-coverage == 'true' && 'true' || 'false' }}
           coverage-reports: ${{ needs.prepare.outputs.test-coverage-reports }}
           coverage-source-sha: ${{ needs.prepare.outputs.test-coverage-source-sha }}
           coverage-source-prefix: ${{ needs.prepare.outputs.test-coverage-source-prefix }}
-          comment: ${{ needs.prepare.outputs.test-comment }}
-          report-group: ${{ needs.prepare.outputs.test-report-group }}
           report-file: ${{ needs.prepare.outputs.test-report-file }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
-          github-token: ${{ secrets.github-token || github.token }}
+          report-plan: ${{ toJSON(fromJSON(needs.prepare.outputs.report-selections).test) }}
 
   test-merge:
     name: Merge test results
@@ -808,14 +880,12 @@ jobs:
     container: *ci-container
     permissions:
       contents: read
-      id-token: write
       packages: read
-      pull-requests: write
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
         if: inputs.container == ''
         with:
-          ref: ${{ needs.prepare.outputs.test-coverage == 'github-code-quality' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - if: needs.build.outputs.artifact-id && inputs.container == ''
         uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
@@ -833,15 +903,13 @@ jobs:
           arguments: ${{ needs.prepare.outputs.test-arguments }}
           merge-shards: ${{ needs.prepare.outputs.test-shards }}
           shard-group: ${{ format('ci-test-{0}-{1}-{2}', github.run_id, github.run_attempt, needs.prepare.outputs.test-group) }}
-          coverage: ${{ needs.prepare.outputs.test-coverage }}
+          coverage: ${{ needs.prepare.outputs.test-coverage == 'true' && 'true' || 'false' }}
           coverage-reports: ${{ needs.prepare.outputs.test-coverage-reports }}
           coverage-source-sha: ${{ needs.prepare.outputs.test-coverage-source-sha }}
           coverage-source-prefix: ${{ needs.prepare.outputs.test-coverage-source-prefix }}
-          comment: ${{ needs.prepare.outputs.test-comment }}
-          report-group: ${{ needs.prepare.outputs.test-report-group }}
           report-file: ${{ needs.prepare.outputs.test-report-file }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
-          github-token: ${{ secrets.github-token || github.token }}
+          report-plan: ${{ toJSON(fromJSON(needs.prepare.outputs.report-selections).test) }}
 
       - name: Require successful shards
         if: always()

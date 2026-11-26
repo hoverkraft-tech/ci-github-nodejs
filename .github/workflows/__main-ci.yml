@@ -30,6 +30,7 @@ jobs:
       issues: write
       security-events: write
       statuses: write
+      code-quality: write
     # jscpd:ignore-end
 
   release:

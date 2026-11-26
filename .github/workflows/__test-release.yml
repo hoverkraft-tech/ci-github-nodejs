@@ -2,7 +2,10 @@ name: Internal - Tests for package and release actions
 
 on:
   workflow_call:
-
+    outputs:
+      report-plan:
+        description: Complete plan for every package and release action in the matrix.
+        value: ${{ jobs.configuration.outputs.report-plan }}
 permissions: {}
 
 jobs:
@@ -11,8 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        action:
-          [package/restore, release/prepare, release/verify, release/finalize]
+        include: ${{ fromJSON(needs.configuration.outputs.matrix) }}
     uses: $/.github/workflows/continuous-integration.yml
     permissions:
       contents: read
@@ -24,7 +26,9 @@ jobs:
       working-directory: actions/${{ matrix.action }}
       build: ""
       lint: ""
-      test: '{ "comment": false, "report-group": "test-release" }'
+      test: '{"coverage":false}'
+      report-plan: ${{ toJSON(fromJSON(needs.configuration.outputs.selections)[matrix.key]) }}
+    needs: configuration
 
   integration-tests:
     name: Test release action inputs, outputs and failures
@@ -37,6 +41,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: $/actions/setup-node
         with:
           working-directory: actions/release/prepare
@@ -189,6 +194,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Arrange - Create a workspace with compiled output and failing hooks
         id: workspace
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -262,3 +268,24 @@ jobs:
             assert.equal(parsed.version, '2.3.0');
             assert.equal(parsed.dependencies['@example/core'], '^1.4.0');
             assert.match(process.env.ARTIFACT_ID, /^[1-9][0-9]*$/);
+  configuration:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      matrix: ${{ steps.actions.outputs.matrix }}
+      report-plan: ${{ steps.plan.outputs.report-plan }}
+      selections: ${{ steps.plan.outputs.selections }}
+    steps:
+      - id: actions
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |-
+            const actions=['package/restore','release/prepare','release/verify','release/finalize'];
+            const matrix=actions.map(action=>({action,key:action.replaceAll('/','-')}));
+            core.setOutput('matrix',matrix);
+            core.setOutput('producers',matrix.map(item=>({key:item.key,type:'test',directory:'actions/'+item.action,coverage:[]})));
+      - id: plan
+        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@5ea25078a15fe361993382872c03a63fd667c11a # unified reports (PR #683, unreleased)
+        with:
+          operation: plan
+          producers: ${{ steps.actions.outputs.producers }}

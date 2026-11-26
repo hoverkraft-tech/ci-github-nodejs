@@ -18,115 +18,77 @@ const defaults = Object.fromEntries(
 );
 const require = createRequire(import.meta.url);
 
-test("GitHub reports default to individual comments", async () => {
+test("coverage collection defaults to enabled without selecting a provider", async () => {
   const { outputs } = await runScript("prepare", "test-options", {
     TEST_INPUT: "true",
   });
-  assert.equal(outputs.coverage, "github");
-  assert.equal(outputs.comment, true);
-  assert.equal(outputs["report-group"], "");
+  assert.equal(outputs.coverage, true);
   const disabled = await runScript("prepare", "test-options", {
-    TEST_INPUT: '{"coverage":null}',
+    TEST_INPUT: '{"coverage":false}',
   });
-  assert.equal(disabled.outputs.coverage, "");
+  assert.equal(disabled.outputs.coverage, false);
 });
 
-test("nested callers can group native reports without individual comments", async () => {
+test("custom components retain their report paths and stable labels", async () => {
   const reports = [
     { file: "coverage/custom.xml", language: "TypeScript", label: "frontend" },
   ];
   const { outputs } = await runScript("prepare", "test-options", {
-    TEST_INPUT: JSON.stringify({
-      comment: false,
-      "report-group": "action-tests",
-      coverage: "github-code-quality",
-      "coverage-reports": reports,
-    }),
+    TEST_INPUT: JSON.stringify({ coverage: true, "coverage-reports": reports }),
   });
-  assert.equal(outputs.coverage, "github-code-quality");
   assert.deepEqual(JSON.parse(outputs["coverage-reports"]), reports);
-  assert.equal(outputs.comment, false);
-  assert.equal(outputs["report-group"], "action-tests");
-  const action = workflow.jobs.test.steps.find(
-    (step) => step.name === "Run tests",
-  );
-  for (const name of [
-    "comment",
-    "report-group",
-    "coverage",
-    "coverage-reports",
-  ]) {
-    assert.equal(
-      evaluate(action.with[name], {
-        needs: {
-          prepare: {
-            outputs: Object.fromEntries(
-              Object.entries(outputs).map(([key, value]) => [
-                `test-${key}`,
-                value,
-              ]),
-            ),
-          },
-        },
-      }).value,
-      outputs[name],
-    );
-  }
 });
 
 for (const options of [
-  { comment: "false" },
-  { "report-group": "../bad" },
-  { "report-group": "one,two" },
-  { "report-group": false },
+  { comment: false },
+  { "report-group": "tests" },
+  { coverage: "github" },
   { "coverage-reports": {} },
   { "coverage-source-sha": 42 },
 ]) {
-  test(`rejects invalid report options ${JSON.stringify(options)}`, async () => {
+  test(`rejects retired or invalid report options ${JSON.stringify(options)}`, async () => {
     await assert.rejects(
       runScript("prepare", "test-options", {
         TEST_INPUT: JSON.stringify(options),
       }),
-      /test\.(comment|report-group|coverage-reports|coverage-source-sha)/,
+      /Unknown test options|test\.(coverage|coverage-reports|coverage-source-sha)/,
     );
   });
 }
 
-test("report artifacts retain group, package and attempt without matrix collisions", async () => {
-  const action = readYaml("actions/test/action.yml");
-  const step = action.runs.steps.find((item) => item.id === "report-artifact");
-  const names = [];
-  for (const source of ["first", "second", "first"]) {
-    const outputs = {};
-    await runInNewContext(`(async () => { ${step.with.script} })()`, {
-      require,
-      core: {
-        setOutput: (key, value) => {
-          outputs[key] = value;
-        },
-      },
-      process: {
-        env: {
-          GITHUB_WORKSPACE: "/workspace",
-          GITHUB_RUN_ATTEMPT: "2",
-          WORKING_DIRECTORY: `/workspace/actions/${source}`,
-          REPORT_GROUP: "action-tests",
-          REPORT_FILES:
-            '["/workspace/coverage/lcov.info","/workspace/coverage/junit.xml"]',
-        },
-      },
-    });
-    assert.match(
-      outputs.name,
-      new RegExp(`^ci-reports-2-action-tests-actions-${source}-[a-f0-9-]+$`),
-    );
-    assert.equal(
-      outputs.files,
-      "/workspace/coverage/lcov.info\n/workspace/coverage/junit.xml",
-    );
-    names.push(outputs.name);
-  }
-  assert.equal(new Set(names).size, 3);
+test("producer planning includes lint and merged tests without repeating shard executions", async () => {
+  const reports = [
+    { file: "coverage/custom.xml", language: "TypeScript", label: "frontend" },
+  ];
+  const { outputs } = await runScript("prepare", "report-producers", {
+    CHECKS: "true",
+    LINT: "lint:ci",
+    TEST_ENABLED: "true",
+    COVERAGE: "true",
+    COVERAGE_REPORTS: JSON.stringify(reports),
+    DIRECTORY: "apps/web",
+    CONTAINER: "",
+    SOURCE_PREFIX: "",
+  });
+  assert.equal(outputs.producers.length, 2);
+  assert.deepEqual(
+    Array.from(outputs.producers, (producer) => producer.key),
+    ["lint", "test"],
+  );
+  assert.equal(outputs.producers[1].directory, "apps/web");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(outputs.producers[1].coverage)),
+    reports,
+  );
+  const disabled = await runScript("prepare", "report-producers", {
+    CHECKS: "false",
+    LINT: "lint:ci",
+    TEST_ENABLED: "true",
+    COVERAGE: "true",
+    DIRECTORY: ".",
+    CONTAINER: "",
+  });
+  assert.equal(disabled.outputs.producers.length, 0);
 });
 
 async function runScript(job, stepId, env = {}) {
@@ -198,6 +160,7 @@ function canRun(
     packageResult = "success",
     testResult = "success",
     testEnabled = true,
+    lintEnabled = true,
     shards = 1,
   } = {},
 ) {
@@ -209,6 +172,7 @@ function canRun(
         "build-commands": commands,
         "package-enabled": String(packageEnabled),
         "test-enabled": String(testEnabled),
+        "lint-enabled": String(lintEnabled),
         "test-shards": String(shards),
       },
     },
@@ -497,7 +461,7 @@ test("empty builds skip their job and lint stays independent of build failures",
   assert.equal(canRun("build", { prepare: "failure" }), false);
   assert.equal(canRun("lint", { build: "failure" }), true);
   assert.equal(canRun("lint", { prepare: "failure" }), false);
-  assert.equal(canRun("lint", { inputs: { lint: "" } }), false);
+  assert.equal(canRun("lint", { lintEnabled: false }), false);
 });
 
 for (const action of ["build", "lint", "test"]) {

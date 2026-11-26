@@ -1,3 +1,5 @@
+# FIXME: Remove only the code-quality exception when Actionlint supports it.
+# https://github.com/rhysd/actionlint/pull/674
 # FIXME: Temporary ignores to bypass actionlint limitations. See https://github.com/rhysd/actionlint/issues/590.
 paths:
   .github/workflows/continuous-integration.yml:
@@ -9,3 +11,18 @@ paths:
       - '"ports" section must be sequence node but got scalar node'
       - '"volumes" section must be sequence node but got scalar node'
       - '"runs-on" section is alias node but mapping node is expected'
+  .github/workflows/__main-ci.yml:
+    ignore:
+      - ^unknown permission scope "code-quality"\.
+  .github/workflows/__pull-request-ci.yml:
+    ignore:
+      - ^unknown permission scope "code-quality"\.
+  .github/workflows/__release.yml:
+    ignore:
+      - ^unknown permission scope "code-quality"\.
+  .github/workflows/__shared-ci.yml:
+    ignore:
+      - ^unknown permission scope "code-quality"\.
+  .github/workflows/__test-workflow-continuous-integration.yml:
+    ignore:
+      - ^unknown permission scope "code-quality"\.
