@@ -370,7 +370,7 @@ runs:
     - name: Prepare native GitHub coverage
       id: native-coverage
       if: ${{ !cancelled() && steps.run-test.outcome != 'skipped' && inputs.shard == '' && (inputs.merge-shards == '' || steps.validate-shards.outcome == 'success') && inputs.coverage == 'github-code-quality' }}
-      uses: hoverkraft-tech/ci-github-common/actions/quality/coverage-reports@71ce8b3ff53d6673617b19fa01d6637c916d4948 # coverage support (PR #683, unreleased)
+      uses: hoverkraft-tech/ci-github-common/actions/quality/coverage-reports@d52648f1645f1318908149af3f35b71b897ca566 # coverage support (PR #683, unreleased)
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         report-group: ${{ inputs.report-group || github.job }}
