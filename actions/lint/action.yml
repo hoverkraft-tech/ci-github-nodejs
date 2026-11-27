@@ -85,7 +85,7 @@ runs:
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
     - id: report-plan
-      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@f349bccfa78e0c9676af97f002297b857ede2f8a # unified reports (PR #683, unreleased)
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@f76a768d78723ec0ba0b1442eeeb2c1619dc7525 # unified reports (PR #683, unreleased)
       with:
         operation: plan
         report-plan: ${{ inputs.report-plan }}
@@ -129,7 +129,7 @@ runs:
     - id: reports
       name: Record lint results
       if: ${{ !cancelled() && steps.report-plan.outcome == 'success' }}
-      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@f349bccfa78e0c9676af97f002297b857ede2f8a # unified reports (PR #683, unreleased)
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@f76a768d78723ec0ba0b1442eeeb2c1619dc7525 # unified reports (PR #683, unreleased)
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
         report-plan: ${{ steps.report-plan.outputs.report-plan }}
