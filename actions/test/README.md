@@ -2,12 +2,6 @@
 
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stc3F1YXJlIiBjb2xvcj0iYmx1ZSI+PHBvbHlsaW5lIHBvaW50cz0iOSAxMSAxMiAxNCAyMiA0Ij48L3BvbHlsaW5lPjxwYXRoIGQ9Ik0yMSAxMnY3YTIgMiAwIDAgMS0yIDJINWEyIDIgMCAwIDEtMi0yVjVhMiAyIDAgMCAxIDItMmgxMSI+PC9wYXRoPjwvc3ZnPg==) GitHub Action: Test
 
-<div align="center">
-  <img src="https://opengraph.githubassets.com/f86f31978df7be794acaa15f706c9262251de152735c1be87055a4436cc1083e/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Test" />
-</div>
-
----
-
 <!-- header:end -->
 <!-- badges:start -->
 
@@ -27,18 +21,17 @@
 
 ## Overview
 
-Action to test Node.js projects with support for coverage reporting and pull request annotations
+Run project test commands and validate their native reports before publication.
 
-GitHub reporting retains native report artifacts for seven days, including after
-test failures. Set `comment: false` and call the common `ci-reports` workflow
-after test jobs to publish one test comment and one coverage comment.
-
-Note that this action must have write permission for id-token for this to work when using Codecov coverage reporting:
-
-```yml
-permissions:
-  id-token: write
-```
+Commands receive CI_REPORTS_DIR, a fresh directory for this execution. Write
+required reports there; stale files in the project cannot satisfy the contract.
+Missing or malformed reports fail even after a successful command. Available
+diagnostics are retained after failures. Call common ci-reports once after all checks.
+Producer jobs require actions: read and contents: read, with source checked out and Git available (including in CI containers).
+CI_TEST_COVERAGE indicates whether to instrument tests. By default, results.json
+supplies both test results and coverage using native Vitest or Jest JSON. Set
+test-results and test-coverage to separate paths for runners such as node:test.
+See the [native test report guide](../../docs/usage/test-reports.md) for runner and shard configuration.
 
 <!-- overview:end -->
 <!-- usage:start -->
@@ -46,7 +39,7 @@ permissions:
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/test@191d7230d57982bfc11d57f68b005f386a6d7fbf # 3.1.1
+- uses: hoverkraft-tech/ci-github-nodejs/actions/test@d580938064613e6d666f79320109f94dc98875b7 # feat/native-github-coverage
   with:
     # Disable project and dependency lifecycle scripts during installation.
     # Set false to allow installation hooks, subject to the package manager's script approval settings.
@@ -65,23 +58,13 @@ permissions:
     # Default: `false`
     container: "false"
 
-    # npm/pnpm/Yarn script command to run for testing.
-    # This should be a script defined in your `package.json`.
-    # The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).
-    #
-    # Vitest: `vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`
-    # Jest: `jest --ci --reporters=default --reporters=jest-junit --coverage`
-    #
+    # Package script to run. Write native reports into CI_REPORTS_DIR and enable coverage when CI_TEST_COVERAGE is true. See the native test report guide for Vitest, Jest, node:test and sharding configuration.
     # Default: `test:ci`
     command: test:ci
 
-    # Code coverage reporter to use. Supported values:
-    # - `github`: Parse coverage reports via [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action, with GitHub summaries/PR comments
-    # - `codecov`: Upload coverage to Codecov
-    # - `""` or `null`: No coverage reporting
-    #
-    # Default: `github`
-    coverage: github
+    # Collect and require coverage. The project command must honor CI_TEST_COVERAGE when selecting instrumentation.
+    # Default: `true`
+    coverage: "true"
 
     # JSON array of arguments passed to the package script without shell expansion.
     # npm receives its required `--` separator; pnpm and Yarn receive arguments directly.
@@ -92,7 +75,7 @@ permissions:
     # Optional Vitest shard as index/total, for example `1/2`. Requires shard-group.
     # Adds native shard/blob arguments, sets CI_TEST_SHARD, and uploads a checked blob payload
     # after tests, including failures. Individual reporting is disabled for shards.
-    # Use reporter-specific --outputFile.junit rather than scalar --outputFile in the package script.
+    # Use reporter-specific `--outputFile.json` rather than scalar `--outputFile` in the package script.
     # Keep coverage collection enabled; defer configured coverage thresholds to the merge
     # when CI_TEST_SHARD is nonempty. The workflow normally supplies these orchestration inputs.
     shard: ""
@@ -108,35 +91,21 @@ permissions:
     # A failed shard remains fatal even if merging succeeds. Partial reruns require a full workflow rerun.
     merge-shards: ""
 
-    # Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.
-    # Supports multiple formats (Cobertura, OpenCover, lcov, etc.).
-    # Provide absolute paths or paths relative to the working directory.
-    # Multiple entries can be separated by newlines, commas, or semicolons.
-    # Each explicit path or glob must match a file after exclusions; missing reports fail the action.
-    # When omitted, `auto:test,auto:coverage` detection may find no reports.
-    # Applies only when coverage is `github`.
-    report-file: ""
-
-    # Optional path mapping to adjust file paths in test and coverage reports.
-    # See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.
+    # Optional JSON object mapping native report source path prefixes to repository-relative directories.
     path-mapping: ""
 
-    # Publish an individual coverage PR comment. Set false when using the common ci-reports workflow; GitHub summaries and report artifacts remain enabled.
-    # Default: `true`
-    comment: "true"
+    # Source commit tested by a prebuilt container; must equal the checked-out revision.
+    source-sha: ""
 
-    # Job ID used to associate native reports with the common ci-reports workflow's job-results.
-    # Defaults to the current job ID. Set the outer calling job ID for nested reusable workflows.
-    # Matrix runs keep separate artifacts labeled with their working directory.
-    report-group: ""
+    # Repository-relative directory represented by a prebuilt working-directory. Required with source-sha outside GITHUB_WORKSPACE; use a dot for the repository root.
+    source-prefix: ""
 
-    # GitHub token for coverage PR comments.
-    # Required when coverage is `github` and individual comments are enabled.
-    # Requires permissions to create and update PR comments:
-    #
-    # - `issues: write`
-    # - `pull-requests: write`
-    github-token: ""
+    # Required native test report paths relative to CI_REPORTS_DIR, one per line. A combined JSON report can also supply coverage.
+    # Default: `results.json`
+    test-results: results.json
+
+    # Required native coverage paths relative to CI_REPORTS_DIR when coverage is enabled, one per line. Defaults to test-results for combined JSON, or coverage/lcov.info when merging Vitest shards. Vitest shard merging emits coverage separately; enable lcovonly when CI_TEST_MERGE is true.
+    test-coverage: ""
 ```
 
 <!-- usage:end -->
@@ -144,58 +113,36 @@ permissions:
 
 ## Inputs
 
-| **Input**               | **Description**                                                                                                                                                                                     | **Required** | **Default** |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
-| **`ignore-scripts`**    | Disable project and dependency lifecycle scripts during installation.                                                                                                                               | **false**    | `true`      |
-|                         | Set false to allow installation hooks, subject to the package manager's script approval settings.                                                                                                   |              |             |
-|                         | Explicit commands are unaffected. Does not apply in container mode, which skips installation.                                                                                                       |              |             |
-| **`working-directory`** | Working directory where test commands are executed.                                                                                                                                                 | **false**    | `.`         |
-|                         | Can be absolute or relative to the repository root.                                                                                                                                                 |              |             |
-| **`container`**         | Whether running in container mode (skips checkout and node setup)                                                                                                                                   | **false**    | `false`     |
-| **`command`**           | npm/pnpm/Yarn script command to run for testing.                                                                                                                                                    | **false**    | `test:ci`   |
-|                         | This should be a script defined in your `package.json`.                                                                                                                                             |              |             |
-|                         | The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).                                                                                                 |              |             |
-|                         |                                                                                                                                                                                                     |              |             |
-|                         | Vitest: `vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`                                          |              |             |
-|                         | Jest: `jest --ci --reporters=default --reporters=jest-junit --coverage`                                                                                                                             |              |             |
-| **`coverage`**          | Code coverage reporter to use. Supported values:                                                                                                                                                    | **false**    | `github`    |
-|                         | - `github`: Parse coverage reports via [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action, with GitHub summaries/PR comments |              |             |
-|                         | - `codecov`: Upload coverage to Codecov                                                                                                                                                             |              |             |
-|                         | - `""` or `null`: No coverage reporting                                                                                                                                                             |              |             |
-| **`arguments`**         | JSON array of arguments passed to the package script without shell expansion.                                                                                                                       | **false**    | `[]`        |
-|                         | npm receives its required `--` separator; pnpm and Yarn receive arguments directly.                                                                                                                 |              |             |
-| **`shard`**             | Optional Vitest shard as index/total, for example `1/2`. Requires shard-group.                                                                                                                      | **false**    | -           |
-|                         | Adds native shard/blob arguments, sets CI_TEST_SHARD, and uploads a checked blob payload                                                                                                            |              |             |
-|                         | after tests, including failures. Individual reporting is disabled for shards.                                                                                                                       |              |             |
-|                         | Use reporter-specific --outputFile.junit rather than scalar --outputFile in the package script.                                                                                                     |              |             |
-|                         | Keep coverage collection enabled; defer configured coverage thresholds to the merge                                                                                                                 |              |             |
-|                         | when CI_TEST_SHARD is nonempty. The workflow normally supplies these orchestration inputs.                                                                                                          |              |             |
-| **`shard-group`**       | Unique artifact group for this project, workflow invocation, run and attempt.                                                                                                                       | **false**    | -           |
-|                         | Use only letters, numbers, underscores and hyphens. Never reuse across attempts.                                                                                                                    |              |             |
-|                         | All shards and their merge must use the same group and absolute project directory.                                                                                                                  |              |             |
-| **`merge-shards`**      | Optional expected Vitest shard count (2-256). Requires shard-group and excludes shard.                                                                                                              | **false**    | -           |
-|                         | Downloads this run's matching payloads, validates the complete set and adds --merge-reports.                                                                                                        |              |             |
-|                         | The package script must enable final reporters and original coverage thresholds.                                                                                                                    |              |             |
-|                         | A failed shard remains fatal even if merging succeeds. Partial reruns require a full workflow rerun.                                                                                                |              |             |
-| **`report-file`**       | Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.                 | **false**    | -           |
-|                         | Supports multiple formats (Cobertura, OpenCover, lcov, etc.).                                                                                                                                       |              |             |
-|                         | Provide absolute paths or paths relative to the working directory.                                                                                                                                  |              |             |
-|                         | Multiple entries can be separated by newlines, commas, or semicolons.                                                                                                                               |              |             |
-|                         | Each explicit path or glob must match a file after exclusions; missing reports fail the action.                                                                                                     |              |             |
-|                         | When omitted, `auto:test,auto:coverage` detection may find no reports.                                                                                                                              |              |             |
-|                         | Applies only when coverage is `github`.                                                                                                                                                             |              |             |
-| **`path-mapping`**      | Optional path mapping to adjust file paths in test and coverage reports.                                                                                                                            | **false**    | -           |
-|                         | See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.                                               |              |             |
-| **`comment`**           | Publish an individual coverage PR comment. Set false when using the common ci-reports workflow; GitHub summaries and report artifacts remain enabled.                                               | **false**    | `true`      |
-| **`report-group`**      | Job ID used to associate native reports with the common ci-reports workflow's job-results.                                                                                                          | **false**    | -           |
-|                         | Defaults to the current job ID. Set the outer calling job ID for nested reusable workflows.                                                                                                         |              |             |
-|                         | Matrix runs keep separate artifacts labeled with their working directory.                                                                                                                           |              |             |
-| **`github-token`**      | GitHub token for coverage PR comments.                                                                                                                                                              | **false**    | -           |
-|                         | Required when coverage is `github` and individual comments are enabled.                                                                                                                             |              |             |
-|                         | Requires permissions to create and update PR comments:                                                                                                                                              |              |             |
-|                         |                                                                                                                                                                                                     |              |             |
-|                         | - `issues: write`                                                                                                                                                                                   |              |             |
-|                         | - `pull-requests: write`                                                                                                                                                                            |              |             |
+| **Input**               | **Description**                                                                                                                                                                                                                                                                             | **Required** | **Default**    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | -------------- |
+| **`ignore-scripts`**    | Disable project and dependency lifecycle scripts during installation.                                                                                                                                                                                                                       | **false**    | `true`         |
+|                         | Set false to allow installation hooks, subject to the package manager's script approval settings.                                                                                                                                                                                           |              |                |
+|                         | Explicit commands are unaffected. Does not apply in container mode, which skips installation.                                                                                                                                                                                               |              |                |
+| **`working-directory`** | Working directory where test commands are executed.                                                                                                                                                                                                                                         | **false**    | `.`            |
+|                         | Can be absolute or relative to the repository root.                                                                                                                                                                                                                                         |              |                |
+| **`container`**         | Whether running in container mode (skips checkout and node setup)                                                                                                                                                                                                                           | **false**    | `false`        |
+| **`command`**           | Package script to run. Write native reports into CI_REPORTS_DIR and enable coverage when CI_TEST_COVERAGE is true. See the native test report guide for Vitest, Jest, node:test and sharding configuration.                                                                                 | **false**    | `test:ci`      |
+| **`coverage`**          | Collect and require coverage. The project command must honor CI_TEST_COVERAGE when selecting instrumentation.                                                                                                                                                                               | **false**    | `true`         |
+| **`arguments`**         | JSON array of arguments passed to the package script without shell expansion.                                                                                                                                                                                                               | **false**    | `[]`           |
+|                         | npm receives its required `--` separator; pnpm and Yarn receive arguments directly.                                                                                                                                                                                                         |              |                |
+| **`shard`**             | Optional Vitest shard as index/total, for example `1/2`. Requires shard-group.                                                                                                                                                                                                              | **false**    | -              |
+|                         | Adds native shard/blob arguments, sets CI_TEST_SHARD, and uploads a checked blob payload                                                                                                                                                                                                    |              |                |
+|                         | after tests, including failures. Individual reporting is disabled for shards.                                                                                                                                                                                                               |              |                |
+|                         | Use reporter-specific `--outputFile.json` rather than scalar `--outputFile` in the package script.                                                                                                                                                                                          |              |                |
+|                         | Keep coverage collection enabled; defer configured coverage thresholds to the merge                                                                                                                                                                                                         |              |                |
+|                         | when CI_TEST_SHARD is nonempty. The workflow normally supplies these orchestration inputs.                                                                                                                                                                                                  |              |                |
+| **`shard-group`**       | Unique artifact group for this project, workflow invocation, run and attempt.                                                                                                                                                                                                               | **false**    | -              |
+|                         | Use only letters, numbers, underscores and hyphens. Never reuse across attempts.                                                                                                                                                                                                            |              |                |
+|                         | All shards and their merge must use the same group and absolute project directory.                                                                                                                                                                                                          |              |                |
+| **`merge-shards`**      | Optional expected Vitest shard count (2-256). Requires shard-group and excludes shard.                                                                                                                                                                                                      | **false**    | -              |
+|                         | Downloads this run's matching payloads, validates the complete set and adds --merge-reports.                                                                                                                                                                                                |              |                |
+|                         | The package script must enable final reporters and original coverage thresholds.                                                                                                                                                                                                            |              |                |
+|                         | A failed shard remains fatal even if merging succeeds. Partial reruns require a full workflow rerun.                                                                                                                                                                                        |              |                |
+| **`path-mapping`**      | Optional JSON object mapping native report source path prefixes to repository-relative directories.                                                                                                                                                                                         | **false**    | -              |
+| **`source-sha`**        | Source commit tested by a prebuilt container; must equal the checked-out revision.                                                                                                                                                                                                          | **false**    | -              |
+| **`source-prefix`**     | Repository-relative directory represented by a prebuilt working-directory. Required with source-sha outside GITHUB_WORKSPACE; use a dot for the repository root.                                                                                                                            | **false**    | -              |
+| **`test-results`**      | Required native test report paths relative to CI_REPORTS_DIR, one per line. A combined JSON report can also supply coverage.                                                                                                                                                                | **false**    | `results.json` |
+| **`test-coverage`**     | Required native coverage paths relative to CI_REPORTS_DIR when coverage is enabled, one per line. Defaults to test-results for combined JSON, or coverage/lcov.info when merging Vitest shards. Vitest shard merging emits coverage separately; enable lcovonly when CI_TEST_MERGE is true. | **false**    | -              |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
@@ -206,7 +153,7 @@ permissions:
 
 | **Output**               | **Description**                                                                           |
 | ------------------------ | ----------------------------------------------------------------------------------------- |
-| **`report-artifact-id`** | Native test and coverage artifact ID, empty when GitHub reports are unavailable.          |
+| **`report-artifact-id`** | Native report bundle, including available diagnostics after failures.                     |
 | **`shard-artifact-id`**  | Blob and manifest artifact ID for an executing shard, including failed tests with a blob. |
 
 <!-- outputs:end -->

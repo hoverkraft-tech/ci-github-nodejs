@@ -3,14 +3,19 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["fixtures/vitest/*.fixture.js"],
-    reporters: ["default", "junit"],
-    outputFile: { junit: "coverage/sharding/junit.xml" },
+    reporters: ["default", "json"],
+    outputFile: {
+      json: `${process.env.CI_REPORTS_DIR || "coverage/sharding"}/results.json`,
+    },
     coverage: {
-      enabled: true,
+      enabled: process.env.CI_TEST_COVERAGE !== "false",
       provider: "v8",
       include: ["fixtures/vitest/source.js"],
-      reporter: ["lcov", "json-summary"],
-      reportsDirectory: "coverage/sharding",
+      reporter:
+        process.env.CI_TEST_MERGE === "true" ? ["text", "lcovonly"] : ["text"],
+      reportsDirectory: process.env.CI_REPORTS_DIR
+        ? `${process.env.CI_REPORTS_DIR}/coverage`
+        : "coverage/sharding",
       reportOnFailure: true,
       thresholds: process.env.CI_TEST_SHARD
         ? undefined

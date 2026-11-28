@@ -1,9 +1,26 @@
-# Workflow to performs continuous integration steps against a Node.js project:
-#
-# - CodeQL analysis
-# - Linting
-# - Build
-# - Test
+# Workflow to run Node.js checks, builds and package validation.
+
+# One CI reporting boundary
+
+# Commands write their declared native outputs into CI_REPORTS_DIR.
+# Test results and coverage default to the same native results.json; lint defaults to
+# lint.sarif. Configure test-results, test-coverage or lint-results beside the
+# command when a runner needs separate files. See [native test reports](../../docs/usage/test-reports.md).
+# Merge shards natively; their coverage output remains separate.
+
+# Call common ci-reports.yml once after all producer jobs with
+# job-results: toJSON(needs). No report plans or artifact IDs need forwarding.
+# Add a separate CI complete job using common actions/check-jobs, with direct
+# needs on all required producers and reporting, and if: always().
+# Producer calls require actions: read and contents: read. The reporting caller
+# grants actions: read, contents: read, pull-requests: write, code-quality: write,
+# id-token: write and security-events: write; its internal jobs narrow these.
+# Lint and tests default to annotations. Coverage defaults to GitHub when
+# available, then a PR comment or summary. Select destinations once using
+# lint-reporters, test-results-reporters and test-coverage-reporters.
+
+# Prebuilt CI containers must include Git. They require a checkout for source verification and
+# test.source-sha plus test.source-prefix identifying the tested source.
 
 name: Node.js Continuous Integration
 
@@ -80,19 +97,8 @@ on:
         required: false
         default: true
       lint:
-        description: |
-          Whether to enable linting.
-          Set to `null` or empty to disable.
-          Accepts a JSON object for lint options. See [lint action](../../actions/lint/README.md).
-          It should generate lint reports in standard formats.
-
-          Example:
-
-          ```json:package.json
-          {
-            "lint:ci": "eslint . --output-file eslint-report.json --format json"
-          }
-          ```
+        description: |-
+          Lint options: command (default lint:ci) and lint-results (default lint.sarif). Commands write native results under CI_REPORTS_DIR. Empty disables lint.
         type: string
         required: false
         default: "true"
@@ -125,38 +131,8 @@ on:
         required: false
         default: true
       test:
-        description: |
-          Whether to enable testing.
-          Set to `null` or empty to disable.
-          Accepts a JSON object for test options. See [test action](../../actions/test/README.md).
-          If coverage is enabled, it should generate test and coverage reports in standard formats.
-          Optional `arguments` is a JSON array passed to the package script without shell expansion.
-          Set `shards` to an integer from 2 to 256 to enable Vitest blob sharding (default: 1).
-          Only tests are replicated; shards run with fail-fast disabled and concurrency limited to their count.
-          A single merge job validates every payload and publishes final reports, even after test failures.
-          `merge-command` defaults to `command`; use a separate package script when reporter settings differ.
-          Sharding owns --shard, --merge-reports and --outputFile.blob; do not put these in package scripts or arguments.
-          Use reporter-specific output paths such as --outputFile.junit=junit.xml; the scalar --outputFile form conflicts with blob output.
-          Keep the same project source, dependencies, Vitest config and absolute project path across jobs.
-          Rerun the entire workflow after failure; previous-attempt shard artifacts are never reused.
-
-          CI_TEST_SHARD is index/total during shards and empty during merging. If coverage thresholds are configured,
-          defer them to merging with `thresholds: process.env.CI_TEST_SHARD ? undefined : yourThresholds`.
-          Keep coverage enabled in both commands, and set coverage.reportOnFailure to retain failed-test coverage.
-          Final reporters and report-file must describe the merged JUnit/LCOV outputs.
-          Blob payloads include coverage; file-based attachments are not transferred by this workflow.
-          Example: `{"command":"test:ci","shards":2,"report-file":"junit.xml,coverage/lcov.info"}`.
-
-          For consolidated reports, set `comment` to false and `report-group` to the calling job ID
-          used in the common `ci-reports` workflow's `job-results`.
-
-          Example:
-
-          ```json:package.json
-          {
-            "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text"
-          }
-          ```
+        description: |-
+          Test options: command (default test:ci), arguments, coverage (boolean, default true), test-results (default results.json), test-coverage (defaults to test-results, or coverage/lcov.info for Vitest shard merging), shards and merge-command. Paths are relative to CI_REPORTS_DIR. Prebuilt containers also require source-sha and source-prefix. Empty disables tests.
         type: string
         required: false
         default: "true"
@@ -275,14 +251,17 @@ jobs:
       test-enabled: ${{ steps.test-options.outputs.enabled }}
       test-command: ${{ steps.test-options.outputs.command }}
       test-coverage: ${{ steps.test-options.outputs.coverage }}
-      test-comment: ${{ steps.test-options.outputs.comment }}
-      test-report-group: ${{ steps.test-options.outputs.report-group }}
-      test-report-file: ${{ steps.test-options.outputs.report-file }}
       test-arguments: ${{ steps.test-options.outputs.arguments }}
       test-shards: ${{ steps.test-options.outputs.shards }}
       test-matrix: ${{ steps.test-options.outputs.matrix }}
       test-group: ${{ steps.test-options.outputs.group }}
       test-merge-command: ${{ steps.test-options.outputs.merge-command }}
+      lint-enabled: ${{ steps.lint-options.outputs.lint-enabled }}
+      test-test-results: ${{ steps.test-options.outputs.test-results }}
+      test-test-coverage: ${{ steps.test-options.outputs.test-coverage }}
+      test-source-sha: ${{ steps.test-options.outputs.source-sha }}
+      test-source-prefix: ${{ steps.test-options.outputs.source-prefix }}
+      test-coverage-paths: ${{ steps.test-options.outputs.test-coverage }}
     steps:
       - id: test-options
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -307,20 +286,23 @@ jobs:
               }
             }
 
+            for (const field of ['test-results','test-coverage']) { if (testOptions[field] !== undefined && (typeof testOptions[field] !== 'string' || !testOptions[field].trim())) throw new Error('test.' + field + ' must be nonempty native report paths.'); }
+            const allowed = ['coverage','test-coverage','source-sha','source-prefix','command','merge-command','test-results','arguments','shards'];
+            const unknown = Object.keys(testOptions).filter(key => !allowed.includes(key));
+            if (unknown.length) throw new Error('Unknown test options: ' + unknown.join(', ') + '. Configure publication in ci-reports.');
             if (testOptions.coverage === undefined) {
-              testOptions.coverage = 'github';
+              testOptions.coverage = true;
             }
-            if (testOptions.comment !== undefined && typeof testOptions.comment !== 'boolean') {
-              throw new Error('test.comment must be a boolean.');
-            }
-            if (testOptions['report-group'] !== undefined &&
-                (typeof testOptions['report-group'] !== 'string' || !/^[\w-]+$/.test(testOptions['report-group']))) {
-              throw new Error('test.report-group must be a job ID containing letters, numbers, underscores or hyphens.');
+            if (typeof testOptions.coverage !== 'boolean') throw new Error('test.coverage must be a boolean.');
+            for (const key of ['source-sha', 'source-prefix']) {
+              if (testOptions[key] !== undefined && typeof testOptions[key] !== 'string') throw new Error(`test.${key} must be a string.`);
+              core.setOutput(key, testOptions[key] || '');
             }
             const shards = testOptions.shards === undefined ? 1 : testOptions.shards;
             if (!Number.isInteger(shards) || shards < 1 || shards > 256) {
               throw new Error('test.shards must be an integer from 1 to 256.');
             }
+            core.setOutput('test-coverage', testOptions['test-coverage'] || (shards > 1 ? 'coverage/lcov.info' : testOptions['test-results'] || 'results.json'));
             const args = testOptions.arguments === undefined ? [] : testOptions.arguments;
             if (!Array.isArray(args) || args.some(arg => typeof arg !== 'string' || arg.includes('\0'))) {
               throw new Error('test.arguments must be an array of strings without null bytes.');
@@ -337,9 +319,7 @@ jobs:
             core.setOutput('arguments', args);
             core.setOutput('merge-command', testOptions['merge-command'] || testOptions.command || 'test:ci');
             core.setOutput('coverage', testOptions.coverage );
-            core.setOutput('comment', testOptions.comment ?? true);
-            core.setOutput('report-group', testOptions['report-group'] || '');
-            core.setOutput('report-file', testOptions['report-file'] || '');
+            core.setOutput('test-results', testOptions['test-results'] || 'results.json');
             core.setOutput('command', testOptions.command || 'test:ci');
 
       - id: package-config
@@ -471,10 +451,7 @@ jobs:
               return core.setFailed('At least one path mapping must be specified in the container configuration.');
             }
 
-            core.setOutput('path-mapping', Object.entries(pathMapping).reduce((acc, [containerPath, repoPath]) => {
-              acc += `${acc?',' : ''}${containerPath}:${repoPath}`;
-              return acc;
-            }, ""));
+            core.setOutput('path-mapping', JSON.stringify(Object.fromEntries(Object.entries(pathMapping).map(([key,value]) => [key.replace(/\/$/, ''), value.replace(/\/$/, '') || '.']))));
 
       - id: build-variables
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -572,6 +549,21 @@ jobs:
 
             core.setOutput('commands', sanitizedCommands.join('\n'));
             core.setOutput('env', JSON.stringify(env));
+      - id: lint-options
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          LINT_INPUT: ${{ inputs.lint }}
+          CHECKS: ${{ inputs.checks }}
+        with:
+          script: |
+            const raw = process.env.LINT_INPUT.trim();
+            const enabled = process.env.CHECKS === 'true' && !['','false','null'].includes(raw);
+            if (enabled && raw !== 'true') {
+              const options = JSON.parse(raw);
+              if (!options || typeof options !== 'object' || Array.isArray(options) || Object.keys(options).some(key => !['command','lint-results','source-sha','source-prefix'].includes(key))) throw new Error('Unknown lint options.');
+              for (const value of Object.values(options)) if (typeof value !== 'string' || !value.trim()) throw new Error('Lint options must be nonempty strings.');
+            }
+            core.setOutput('lint-enabled', enabled);
 
   code-ql:
     name: 🛡️ CodeQL Analysis
@@ -627,7 +619,7 @@ jobs:
       - uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
 
   lint:
-    if: inputs.checks == true && inputs.lint
+    if: needs.prepare.outputs.lint-enabled == 'true'
     name: 👕 Lint
     runs-on: *ci-runner
     container: &ci-container
@@ -642,9 +634,11 @@ jobs:
     permissions:
       contents: read
       packages: read
+      actions: read
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
-        if: inputs.container == ''
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - id: preparel-lint-options
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -666,7 +660,10 @@ jobs:
             }
 
             core.setOutput('command', lintOptions.command || 'lint:ci');
-            core.setOutput('report-file', lintOptions['report-file'] || '');
+            core.setOutput('lint-results', lintOptions['lint-results'] || 'lint.sarif');
+
+            core.setOutput('source-sha', lintOptions['source-sha'] || '');
+            core.setOutput('source-prefix', lintOptions['source-prefix'] || '');
 
       - name: Run lint
         uses: $/actions/lint
@@ -675,8 +672,10 @@ jobs:
           working-directory: ${{ needs.prepare.outputs.working-directory }}
           container: ${{ inputs.container != '' && 'true' || 'false' }}
           command: ${{ steps.preparel-lint-options.outputs.command }}
-          report-file: ${{ steps.preparel-lint-options.outputs.report-file }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
+          lint-results: ${{ steps.preparel-lint-options.outputs.lint-results }}
+          source-sha: ${{ steps.preparel-lint-options.outputs.source-sha }}
+          source-prefix: ${{ steps.preparel-lint-options.outputs.source-prefix }}
 
   build:
     if: inputs.checks == true && needs.prepare.outputs.build-commands != ''
@@ -693,6 +692,8 @@ jobs:
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
         if: inputs.container == ''
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - id: build-artifact
         if: needs.prepare.outputs.build-artifact
@@ -737,16 +738,16 @@ jobs:
       - build
     permissions:
       contents: read
-      id-token: write # Required for Codecov uploads with OIDC authentication
       packages: read
-      pull-requests: write
+      actions: read
     strategy:
       fail-fast: false
       max-parallel: ${{ fromJSON(needs.prepare.outputs.test-shards) }}
       matrix: ${{ fromJSON(needs.prepare.outputs.test-matrix) }}
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
-        if: inputs.container == ''
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - if: needs.build.outputs.artifact-id && inputs.container == ''
         uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
@@ -764,12 +765,12 @@ jobs:
           arguments: ${{ needs.prepare.outputs.test-arguments }}
           shard: ${{ needs.prepare.outputs.test-shards != '1' && format('{0}/{1}', matrix.shard, needs.prepare.outputs.test-shards) || '' }}
           shard-group: ${{ format('ci-test-{0}-{1}-{2}', github.run_id, github.run_attempt, needs.prepare.outputs.test-group) }}
-          coverage: ${{ needs.prepare.outputs.test-coverage }}
-          comment: ${{ needs.prepare.outputs.test-comment }}
-          report-group: ${{ needs.prepare.outputs.test-report-group }}
-          report-file: ${{ needs.prepare.outputs.test-report-file }}
+          coverage: ${{ needs.prepare.outputs.test-coverage == 'true' && 'true' || 'false' }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
-          github-token: ${{ secrets.github-token || github.token }}
+          test-results: ${{ needs.prepare.outputs.test-test-results }}
+          source-sha: ${{ needs.prepare.outputs.test-source-sha }}
+          source-prefix: ${{ needs.prepare.outputs.test-source-prefix }}
+          test-coverage: ${{ needs.prepare.outputs.test-coverage-paths }}
 
   test-merge:
     name: Merge test results
@@ -782,12 +783,12 @@ jobs:
     container: *ci-container
     permissions:
       contents: read
-      id-token: write
       packages: read
-      pull-requests: write
+      actions: read
     steps:
       - uses: hoverkraft-tech/ci-github-common/actions/checkout@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
-        if: inputs.container == ''
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - if: needs.build.outputs.artifact-id && inputs.container == ''
         uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
@@ -805,12 +806,12 @@ jobs:
           arguments: ${{ needs.prepare.outputs.test-arguments }}
           merge-shards: ${{ needs.prepare.outputs.test-shards }}
           shard-group: ${{ format('ci-test-{0}-{1}-{2}', github.run_id, github.run_attempt, needs.prepare.outputs.test-group) }}
-          coverage: ${{ needs.prepare.outputs.test-coverage }}
-          comment: ${{ needs.prepare.outputs.test-comment }}
-          report-group: ${{ needs.prepare.outputs.test-report-group }}
-          report-file: ${{ needs.prepare.outputs.test-report-file }}
+          coverage: ${{ needs.prepare.outputs.test-coverage == 'true' && 'true' || 'false' }}
           path-mapping: ${{ needs.prepare.outputs.path-mapping || '' }}
-          github-token: ${{ secrets.github-token || github.token }}
+          test-results: ${{ needs.prepare.outputs.test-test-results }}
+          source-sha: ${{ needs.prepare.outputs.test-source-sha }}
+          source-prefix: ${{ needs.prepare.outputs.test-source-prefix }}
+          test-coverage: ${{ needs.prepare.outputs.test-coverage-paths }}
 
       - name: Require successful shards
         if: always()

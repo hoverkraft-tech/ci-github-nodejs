@@ -18,95 +18,76 @@ const defaults = Object.fromEntries(
 );
 const require = createRequire(import.meta.url);
 
-test("GitHub reports default to individual comments", async () => {
+test("coverage collection defaults to enabled without selecting a provider", async () => {
   const { outputs } = await runScript("prepare", "test-options", {
     TEST_INPUT: "true",
   });
-  assert.equal(outputs.coverage, "github");
-  assert.equal(outputs.comment, true);
-  assert.equal(outputs["report-group"], "");
+  assert.equal(outputs.coverage, true);
+  assert.equal(outputs["test-results"], "results.json");
+  assert.equal(outputs["test-coverage"], "results.json");
+  const disabled = await runScript("prepare", "test-options", {
+    TEST_INPUT: '{"coverage":false}',
+  });
+  assert.equal(disabled.outputs.coverage, false);
 });
 
-test("nested callers can group native reports without individual comments", async () => {
+test("custom components retain native report paths", async () => {
   const { outputs } = await runScript("prepare", "test-options", {
-    TEST_INPUT: '{"comment":false,"report-group":"action-tests"}',
+    TEST_INPUT: JSON.stringify({
+      coverage: true,
+      "test-coverage": "native/coverage.xml",
+      "test-results": "native/junit.xml",
+    }),
   });
-  assert.equal(outputs.coverage, "github");
-  assert.equal(outputs.comment, false);
-  assert.equal(outputs["report-group"], "action-tests");
-  const action = workflow.jobs.test.steps.find(
-    (step) => step.name === "Run tests",
-  );
-  for (const name of ["comment", "report-group"]) {
-    assert.equal(
-      evaluate(action.with[name], {
-        needs: {
-          prepare: {
-            outputs: Object.fromEntries(
-              Object.entries(outputs).map(([key, value]) => [
-                `test-${key}`,
-                value,
-              ]),
-            ),
-          },
-        },
-      }).value,
-      outputs[name],
-    );
-  }
+  assert.equal(outputs["test-coverage"], "native/coverage.xml");
+  assert.equal(outputs["test-results"], "native/junit.xml");
 });
 
 for (const options of [
-  { comment: "false" },
-  { "report-group": "../bad" },
-  { "report-group": "one,two" },
-  { "report-group": false },
+  { comment: false },
+  { "report-group": "tests" },
+  { coverage: "github" },
+  { "test-coverage": {} },
+  { "source-sha": 42 },
 ]) {
-  test(`rejects invalid report options ${JSON.stringify(options)}`, async () => {
+  test(`rejects retired or invalid report options ${JSON.stringify(options)}`, async () => {
     await assert.rejects(
       runScript("prepare", "test-options", {
         TEST_INPUT: JSON.stringify(options),
       }),
-      /test\.(comment|report-group)/,
+      /Unknown test options|test\.(coverage|test-coverage|source-sha)/,
     );
   });
 }
 
-test("report artifacts retain group, package and attempt without matrix collisions", async () => {
-  const action = readYaml("actions/test/action.yml");
-  const step = action.runs.steps.find((item) => item.id === "report-artifact");
-  const names = [];
-  for (const source of ["first", "second", "first"]) {
-    const outputs = {};
-    await runInNewContext(`(async () => { ${step.with.script} })()`, {
-      require,
-      core: {
-        setOutput: (key, value) => {
-          outputs[key] = value;
-        },
-      },
-      process: {
-        env: {
-          GITHUB_WORKSPACE: "/workspace",
-          GITHUB_RUN_ATTEMPT: "2",
-          WORKING_DIRECTORY: `/workspace/actions/${source}`,
-          REPORT_GROUP: "action-tests",
-          REPORT_FILES:
-            '["/workspace/coverage/lcov.info","/workspace/coverage/junit.xml"]',
-        },
-      },
-    });
-    assert.match(
-      outputs.name,
-      new RegExp(`^ci-reports-2-action-tests-actions-${source}-[a-f0-9-]+$`),
-    );
+test("lint configuration rejects ambiguous options and respects disabled checks", async () => {
+  for (const input of ["", "false", "null"]) {
     assert.equal(
-      outputs.files,
-      "/workspace/coverage/lcov.info\n/workspace/coverage/junit.xml",
+      (
+        await runScript("prepare", "lint-options", {
+          CHECKS: "true",
+          LINT_INPUT: input,
+        })
+      ).outputs["lint-enabled"],
+      false,
     );
-    names.push(outputs.name);
   }
-  assert.equal(new Set(names).size, 3);
+  assert.equal(
+    (
+      await runScript("prepare", "lint-options", {
+        CHECKS: "true",
+        LINT_INPUT: '{"lint-results":"lint.sarif"}',
+      })
+    ).outputs["lint-enabled"],
+    true,
+  );
+  await assert.rejects(
+    runScript("prepare", "lint-options", {
+      CHECKS: "true",
+      LINT_INPUT: '{"report-plan":"obsolete"}',
+    }),
+    /Unknown lint options/,
+  );
 });
 
 async function runScript(job, stepId, env = {}) {
@@ -178,6 +159,7 @@ function canRun(
     packageResult = "success",
     testResult = "success",
     testEnabled = true,
+    lintEnabled = true,
     shards = 1,
   } = {},
 ) {
@@ -189,6 +171,7 @@ function canRun(
         "build-commands": commands,
         "package-enabled": String(packageEnabled),
         "test-enabled": String(testEnabled),
+        "lint-enabled": String(lintEnabled),
         "test-shards": String(shards),
       },
     },
@@ -345,7 +328,7 @@ test("preserves container options, credentials and report path mappings", async 
   assert.equal(result.outputs["container-username"], "user");
   assert.equal(
     result.outputs["path-mapping"],
-    "/usr/src/app:application/frontend",
+    '{"/usr/src/app":"application/frontend"}',
   );
   assert.equal(JSON.stringify(result.outputs).includes("test-password"), false);
 });
@@ -477,7 +460,7 @@ test("empty builds skip their job and lint stays independent of build failures",
   assert.equal(canRun("build", { prepare: "failure" }), false);
   assert.equal(canRun("lint", { build: "failure" }), true);
   assert.equal(canRun("lint", { prepare: "failure" }), false);
-  assert.equal(canRun("lint", { inputs: { lint: "" } }), false);
+  assert.equal(canRun("lint", { lintEnabled: false }), false);
 });
 
 for (const action of ["build", "lint", "test"]) {
@@ -518,14 +501,18 @@ test("prepares isolated shard groups and forwards script arguments", async () =>
     shard: [1, 2],
   });
   assert.equal(first.outputs.shards, 2);
+  assert.equal(first.outputs["test-coverage"], "coverage/lcov.info");
   assert.equal(first.outputs["merge-command"], "test:merge");
   assert.notEqual(first.outputs.group, second.outputs.group);
   assert.deepEqual(Array.from(first.outputs.arguments), [
     "--config",
     "config with spaces.js",
   ]);
-  const defaults = await runScript("prepare", "test-options");
+  const defaults = await runScript("prepare", "test-options", {
+    TEST_INPUT: '{"shards":1,"test-results":"custom.json"}',
+  });
   assert.equal(defaults.outputs.shards, 1);
+  assert.equal(defaults.outputs["test-coverage"], "custom.json");
   assert.equal(defaults.outputs.group, "");
   assert.equal(defaults.outputs["merge-command"], defaults.outputs.command);
 });
@@ -575,4 +562,32 @@ test("merging runs after successful or failed shards but not cancellation or ski
     assert.equal(canRun("test-merge", { shards: 2, testResult }), false);
   assert.equal(canRun("test-merge", { shards: 2, cancelled: true }), false);
   assert.equal(canRun("test-merge", { shards: 2, prepare: "failure" }), false);
+});
+
+test("local reusable workflow callers only supply supported inputs and sufficient permissions", async () => {
+  const { readdirSync } = await import("node:fs");
+  const ranks = { none: 0, read: 1, write: 2 };
+  for (const file of readdirSync(
+    new URL(".github/workflows/", repository),
+  ).filter((file) => file.endsWith(".yml"))) {
+    const caller = readYaml(`.github/workflows/${file}`);
+    for (const [name, job] of Object.entries(caller.jobs || {})) {
+      if (!job.uses?.startsWith("$/.github/workflows/")) continue;
+      const callee = readYaml(job.uses.slice(2));
+      const inputs = callee.on.workflow_call?.inputs || {};
+      for (const input of Object.keys(job.with || {}))
+        assert.ok(
+          input in inputs,
+          `${file}:${name} supplies retired input ${input}`,
+        );
+      for (const child of Object.values(callee.jobs)) {
+        for (const [scope, level] of Object.entries(child.permissions || {})) {
+          assert.ok(
+            (ranks[job.permissions?.[scope]] || 0) >= ranks[level],
+            `${file}:${name} must grant ${scope}: ${level} to ${job.uses}`,
+          );
+        }
+      }
+    }
+  }
 });

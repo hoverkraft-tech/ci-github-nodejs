@@ -2,12 +2,6 @@
 
 # ![Icon](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJmZWF0aGVyIGZlYXRoZXItY2hlY2stY2lyY2xlIiBjb2xvcj0iYmx1ZSI+PHBhdGggZD0iTTIyIDExLjA4VjEyYTEwIDEwIDAgMSAxLTUuOTMtOS4xNCI+PC9wYXRoPjxwb2x5bGluZSBwb2ludHM9IjIyIDQgMTIgMTQuMDEgOSAxMS4wMSI+PC9wb2x5bGluZT48L3N2Zz4=) GitHub Action: Lint
 
-<div align="center">
-  <img src="https://opengraph.githubassets.com/f86f31978df7be794acaa15f706c9262251de152735c1be87055a4436cc1083e/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Lint" />
-</div>
-
----
-
 <!-- header:end -->
 <!-- badges:start -->
 
@@ -27,7 +21,13 @@
 
 ## Overview
 
-Action to lint Node.js projects with support for pull request reporting and annotations
+Run project lint commands and validate their native reports before publication.
+
+Commands receive CI_REPORTS_DIR, a fresh directory for this execution. Write
+required reports there; stale files in the project cannot satisfy the contract.
+Missing or malformed reports fail even after a successful command. Available
+diagnostics are retained after failures. Call common ci-reports once after all checks.
+Producer jobs require actions: read and contents: read, with source checked out and Git available (including in CI containers).
 
 <!-- overview:end -->
 <!-- usage:start -->
@@ -35,7 +35,7 @@ Action to lint Node.js projects with support for pull request reporting and anno
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@191d7230d57982bfc11d57f68b005f386a6d7fbf # 3.1.1
+- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@d580938064613e6d666f79320109f94dc98875b7 # feat/native-github-coverage
   with:
     # Disable project and dependency lifecycle scripts during installation.
     # Set false to allow installation hooks, subject to the package manager's script approval settings.
@@ -54,27 +54,22 @@ Action to lint Node.js projects with support for pull request reporting and anno
     # Default: `false`
     container: "false"
 
-    # npm/pnpm/Yarn script command to run for linting.
-    # This should be a script defined in your `package.json`.
-    # The command should generate lint report files in a standard format.
-    #
-    # ESLint: `eslint --format json -o eslint-report.json .`
-    # Prettier: `prettier --check . | tee prettier-report.txt`
-    # Biome: `biome check --assist-enabled=false . --reporter=sarif --reporter-file=biome-report.sarif --reporter=default`
-    # Astro: `astro check | tee astro-report.txt`
-    #
+    # npm/pnpm/Yarn script to run. Generate the declared native diagnostics under CI_REPORTS_DIR, for example Biome with --reporter=sarif --reporter-file="$CI_REPORTS_DIR/lint.sarif".
     # Default: `lint:ci`
     command: lint:ci
 
-    # Optional lint report path forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.
-    # Provide an absolute path or one relative to the working directory.
-    # Each explicit path or glob must match a file after exclusions; missing reports fail the action.
-    # When omitted, `auto:lint` detection may find no reports.
-    report-file: ""
-
-    # Optional path mapping to adjust file paths in test and coverage reports.
-    # See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.
+    # Optional JSON object mapping native report source path prefixes to repository-relative directories.
     path-mapping: ""
+
+    # Source commit tested by a prebuilt container; must equal the checked-out revision.
+    source-sha: ""
+
+    # Repository-relative directory represented by a prebuilt working-directory. Required with source-sha outside GITHUB_WORKSPACE; use a dot for the repository root.
+    source-prefix: ""
+
+    # Required native report paths relative to CI_REPORTS_DIR, one per line.
+    # Default: `lint.sarif`
+    lint-results: lint.sarif
 ```
 
 <!-- usage:end -->
@@ -82,33 +77,31 @@ Action to lint Node.js projects with support for pull request reporting and anno
 
 ## Inputs
 
-| **Input**               | **Description**                                                                                                                                                       | **Required** | **Default** |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
-| **`ignore-scripts`**    | Disable project and dependency lifecycle scripts during installation.                                                                                                 | **false**    | `true`      |
-|                         | Set false to allow installation hooks, subject to the package manager's script approval settings.                                                                     |              |             |
-|                         | Explicit commands are unaffected. Does not apply in container mode, which skips installation.                                                                         |              |             |
-| **`working-directory`** | Working directory where lint commands are executed.                                                                                                                   | **false**    | `.`         |
-|                         | Can be absolute or relative to the repository root.                                                                                                                   |              |             |
-| **`container`**         | Whether running in container mode (skips checkout and node setup)                                                                                                     | **false**    | `false`     |
-| **`command`**           | npm/pnpm/Yarn script command to run for linting.                                                                                                                      | **false**    | `lint:ci`   |
-|                         | This should be a script defined in your `package.json`.                                                                                                               |              |             |
-|                         | The command should generate lint report files in a standard format.                                                                                                   |              |             |
-|                         |                                                                                                                                                                       |              |             |
-|                         | ESLint: `eslint --format json -o eslint-report.json .`                                                                                                                |              |             |
-|                         | Prettier: `prettier --check . \| tee prettier-report.txt`                                                                                                             |              |             |
-|                         | Biome: `biome check --assist-enabled=false . --reporter=sarif --reporter-file=biome-report.sarif --reporter=default`                                                  |              |             |
-|                         | Astro: `astro check \| tee astro-report.txt`                                                                                                                          |              |             |
-| **`report-file`**       | Optional lint report path forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action. | **false**    | -           |
-|                         | Provide an absolute path or one relative to the working directory.                                                                                                    |              |             |
-|                         | Each explicit path or glob must match a file after exclusions; missing reports fail the action.                                                                       |              |             |
-|                         | When omitted, `auto:lint` detection may find no reports.                                                                                                              |              |             |
-| **`path-mapping`**      | Optional path mapping to adjust file paths in test and coverage reports.                                                                                              | **false**    | -           |
-|                         | See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.                 |              |             |
+| **Input**               | **Description**                                                                                                                                                                   | **Required** | **Default**  |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ------------ |
+| **`ignore-scripts`**    | Disable project and dependency lifecycle scripts during installation.                                                                                                             | **false**    | `true`       |
+|                         | Set false to allow installation hooks, subject to the package manager's script approval settings.                                                                                 |              |              |
+|                         | Explicit commands are unaffected. Does not apply in container mode, which skips installation.                                                                                     |              |              |
+| **`working-directory`** | Working directory where lint commands are executed.                                                                                                                               | **false**    | `.`          |
+|                         | Can be absolute or relative to the repository root.                                                                                                                               |              |              |
+| **`container`**         | Whether running in container mode (skips checkout and node setup)                                                                                                                 | **false**    | `false`      |
+| **`command`**           | npm/pnpm/Yarn script to run. Generate the declared native diagnostics under CI_REPORTS_DIR, for example Biome with --reporter=sarif --reporter-file="$CI_REPORTS_DIR/lint.sarif". | **false**    | `lint:ci`    |
+| **`path-mapping`**      | Optional JSON object mapping native report source path prefixes to repository-relative directories.                                                                               | **false**    | -            |
+| **`source-sha`**        | Source commit tested by a prebuilt container; must equal the checked-out revision.                                                                                                | **false**    | -            |
+| **`source-prefix`**     | Repository-relative directory represented by a prebuilt working-directory. Required with source-sha outside GITHUB_WORKSPACE; use a dot for the repository root.                  | **false**    | -            |
+| **`lint-results`**      | Required native report paths relative to CI_REPORTS_DIR, one per line.                                                                                                            | **false**    | `lint.sarif` |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
 <!-- secrets:end -->
 <!-- outputs:start -->
+
+## Outputs
+
+| **Output**               | **Description**                                                       |
+| ------------------------ | --------------------------------------------------------------------- |
+| **`report-artifact-id`** | Native report bundle, including available diagnostics after failures. |
+
 <!-- outputs:end -->
 <!-- examples:start -->
 <!-- examples:end -->

@@ -1,5 +1,12 @@
 name: "Lint"
-description: "Action to lint Node.js projects with support for pull request reporting and annotations"
+description: |
+  Run project lint commands and validate their native reports before publication.
+
+  Commands receive CI_REPORTS_DIR, a fresh directory for this execution. Write
+  required reports there; stale files in the project cannot satisfy the contract.
+  Missing or malformed reports fail even after a successful command. Available
+  diagnostics are retained after failures. Call common ci-reports once after all checks.
+  Producer jobs require actions: read and contents: read, with source checked out and Git available (including in CI containers).
 author: hoverkraft
 branding:
   icon: check-circle
@@ -23,31 +30,24 @@ inputs:
     required: false
     default: "false"
   command:
-    description: |
-      npm/pnpm/Yarn script command to run for linting.
-      This should be a script defined in your `package.json`.
-      The command should generate lint report files in a standard format.
-
-      ESLint: `eslint --format json -o eslint-report.json .`
-      Prettier: `prettier --check . | tee prettier-report.txt`
-      Biome: `biome check --assist-enabled=false . --reporter=sarif --reporter-file=biome-report.sarif --reporter=default`
-      Astro: `astro check | tee astro-report.txt`
+    description: |-
+      npm/pnpm/Yarn script to run. Generate the declared native diagnostics under CI_REPORTS_DIR, for example Biome with --reporter=sarif --reporter-file="$CI_REPORTS_DIR/lint.sarif".
     required: false
     default: "lint:ci"
-  report-file:
-    description: |
-      Optional lint report path forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.
-      Provide an absolute path or one relative to the working directory.
-      Each explicit path or glob must match a file after exclusions; missing reports fail the action.
-      When omitted, `auto:lint` detection may find no reports.
-    required: false
-    default: ""
   path-mapping:
-    description: |
-      Optional path mapping to adjust file paths in test and coverage reports.
-      See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.
+    description: |-
+      Optional JSON object mapping native report source path prefixes to repository-relative directories.
     required: false
     default: ""
+  source-sha:
+    description: Source commit tested by a prebuilt container; must equal the checked-out revision.
+    default: ""
+  source-prefix:
+    description: Repository-relative directory represented by a prebuilt working-directory. Required with source-sha outside GITHUB_WORKSPACE; use a dot for the repository root.
+    default: ""
+  lint-results:
+    description: Required native report paths relative to CI_REPORTS_DIR, one per line.
+    default: lint.sarif
 
 runs:
   using: "composite"
@@ -74,6 +74,30 @@ runs:
       uses: $/actions/get-package-manager
       with:
         working-directory: ${{ steps.working-directory.outputs.absolute-path }}
+    - id: definition
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        NODE_ACTION_PATH: ${{ github.action_path }}
+        WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
+        SOURCE_SHA: ${{ inputs.source-sha }}
+        SOURCE_PREFIX: ${{ inputs.source-prefix }}
+        PATH_MAPPING: ${{ inputs.path-mapping }}
+        RESULTS: ${{ inputs.lint-results }}
+      with:
+        script: |
+          const { ReportDefinition } = require(process.env.NODE_ACTION_PATH + '/../reporting/ReportDefinition.cjs');
+          const runtime = await exec.getExecOutput('node', ['--version'], {silent: true});
+          core.setOutput('definition', ReportDefinition.create({
+            kind: 'lint', workspace: process.env.GITHUB_WORKSPACE, directory: process.env.WORKING_DIRECTORY,
+            runtime: runtime.stdout.trim(), sourceSha: process.env.SOURCE_SHA, sourcePrefix: process.env.SOURCE_PREFIX,
+            mapping: process.env.PATH_MAPPING, results: process.env.RESULTS, coverage: process.env.COVERAGE,
+            coveragePaths: process.env.COVERAGE_PATHS, shards: process.env.MERGE_SHARDS
+          }));
+    - id: prepare-reports
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@c0b651dd3d5f9ce5eff49c3c675c1f5c7f2ca581 # PR #683 (unreleased)
+      with:
+        operation: prepare
+        definition: ${{ steps.definition.outputs.definition }}
     # jscpd:ignore-end
 
     - id: run-lint
@@ -83,6 +107,7 @@ runs:
         RUN_LINT_COMMAND: ${{ inputs.container == 'true' && steps.get-package-manager.outputs.run-script-command || steps.setup-node.outputs.run-script-command }}
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
         LINT_COMMAND: ${{ inputs.command }}
+        CI_REPORTS_DIR: ${{ steps.prepare-reports.outputs.report-directory }}
       # jscpd:ignore-end
       with:
         script: |
@@ -110,13 +135,15 @@ runs:
             core.setOutput('lint-exit-code', 1);
             core.setFailed(`Linting error: ${error.message}`);
           }
-
-    - name: 📊 Parse lint reports
-      if: always()
-      uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
+    - id: reports
+      name: Validate and retain native reports
+      if: ${{ !cancelled() && steps.prepare-reports.outcome == 'success' }}
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@c0b651dd3d5f9ce5eff49c3c675c1f5c7f2ca581 # PR #683 (unreleased)
       with:
-        working-directory: ${{ steps.working-directory.outputs.absolute-path }}
-        report-paths: ${{ inputs.report-file || 'auto:lint' }}
-        path-mapping: ${{ inputs.path-mapping }}
-        report-name: "Lint Results"
-        output-format: "annotations,summary"
+        operation: finalize
+        recording: ${{ steps.prepare-reports.outputs.recording }}
+        outcome: ${{ steps.run-lint.outcome }}
+outputs:
+  report-artifact-id:
+    description: Native report bundle, including available diagnostics after failures.
+    value: ${{ steps.reports.outputs.artifact-id }}

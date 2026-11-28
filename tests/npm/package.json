@@ -6,7 +6,7 @@
     "lint": "echo \"lint test\"",
     "lint:ci": "echo \"lint:ci test\"",
     "build": "mkdir -p dist && echo \"build test\" > dist/test.txt",
-    "test:ci": "jest --coverage"
+    "test:ci": "jest --coverage=\"${CI_TEST_COVERAGE:-true}\" --coverageReporters=text --reporters=default --json --outputFile=\"${CI_REPORTS_DIR:-.reports}/results.json\""
   },
   "devDependencies": {
     "jest": "^30.5.2",

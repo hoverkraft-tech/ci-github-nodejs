@@ -8,7 +8,7 @@ permissions: {}
 jobs:
   lint:
     name: linter
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@c0b651dd3d5f9ce5eff49c3c675c1f5c7f2ca581 # PR #683 (unreleased)
     permissions:
       actions: read
       contents: read
@@ -17,8 +17,6 @@ jobs:
       pull-requests: write
       security-events: write
       statuses: write
-    with:
-      comment: false
 
   test-release:
     name: Test release preparation and recovery
@@ -36,6 +34,7 @@ jobs:
     needs: lint
     uses: $/.github/workflows/__test-action-dependencies-cache.yml
     permissions:
+      actions: read
       contents: read
 
   test-action-get-package-manager:
@@ -43,6 +42,7 @@ jobs:
     needs: lint
     uses: $/.github/workflows/__test-action-get-package-manager.yml
     permissions:
+      actions: read
       contents: read
 
   test-action-has-installed-dependencies:
@@ -50,6 +50,7 @@ jobs:
     needs: lint
     uses: $/.github/workflows/__test-action-has-installed-dependencies.yml
     permissions:
+      actions: read
       contents: read
 
   test-action-package-create:
@@ -57,6 +58,7 @@ jobs:
     needs: lint
     uses: $/.github/workflows/__test-action-package-create.yml
     permissions:
+      actions: read
       contents: read
 
   test-action-package-test:
@@ -64,6 +66,7 @@ jobs:
     needs: lint
     uses: $/.github/workflows/__test-action-package-test.yml
     permissions:
+      actions: read
       contents: read
 
   test-action-package-discover:
@@ -71,6 +74,7 @@ jobs:
     needs: lint
     uses: $/.github/workflows/__test-action-package-discover.yml
     permissions:
+      actions: read
       contents: read
 
   test-action-setup-node:
@@ -78,6 +82,7 @@ jobs:
     needs: lint
     uses: $/.github/workflows/__test-action-setup-node.yml
     permissions:
+      actions: read
       contents: read
 
   test-action-package-publish:
@@ -106,20 +111,65 @@ jobs:
     needs: lint
     uses: $/.github/workflows/__test-action-test.yml
     permissions:
+      actions: read
       contents: read
 
   test-action-lint:
     needs: lint
     uses: $/.github/workflows/__test-action-lint.yml
     permissions:
+      actions: read
       contents: read
 
   reports:
-    needs: [lint, test-release]
     if: always()
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
+    needs:
+      - lint
+      - test-release
+      - test-action-dependencies-cache
+      - test-action-get-package-manager
+      - test-action-has-installed-dependencies
+      - test-action-package-create
+      - test-action-package-test
+      - test-action-package-discover
+      - test-action-setup-node
+      - test-action-package-publish
+      - test-workflow-continuous-integration
+      - test-action-test
+      - test-action-lint
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@c0b651dd3d5f9ce5eff49c3c675c1f5c7f2ca581 # PR #683 (unreleased)
     permissions:
+      actions: read
       contents: read
       pull-requests: write
+      code-quality: write
+      id-token: write
+      security-events: write
     with:
       job-results: ${{ toJSON(needs) }}
+
+  complete:
+    name: CI complete
+    if: always()
+    needs:
+      - lint
+      - test-release
+      - test-action-dependencies-cache
+      - test-action-get-package-manager
+      - test-action-has-installed-dependencies
+      - test-action-package-create
+      - test-action-package-test
+      - test-action-package-discover
+      - test-action-setup-node
+      - test-action-package-publish
+      - test-workflow-continuous-integration
+      - test-action-test
+      - test-action-lint
+      - reports
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - uses: hoverkraft-tech/ci-github-common/actions/check-jobs@c0b651dd3d5f9ce5eff49c3c675c1f5c7f2ca581 # PR #683 (unreleased)
+        with:
+          job-results: ${{ toJSON(needs) }}

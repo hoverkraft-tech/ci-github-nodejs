@@ -1,8 +1,7 @@
 name: Internal - Tests for package and release actions
 
 on:
-  workflow_call:
-
+  workflow_call: {}
 permissions: {}
 
 jobs:
@@ -11,8 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        action:
-          [package/restore, release/prepare, release/verify, release/finalize]
+        include: ${{ fromJSON(needs.configuration.outputs.matrix) }}
     uses: $/.github/workflows/continuous-integration.yml
     permissions:
       contents: read
@@ -20,11 +18,13 @@ jobs:
       packages: read
       pull-requests: write
       security-events: write
+      actions: read
     with:
       working-directory: actions/${{ matrix.action }}
       build: ""
       lint: ""
-      test: '{ "comment": false, "report-group": "test-release" }'
+      test: '{"coverage":false,"test-results":"junit.xml"}'
+    needs: configuration
 
   integration-tests:
     name: Test release action inputs, outputs and failures
@@ -37,6 +37,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: $/actions/setup-node
         with:
           working-directory: actions/release/prepare
@@ -189,6 +190,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Arrange - Create a workspace with compiled output and failing hooks
         id: workspace
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -262,3 +264,16 @@ jobs:
             assert.equal(parsed.version, '2.3.0');
             assert.equal(parsed.dependencies['@example/core'], '^1.4.0');
             assert.match(process.env.ARTIFACT_ID, /^[1-9][0-9]*$/);
+  configuration:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      matrix: ${{ steps.actions.outputs.matrix }}
+    steps:
+      - id: actions
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |-
+            const actions=['package/restore','release/prepare','release/verify','release/finalize'];
+            const matrix=actions.map(action=>({action,key:action.replaceAll('/','-')}));
+            core.setOutput('matrix',matrix);

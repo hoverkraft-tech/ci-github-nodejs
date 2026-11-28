@@ -1,4 +1,5 @@
-FROM node:24.14-bookworm-slim AS base
+# CI needs Git to verify the checked-out revision used by native reports.
+FROM node:24.14-bookworm AS base
 
 USER 1000:1000
 WORKDIR /usr/src/app

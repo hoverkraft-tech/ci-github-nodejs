@@ -2,12 +2,6 @@
 
 # GitHub Reusable Workflow: Node.js Continuous Integration
 
-<div align="center">
-  <img src="https://opengraph.githubassets.com/f86f31978df7be794acaa15f706c9262251de152735c1be87055a4436cc1083e/hoverkraft-tech/ci-github-nodejs" width="60px" align="center" alt="Node.js Continuous Integration" />
-</div>
-
----
-
 <!-- header:end -->
 
 <!-- badges:start -->
@@ -28,19 +22,35 @@
 
 ## Overview
 
-Workflow to performs continuous integration steps against a Node.js project:
+Workflow to run Node.js checks, builds and package validation.
 
-- CodeQL analysis
-- Linting
-- Build
-- Test
+One CI reporting boundary
+
+Commands write their declared native outputs into CI_REPORTS_DIR.
+Test results and coverage default to the same native results.json; lint defaults to
+lint.sarif. Configure test-results, test-coverage or lint-results beside the
+command when a runner needs separate files. See [native test reports](../../docs/usage/test-reports.md).
+Merge shards natively; their coverage output remains separate.
+
+Call common ci-reports.yml once after all producer jobs with
+job-results: toJSON(needs). No report plans or artifact IDs need forwarding.
+Add a separate CI complete job using common actions/check-jobs, with direct
+needs on all required producers and reporting, and if: always().
+Producer calls require actions: read and contents: read. The reporting caller
+grants actions: read, contents: read, pull-requests: write, code-quality: write,
+id-token: write and security-events: write; its internal jobs narrow these.
+Lint and tests default to annotations. Coverage defaults to GitHub when
+available, then a PR comment or summary. Select destinations once using
+lint-reporters, test-results-reporters and test-coverage-reporters.
+
+Prebuilt CI containers must include Git. They require a checkout for source verification and
+test.source-sha plus test.source-prefix identifying the tested source.
 
 ### Permissions
 
+- **`actions`**: `read`
 - **`contents`**: `read`
-- **`id-token`**: `write`
 - **`packages`**: `read`
-- **`pull-requests`**: `write`
 - **`security-events`**: `write`
 
 <!-- overview:end -->
@@ -58,12 +68,11 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@191d7230d57982bfc11d57f68b005f386a6d7fbf # 3.1.1
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@d580938064613e6d666f79320109f94dc98875b7 # feat/native-github-coverage
     permissions:
+      actions: read
       contents: read
-      id-token: write
       packages: read
-      pull-requests: write
       security-events: write
     secrets:
       # Secrets to be used during the build step.
@@ -149,19 +158,7 @@ jobs:
       # Default: `true`
       checks: true
 
-      # Whether to enable linting.
-      # Set to `null` or empty to disable.
-      # Accepts a JSON object for lint options. See [lint action](../../actions/lint/README.md).
-      # It should generate lint reports in standard formats.
-      #
-      # Example:
-      #
-      # ```json:package.json
-      # {
-      # "lint:ci": "eslint . --output-file eslint-report.json --format json"
-      # }
-      # ```
-      #
+      # Lint options: command (default lint:ci) and lint-results (default lint.sarif). Commands write native results under CI_REPORTS_DIR. Empty disables lint.
       # Default: `true`
       lint: "true"
 
@@ -191,38 +188,7 @@ jobs:
       # Default: `true`
       dependency-review: true
 
-      # Whether to enable testing.
-      # Set to `null` or empty to disable.
-      # Accepts a JSON object for test options. See [test action](../../actions/test/README.md).
-      # If coverage is enabled, it should generate test and coverage reports in standard formats.
-      # Optional `arguments` is a JSON array passed to the package script without shell expansion.
-      # Set `shards` to an integer from 2 to 256 to enable Vitest blob sharding (default: 1).
-      # Only tests are replicated; shards run with fail-fast disabled and concurrency limited to their count.
-      # A single merge job validates every payload and publishes final reports, even after test failures.
-      # `merge-command` defaults to `command`; use a separate package script when reporter settings differ.
-      # Sharding owns --shard, --merge-reports and --outputFile.blob; do not put these in package scripts or arguments.
-      # Use reporter-specific output paths such as --outputFile.junit=junit.xml; the scalar --outputFile form conflicts with blob output.
-      # Keep the same project source, dependencies, Vitest config and absolute project path across jobs.
-      # Rerun the entire workflow after failure; previous-attempt shard artifacts are never reused.
-      #
-      # CI_TEST_SHARD is index/total during shards and empty during merging. If coverage thresholds are configured,
-      # defer them to merging with `thresholds: process.env.CI_TEST_SHARD ? undefined : yourThresholds`.
-      # Keep coverage enabled in both commands, and set coverage.reportOnFailure to retain failed-test coverage.
-      # Final reporters and report-file must describe the merged JUnit/LCOV outputs.
-      # Blob payloads include coverage; file-based attachments are not transferred by this workflow.
-      # Example: `{"command":"test:ci","shards":2,"report-file":"junit.xml,coverage/lcov.info"}`.
-      #
-      # For consolidated reports, set `comment` to false and `report-group` to the calling job ID
-      # used in the common `ci-reports` workflow's `job-results`.
-      #
-      # Example:
-      #
-      # ```json:package.json
-      # {
-      # "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text"
-      # }
-      # ```
-      #
+      # Test options: command (default test:ci), arguments, coverage (boolean, default true), test-results (default results.json), test-coverage (defaults to test-results, or coverage/lcov.info for Vitest shard merging), shards and merge-command. Paths are relative to CI_REPORTS_DIR. Prebuilt containers also require source-sha and source-prefix. Empty disables tests.
       # Default: `true`
       test: "true"
 
@@ -324,14 +290,7 @@ jobs:
 |                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
 |                         | Example: `{"tests":"my-cli --help"}`                                                                                                                                                                                                                                                                                                                                                                |              |             |                     |
 | **`checks`**            | Optional flag to enable check steps.                                                                                                                                                                                                                                                                                                                                                                | **false**    | **boolean** | `true`              |
-| **`lint`**              | Whether to enable linting.                                                                                                                                                                                                                                                                                                                                                                          | **false**    | **string**  | `true`              |
-|                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                                                                                                                                                  |              |             |                     |
-|                         | Accepts a JSON object for lint options. See [lint action](../../actions/lint/README.md).                                                                                                                                                                                                                                                                                                            |              |             |                     |
-|                         | It should generate lint reports in standard formats.                                                                                                                                                                                                                                                                                                                                                |              |             |                     |
-|                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
-|                         | Example:                                                                                                                                                                                                                                                                                                                                                                                            |              |             |                     |
-|                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
-|                         | <!-- textlint-disable --><pre lang="json:package.json">{&#13; "lint:ci": "eslint . --output-file eslint-report.json --format json"&#13;}</pre><!-- textlint-enable -->                                                                                                                                                                                                                              |              |             |                     |
+| **`lint`**              | Lint options: command (default lint:ci) and lint-results (default lint.sarif). Commands write native results under CI_REPORTS_DIR. Empty disables lint.                                                                                                                                                                                                                                             | **false**    | **string**  | `true`              |
 | **`code-ql`**           | CodeQL analysis language, or a JSON object with `languages` and optional `config-file`.                                                                                                                                                                                                                                                                                                             | **false**    | **string**  | `typescript`        |
 |                         | Set to an empty string to disable CodeQL.                                                                                                                                                                                                                                                                                                                                                           |              |             |                     |
 |                         | In JSON form, `languages` must be a nonempty string and `config-file` must be a string.                                                                                                                                                                                                                                                                                                             |              |             |                     |
@@ -345,33 +304,7 @@ jobs:
 | **`dependency-review`** | Enable dependency review scan.                                                                                                                                                                                                                                                                                                                                                                      | **false**    | **boolean** | `true`              |
 |                         | Works with public repositories and private repositories with a GitHub Advanced Security license.                                                                                                                                                                                                                                                                                                    |              |             |                     |
 |                         | See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                                                                                                                                                                          |              |             |                     |
-| **`test`**              | Whether to enable testing.                                                                                                                                                                                                                                                                                                                                                                          | **false**    | **string**  | `true`              |
-|                         | Set to `null` or empty to disable.                                                                                                                                                                                                                                                                                                                                                                  |              |             |                     |
-|                         | Accepts a JSON object for test options. See [test action](../../actions/test/README.md).                                                                                                                                                                                                                                                                                                            |              |             |                     |
-|                         | If coverage is enabled, it should generate test and coverage reports in standard formats.                                                                                                                                                                                                                                                                                                           |              |             |                     |
-|                         | Optional `arguments` is a JSON array passed to the package script without shell expansion.                                                                                                                                                                                                                                                                                                          |              |             |                     |
-|                         | Set `shards` to an integer from 2 to 256 to enable Vitest blob sharding (default: 1).                                                                                                                                                                                                                                                                                                               |              |             |                     |
-|                         | Only tests are replicated; shards run with fail-fast disabled and concurrency limited to their count.                                                                                                                                                                                                                                                                                               |              |             |                     |
-|                         | A single merge job validates every payload and publishes final reports, even after test failures.                                                                                                                                                                                                                                                                                                   |              |             |                     |
-|                         | `merge-command` defaults to `command`; use a separate package script when reporter settings differ.                                                                                                                                                                                                                                                                                                 |              |             |                     |
-|                         | Sharding owns --shard, --merge-reports and --outputFile.blob; do not put these in package scripts or arguments.                                                                                                                                                                                                                                                                                     |              |             |                     |
-|                         | Use reporter-specific output paths such as --outputFile.junit=junit.xml; the scalar --outputFile form conflicts with blob output.                                                                                                                                                                                                                                                                   |              |             |                     |
-|                         | Keep the same project source, dependencies, Vitest config and absolute project path across jobs.                                                                                                                                                                                                                                                                                                    |              |             |                     |
-|                         | Rerun the entire workflow after failure; previous-attempt shard artifacts are never reused.                                                                                                                                                                                                                                                                                                         |              |             |                     |
-|                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
-|                         | CI_TEST_SHARD is index/total during shards and empty during merging. If coverage thresholds are configured,                                                                                                                                                                                                                                                                                         |              |             |                     |
-|                         | defer them to merging with `thresholds: process.env.CI_TEST_SHARD ? undefined : yourThresholds`.                                                                                                                                                                                                                                                                                                    |              |             |                     |
-|                         | Keep coverage enabled in both commands, and set coverage.reportOnFailure to retain failed-test coverage.                                                                                                                                                                                                                                                                                            |              |             |                     |
-|                         | Final reporters and report-file must describe the merged JUnit/LCOV outputs.                                                                                                                                                                                                                                                                                                                        |              |             |                     |
-|                         | Blob payloads include coverage; file-based attachments are not transferred by this workflow.                                                                                                                                                                                                                                                                                                        |              |             |                     |
-|                         | Example: `{"command":"test:ci","shards":2,"report-file":"junit.xml,coverage/lcov.info"}`.                                                                                                                                                                                                                                                                                                           |              |             |                     |
-|                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
-|                         | For consolidated reports, set `comment` to false and `report-group` to the calling job ID                                                                                                                                                                                                                                                                                                           |              |             |                     |
-|                         | used in the common `ci-reports` workflow's `job-results`.                                                                                                                                                                                                                                                                                                                                           |              |             |                     |
-|                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
-|                         | Example:                                                                                                                                                                                                                                                                                                                                                                                            |              |             |                     |
-|                         |                                                                                                                                                                                                                                                                                                                                                                                                     |              |             |                     |
-|                         | <!-- textlint-disable --><pre lang="json:package.json">{&#13; "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text"&#13;}</pre><!-- textlint-enable -->                                                                                                                                     |              |             |                     |
+| **`test`**              | Test options: command (default test:ci), arguments, coverage (boolean, default true), test-results (default results.json), test-coverage (defaults to test-results, or coverage/lcov.info for Vitest shard merging), shards and merge-command. Paths are relative to CI_REPORTS_DIR. Prebuilt containers also require source-sha and source-prefix. Empty disables tests.                           | **false**    | **string**  | `true`              |
 | **`working-directory`** | Working directory where dependencies and application commands run.                                                                                                                                                                                                                                                                                                                                  | **false**    | **string**  | `.`                 |
 |                         | Relative paths resolve against the workspace of each application job.                                                                                                                                                                                                                                                                                                                               |              |             |                     |
 |                         | Directory existence and non-container workspace boundaries are validated in those jobs.                                                                                                                                                                                                                                                                                                             |              |             |                     |

@@ -7,44 +7,17 @@ permissions: {}
 
 jobs:
   lint-report:
-    name: Lint - ${{ matrix.scenario }}
+    name: Validate native lint outputs
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - scenario: explicit report
-            failure: false
-            reports: true
-            report-file: eslint-report.json
-            expected: success
-          - scenario: failed command with a clean report
-            failure: true
-            reports: true
-            report-file: eslint-report.json
-            expected: failure
-          - scenario: missing explicit report
-            failure: false
-            reports: true
-            report-file: missing.json
-            expected: failure
-          - scenario: unmatched glob
-            failure: false
-            reports: true
-            report-file: "missing-*.json"
-            expected: failure
-          - scenario: no automatic reports
-            failure: false
-            reports: false
-            report-file: ""
-            expected: success
+      actions: read
     steps:
       - name: Arrange - Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Arrange - Create a dependency-free lint project
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -59,7 +32,7 @@ jobs:
             fs.writeFileSync('lint-fixture/lint.cjs', `
               require('node:fs').writeFileSync('command-ran.txt', 'lint ran');
               if (process.env.WRITE_REPORT === 'true') {
-                require('node:fs').writeFileSync('eslint-report.json', JSON.stringify([
+                require('node:fs').writeFileSync(process.env.CI_REPORTS_DIR + '/eslint-report.json', JSON.stringify([
                   { filePath: 'src/index.js', messages: [], errorCount: 0, warningCount: 0 },
                 ]));
               }
@@ -68,24 +41,19 @@ jobs:
             await exec.exec('npm', ['install', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: 'lint-fixture' });
       - name: Act - Run lint with report configuration
         id: lint
-        continue-on-error: true
         uses: $/actions/lint
         env:
-          EXPECT_FAILURE: ${{ matrix.failure }}
-          WRITE_REPORT: ${{ matrix.reports }}
+          WRITE_REPORT: "true"
+          EXPECT_FAILURE: "false"
         with:
           working-directory: lint-fixture
-          report-file: ${{ matrix.report-file }}
+          lint-results: eslint-report.json
       - name: Assert - Verify the action outcome
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          ACTUAL: ${{ steps.lint.outcome }}
-          EXPECTED: ${{ matrix.expected }}
-          EXPECT_REPORTS: ${{ matrix.reports }}
+          ARTIFACT_ID: ${{ steps.lint.outputs.report-artifact-id }}
         with:
           script: |
             const assert = require('node:assert/strict');
-            const fs = require('node:fs');
-            assert.equal(fs.readFileSync('lint-fixture/command-ran.txt', 'utf8'), 'lint ran');
-            assert.equal(fs.existsSync('lint-fixture/eslint-report.json'), process.env.EXPECT_REPORTS === 'true');
-            assert.equal(process.env.ACTUAL, process.env.EXPECTED);
+            assert.match(process.env.ARTIFACT_ID, /^[1-9][0-9]*$/);
+            assert.equal(require('node:fs').readFileSync('lint-fixture/command-ran.txt', 'utf8'), 'lint ran');

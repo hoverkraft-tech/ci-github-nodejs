@@ -1,18 +1,16 @@
 name: "Test"
 description: |
-  Action to test Node.js projects with support for coverage reporting and pull request annotations
+  Run project test commands and validate their native reports before publication.
 
-  GitHub reporting retains native report artifacts for seven days, including after
-  test failures. Set `comment: false` and call the common `ci-reports` workflow
-  after test jobs to publish one test comment and one coverage comment.
-
-  Note that this action must have write permission for id-token for this to work when using Codecov coverage reporting:
-
-  ```yml
-  permissions:
-    id-token: write
-  ```
-
+  Commands receive CI_REPORTS_DIR, a fresh directory for this execution. Write
+  required reports there; stale files in the project cannot satisfy the contract.
+  Missing or malformed reports fail even after a successful command. Available
+  diagnostics are retained after failures. Call common ci-reports once after all checks.
+  Producer jobs require actions: read and contents: read, with source checked out and Git available (including in CI containers).
+  CI_TEST_COVERAGE indicates whether to instrument tests. By default, results.json
+  supplies both test results and coverage using native Vitest or Jest JSON. Set
+  test-results and test-coverage to separate paths for runners such as node:test.
+  See the [native test report guide](../../docs/usage/test-reports.md) for runner and shard configuration.
 author: hoverkraft
 branding:
   icon: check-square
@@ -36,23 +34,13 @@ inputs:
     required: false
     default: "false"
   command:
-    description: |
-      npm/pnpm/Yarn script command to run for testing.
-      This should be a script defined in your `package.json`.
-      The command should generate coverage report files in a standard format (Cobertura XML, lcov, etc.).
-
-      Vitest: `vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml --coverage.enabled --coverage.reporter=lcov --coverage.reporter=text`
-      Jest: `jest --ci --reporters=default --reporters=jest-junit --coverage`
+    description: |-
+      Package script to run. Write native reports into CI_REPORTS_DIR and enable coverage when CI_TEST_COVERAGE is true. See the native test report guide for Vitest, Jest, node:test and sharding configuration.
     required: false
     default: "test:ci"
   coverage:
-    description: |
-      Code coverage reporter to use. Supported values:
-      - `github`: Parse coverage reports via [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action, with GitHub summaries/PR comments
-      - `codecov`: Upload coverage to Codecov
-      - `""` or `null`: No coverage reporting
-    required: false
-    default: "github"
+    description: Collect and require coverage. The project command must honor CI_TEST_COVERAGE when selecting instrumentation.
+    default: "true"
   arguments:
     description: |
       JSON array of arguments passed to the package script without shell expansion.
@@ -63,7 +51,7 @@ inputs:
       Optional Vitest shard as index/total, for example `1/2`. Requires shard-group.
       Adds native shard/blob arguments, sets CI_TEST_SHARD, and uploads a checked blob payload
       after tests, including failures. Individual reporting is disabled for shards.
-      Use reporter-specific --outputFile.junit rather than scalar --outputFile in the package script.
+      Use reporter-specific `--outputFile.json` rather than scalar `--outputFile` in the package script.
       Keep coverage collection enabled; defer configured coverage thresholds to the merge
       when CI_TEST_SHARD is nonempty. The workflow normally supplies these orchestration inputs.
     default: ""
@@ -80,46 +68,28 @@ inputs:
       The package script must enable final reporters and original coverage thresholds.
       A failed shard remains fatal even if merging succeeds. Partial reruns require a full workflow rerun.
     default: ""
-  report-file:
-    description: |
-      Optional test and coverage report paths forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.
-      Supports multiple formats (Cobertura, OpenCover, lcov, etc.).
-      Provide absolute paths or paths relative to the working directory.
-      Multiple entries can be separated by newlines, commas, or semicolons.
-      Each explicit path or glob must match a file after exclusions; missing reports fail the action.
-      When omitted, `auto:test,auto:coverage` detection may find no reports.
-      Applies only when coverage is `github`.
-    required: false
-    default: ""
   path-mapping:
-    description: |
-      Optional path mapping to adjust file paths in test and coverage reports.
-      See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.
+    description: |-
+      Optional JSON object mapping native report source path prefixes to repository-relative directories.
     required: false
     default: ""
-  comment:
-    description: Publish an individual coverage PR comment. Set false when using the common ci-reports workflow; GitHub summaries and report artifacts remain enabled.
-    default: "true"
-  report-group:
-    description: |
-      Job ID used to associate native reports with the common ci-reports workflow's job-results.
-      Defaults to the current job ID. Set the outer calling job ID for nested reusable workflows.
-      Matrix runs keep separate artifacts labeled with their working directory.
-  github-token:
-    description: |
-      GitHub token for coverage PR comments.
-      Required when coverage is `github` and individual comments are enabled.
-      Requires permissions to create and update PR comments:
-
-      - `issues: write`
-      - `pull-requests: write`
-    required: false
+  source-sha:
+    description: Source commit tested by a prebuilt container; must equal the checked-out revision.
+    default: ""
+  source-prefix:
+    description: Repository-relative directory represented by a prebuilt working-directory. Required with source-sha outside GITHUB_WORKSPACE; use a dot for the repository root.
+    default: ""
+  test-results:
+    description: Required native test report paths relative to CI_REPORTS_DIR, one per line. A combined JSON report can also supply coverage.
+    default: results.json
+  test-coverage:
+    description: Required native coverage paths relative to CI_REPORTS_DIR when coverage is enabled, one per line. Defaults to test-results for combined JSON, or coverage/lcov.info when merging Vitest shards. Vitest shard merging emits coverage separately; enable lcovonly when CI_TEST_MERGE is true.
     default: ""
 
 outputs:
   report-artifact-id:
-    description: Native test and coverage artifact ID, empty when GitHub reports are unavailable.
-    value: ${{ steps.upload-reports.outputs.artifact-id }}
+    description: Native report bundle, including available diagnostics after failures.
+    value: ${{ steps.reports.outputs.artifact-id }}
   shard-artifact-id:
     description: Blob and manifest artifact ID for an executing shard, including failed tests with a blob.
     value: ${{ steps.upload-shard.outputs.artifact-id }}
@@ -140,12 +110,15 @@ runs:
       env:
         NODE_ACTION_PATH: ${{ github.action_path }}
         WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
+        COVERAGE_DESTINATION: ${{ inputs.coverage }}
+        TEST_COMMIT: ${{ inputs.source-sha || github.event.pull_request.head.sha || github.sha }}
         TEST_ARGUMENTS: ${{ inputs.arguments }}
         TEST_SHARD: ${{ inputs.shard }}
         SHARD_GROUP: ${{ inputs.shard-group }}
         MERGE_SHARDS: ${{ inputs.merge-shards }}
       with:
         script: |
+          if (!['true','false'].includes(process.env.COVERAGE_DESTINATION)) throw new Error('coverage must be true or false.');
           const { TestShards } = require(`${process.env.NODE_ACTION_PATH}/TestShards.cjs`);
           const configuration = {
             workingDirectory: process.env.WORKING_DIRECTORY,
@@ -156,7 +129,7 @@ runs:
             identity: {
               runId: process.env.GITHUB_RUN_ID,
               attempt: process.env.GITHUB_RUN_ATTEMPT,
-              sha: process.env.GITHUB_SHA
+              sha: process.env.TEST_COMMIT
             }
           };
           const shards = new TestShards(configuration);
@@ -190,6 +163,35 @@ runs:
       with:
         pattern: ${{ steps.prepare-test.outputs.group }}-*
         path: ${{ steps.prepare-test.outputs.incoming }}
+    - id: definition
+      if: inputs.shard == ''
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        NODE_ACTION_PATH: ${{ github.action_path }}
+        WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
+        SOURCE_SHA: ${{ inputs.source-sha }}
+        SOURCE_PREFIX: ${{ inputs.source-prefix }}
+        PATH_MAPPING: ${{ inputs.path-mapping }}
+        RESULTS: ${{ inputs.test-results }}
+        COVERAGE: ${{ inputs.coverage }}
+        COVERAGE_PATHS: ${{ inputs.test-coverage || (inputs.merge-shards != '' && 'coverage/lcov.info' || inputs.test-results) }}
+        MERGE_SHARDS: ${{ inputs.merge-shards }}
+      with:
+        script: |
+          const { ReportDefinition } = require(process.env.NODE_ACTION_PATH + '/../reporting/ReportDefinition.cjs');
+          const runtime = await exec.getExecOutput('node', ['--version'], {silent: true});
+          core.setOutput('definition', ReportDefinition.create({
+            kind: 'test', workspace: process.env.GITHUB_WORKSPACE, directory: process.env.WORKING_DIRECTORY,
+            runtime: runtime.stdout.trim(), sourceSha: process.env.SOURCE_SHA, sourcePrefix: process.env.SOURCE_PREFIX,
+            mapping: process.env.PATH_MAPPING, results: process.env.RESULTS, coverage: process.env.COVERAGE,
+            coveragePaths: process.env.COVERAGE_PATHS, shards: process.env.MERGE_SHARDS
+          }));
+    - id: prepare-reports
+      if: inputs.shard == ''
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@c0b651dd3d5f9ce5eff49c3c675c1f5c7f2ca581 # PR #683 (unreleased)
+      with:
+        operation: prepare
+        definition: ${{ steps.definition.outputs.definition }}
 
     - id: validate-shards
       if: inputs.merge-shards != ''
@@ -214,6 +216,9 @@ runs:
         TEST_ARGUMENTS: ${{ steps.prepare-test.outputs.arguments }}
         TEST_SHARD: ${{ inputs.shard }}
         SHARDS_FAILED: ${{ steps.validate-shards.outputs.failed }}
+        CI_REPORTS_DIR: ${{ steps.prepare-reports.outputs.report-directory || steps.prepare-test.outputs.directory }}
+        CI_TEST_COVERAGE: ${{ inputs.coverage }}
+        CI_TEST_MERGE: ${{ inputs.merge-shards != '' && 'true' || 'false' }}
       with:
         script: |
           const workingDirectory = process.env.WORKING_DIRECTORY;
@@ -274,62 +279,14 @@ runs:
         include-hidden-files: true
         if-no-files-found: error
         retention-days: 7
-
-    - name: 📊 Parse coverage reports
-      if: always() && inputs.shard == '' && (inputs.merge-shards == '' || steps.validate-shards.outcome == 'success') && inputs.coverage == 'github'
-      id: parse-coverage-reports
-      uses: hoverkraft-tech/ci-github-common/actions/quality/parse-ci-reports@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
+    - id: reports
+      name: Validate and retain native reports
+      if: ${{ !cancelled() && steps.prepare-reports.outcome == 'success' }}
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@c0b651dd3d5f9ce5eff49c3c675c1f5c7f2ca581 # PR #683 (unreleased)
       with:
-        working-directory: ${{ steps.working-directory.outputs.absolute-path }}
-        report-name: "Coverage Results"
-        report-paths: ${{ inputs.report-file || 'auto:test,auto:coverage' }}
-        path-mapping: ${{ inputs.path-mapping }}
-        output-format: "summary,markdown"
-
-    - name: 📊 Add coverage PR comment
-      if: always() && inputs.shard == '' && inputs.comment == 'true' && inputs.coverage == 'github' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.parse-coverage-reports.outputs.markdown
-      uses: hoverkraft-tech/ci-github-common/actions/create-or-update-comment@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
-      with:
-        title: "Code Coverage Report"
-        token: ${{ inputs.github-token }}
-        body: ${{ steps.parse-coverage-reports.outputs.markdown }}
-
-    - name: 📊 Upload coverage to Codecov
-      if: always() && inputs.shard == '' && (inputs.merge-shards == '' || steps.validate-shards.outcome == 'success') && inputs.coverage == 'codecov'
-      uses: hoverkraft-tech/ci-github-common/actions/quality/codecov@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
-      with:
-        working-directory: ${{ steps.working-directory.outputs.absolute-path }}
-
-    - name: Prepare native report artifact
-      id: report-artifact
-      if: always() && steps.parse-coverage-reports.outputs.parsed-files != ''
-      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-      env:
-        REPORT_FILES: ${{ steps.parse-coverage-reports.outputs.parsed-files }}
-        REPORT_GROUP: ${{ inputs.report-group || github.job }}
-        WORKING_DIRECTORY: ${{ steps.working-directory.outputs.absolute-path }}
-      with:
-        script: |
-          const group = process.env.REPORT_GROUP;
-          if (!/^[\w-]+$/.test(group)) {
-            throw new Error('report-group must be a job ID containing letters, numbers, underscores or hyphens.');
-          }
-          const path = require('node:path');
-          const source = path.relative(process.env.GITHUB_WORKSPACE, process.env.WORKING_DIRECTORY)
-            .replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 120) || 'root';
-          core.setOutput('files', JSON.parse(process.env.REPORT_FILES).join('\n'));
-          core.setOutput('name', `ci-reports-${process.env.GITHUB_RUN_ATTEMPT}-${group}-${source}-${require('node:crypto').randomUUID()}`);
-
-    - name: Upload native test and coverage reports
-      id: upload-reports
-      if: always() && steps.report-artifact.outputs.files != ''
-      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-      with:
-        name: ${{ steps.report-artifact.outputs.name }}
-        path: ${{ steps.report-artifact.outputs.files }}
-        include-hidden-files: true
-        if-no-files-found: error
-        retention-days: 7
+        operation: finalize
+        recording: ${{ steps.prepare-reports.outputs.recording }}
+        outcome: ${{ steps.run-test.outcome }}
 
     - name: Clean shard workspace
       if: always() && steps.prepare-test.outputs.directory != ''
