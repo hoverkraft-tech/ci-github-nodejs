@@ -35,7 +35,7 @@ inputs:
     default: "false"
   command:
     description: |-
-      npm/pnpm/Yarn script to run. Write native reports into CI_REPORTS_DIR and enable coverage when CI_TEST_COVERAGE is true. Vitest uses --reporter=json --outputFile.json="$CI_REPORTS_DIR/results.json"; Jest uses --json --outputFile="$CI_REPORTS_DIR/results.json". Both include coverageMap when instrumented. Preserve Vitest coverage on failure with coverage.reportOnFailure. JUnit and TAP remain supported for other runners.
+      Package script to run. Write native reports into CI_REPORTS_DIR and enable coverage when CI_TEST_COVERAGE is true. See the native test report guide for Vitest, Jest, node:test and sharding configuration.
     required: false
     default: "test:ci"
   coverage:
@@ -51,7 +51,7 @@ inputs:
       Optional Vitest shard as index/total, for example `1/2`. Requires shard-group.
       Adds native shard/blob arguments, sets CI_TEST_SHARD, and uploads a checked blob payload
       after tests, including failures. Individual reporting is disabled for shards.
-      Use reporter-specific --outputFile.json rather than scalar --outputFile in the package script.
+      Use reporter-specific `--outputFile.json` rather than scalar `--outputFile` in the package script.
       Keep coverage collection enabled; defer configured coverage thresholds to the merge
       when CI_TEST_SHARD is nonempty. The workflow normally supplies these orchestration inputs.
     default: ""
@@ -188,7 +188,7 @@ runs:
           }));
     - id: prepare-reports
       if: inputs.shard == ''
-      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@4e18f19c4e4de697daa47d2551bb255e85ba7558 # PR #683 (unreleased)
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@26c25ffc7f5d804a40c446cdd6977a789806cddd # PR #683 (unreleased)
       with:
         operation: prepare
         definition: ${{ steps.definition.outputs.definition }}
@@ -282,7 +282,7 @@ runs:
     - id: reports
       name: Validate and retain native reports
       if: ${{ !cancelled() && steps.prepare-reports.outcome == 'success' }}
-      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@4e18f19c4e4de697daa47d2551bb255e85ba7558 # unified reports (PR #683, unreleased)
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@26c25ffc7f5d804a40c446cdd6977a789806cddd # unified reports (PR #683, unreleased)
       with:
         operation: finalize
         recording: ${{ steps.prepare-reports.outputs.recording }}

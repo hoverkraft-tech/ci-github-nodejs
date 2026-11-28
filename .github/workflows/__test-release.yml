@@ -23,7 +23,7 @@ jobs:
       working-directory: actions/${{ matrix.action }}
       build: ""
       lint: ""
-      test: '{"coverage":false}'
+      test: '{"coverage":false,"test-results":"junit.xml"}'
     needs: configuration
 
   integration-tests:
