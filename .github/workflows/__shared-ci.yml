@@ -8,7 +8,7 @@ permissions: {}
 jobs:
   lint:
     name: linter
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@85351002dc2303c4a70233197edcadb20b1cb90e # PR #683 (unreleased)
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@c0b651dd3d5f9ce5eff49c3c675c1f5c7f2ca581 # PR #683 (unreleased)
     permissions:
       actions: read
       contents: read
@@ -137,7 +137,7 @@ jobs:
       - test-workflow-continuous-integration
       - test-action-test
       - test-action-lint
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@85351002dc2303c4a70233197edcadb20b1cb90e # PR #683 (unreleased)
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@c0b651dd3d5f9ce5eff49c3c675c1f5c7f2ca581 # PR #683 (unreleased)
     permissions:
       actions: read
       contents: read
@@ -167,8 +167,9 @@ jobs:
       - test-action-lint
       - reports
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions: {}
     steps:
-      - uses: hoverkraft-tech/ci-github-common/actions/check-jobs@85351002dc2303c4a70233197edcadb20b1cb90e # PR #683 (unreleased)
+      - uses: hoverkraft-tech/ci-github-common/actions/check-jobs@c0b651dd3d5f9ce5eff49c3c675c1f5c7f2ca581 # PR #683 (unreleased)
         with:
           job-results: ${{ toJSON(needs) }}
