@@ -16,7 +16,7 @@
 # available, then a PR comment or summary. Select destinations once using
 # lint-reporters, test-results-reporters and test-coverage-reporters.
 
-# Prebuilt containers require a checkout for report source verification and
+# Prebuilt CI containers must include Git. They require a checkout for source verification and
 # test.source-sha plus test.source-prefix identifying the tested source.
 
 name: Node.js Continuous Integration

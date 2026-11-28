@@ -27,7 +27,7 @@ Commands receive CI_REPORTS_DIR, a fresh directory for this execution. Write
 required reports there; stale files in the project cannot satisfy the contract.
 Missing or malformed reports fail even after a successful command. Available
 diagnostics are retained after failures. Call common ci-reports once after all checks.
-Producer jobs require actions: read and contents: read, with source checked out.
+Producer jobs require actions: read and contents: read, with source checked out and Git available (including in CI containers).
 CI_TEST_COVERAGE indicates whether to instrument tests. Default reports are JUnit
 and LCOV; configure different native paths with test-results and test-coverage.
 
@@ -37,7 +37,7 @@ and LCOV; configure different native paths with test-results and test-coverage.
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/test@35b4839d14f5abf7ce8426d8a5d718170a971ee6 # feat/native-github-coverage
+- uses: hoverkraft-tech/ci-github-nodejs/actions/test@05981e2c0d4b82bd09d6154082ecdb004dd7d9f9 # feat/native-github-coverage
   with:
     # Disable project and dependency lifecycle scripts during installation.
     # Set false to allow installation hooks, subject to the package manager's script approval settings.

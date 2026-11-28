@@ -40,7 +40,7 @@ Lint and tests default to annotations. Coverage defaults to GitHub when
 available, then a PR comment or summary. Select destinations once using
 lint-reporters, test-results-reporters and test-coverage-reporters.
 
-Prebuilt containers require a checkout for report source verification and
+Prebuilt CI containers must include Git. They require a checkout for source verification and
 test.source-sha plus test.source-prefix identifying the tested source.
 
 ### Permissions
@@ -65,7 +65,7 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@35b4839d14f5abf7ce8426d8a5d718170a971ee6 # feat/native-github-coverage
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@05981e2c0d4b82bd09d6154082ecdb004dd7d9f9 # feat/native-github-coverage
     permissions:
       actions: read
       contents: read

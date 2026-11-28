@@ -197,7 +197,14 @@ test("real Vitest merging preserves inventory, coverage, thresholds and failed t
       ],
       {
         cwd: project,
-        env: { ...process.env, CI: "true", CI_TEST_SHARD: "", ...env },
+        env: {
+          ...process.env,
+          CI: "true",
+          CI_TEST_SHARD: "",
+          CI_REPORTS_DIR: "",
+          CI_TEST_COVERAGE: "true",
+          ...env,
+        },
         encoding: "utf8",
         timeout: 30_000,
       },
