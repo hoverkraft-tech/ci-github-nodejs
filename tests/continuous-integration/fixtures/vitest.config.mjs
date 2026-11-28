@@ -4,13 +4,17 @@ export default defineConfig({
   test: {
     include: ["fixtures/vitest/*.fixture.js"],
     reporters: ["default", "junit"],
-    outputFile: { junit: "coverage/sharding/junit.xml" },
+    outputFile: {
+      junit: `${process.env.CI_REPORTS_DIR || "coverage/sharding"}/junit.xml`,
+    },
     coverage: {
-      enabled: true,
+      enabled: process.env.CI_TEST_COVERAGE !== "false",
       provider: "v8",
       include: ["fixtures/vitest/source.js"],
-      reporter: ["lcov", "json-summary", "cobertura"],
-      reportsDirectory: "coverage/sharding",
+      reporter: ["lcov", "json-summary"],
+      reportsDirectory: process.env.CI_REPORTS_DIR
+        ? `${process.env.CI_REPORTS_DIR}/coverage`
+        : "coverage/sharding",
       reportOnFailure: true,
       thresholds: process.env.CI_TEST_SHARD
         ? undefined

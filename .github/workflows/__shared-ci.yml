@@ -8,7 +8,7 @@ permissions: {}
 jobs:
   lint:
     name: linter
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@f76a768d78723ec0ba0b1442eeeb2c1619dc7525 # unified reports (PR #683, unreleased)
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@ea5900049a1704d6d2b479cc6cce37e799f532a3 # PR #683 (unreleased)
     permissions:
       actions: read
       contents: read
@@ -35,6 +35,7 @@ jobs:
     uses: $/.github/workflows/__test-action-dependencies-cache.yml
     permissions:
       contents: read
+      actions: read
 
   test-action-get-package-manager:
     name: Test action "get-package-manager"
@@ -42,6 +43,7 @@ jobs:
     uses: $/.github/workflows/__test-action-get-package-manager.yml
     permissions:
       contents: read
+      actions: read
 
   test-action-has-installed-dependencies:
     name: Test action "has-installed-dependencies"
@@ -49,6 +51,7 @@ jobs:
     uses: $/.github/workflows/__test-action-has-installed-dependencies.yml
     permissions:
       contents: read
+      actions: read
 
   test-action-package-create:
     name: Test action "package/create"
@@ -56,6 +59,7 @@ jobs:
     uses: $/.github/workflows/__test-action-package-create.yml
     permissions:
       contents: read
+      actions: read
 
   test-action-package-test:
     name: Test action "package/test"
@@ -63,6 +67,7 @@ jobs:
     uses: $/.github/workflows/__test-action-package-test.yml
     permissions:
       contents: read
+      actions: read
 
   test-action-package-discover:
     name: Test action "package/discover"
@@ -70,6 +75,7 @@ jobs:
     uses: $/.github/workflows/__test-action-package-discover.yml
     permissions:
       contents: read
+      actions: read
 
   test-action-setup-node:
     name: Test action "setup-node"
@@ -77,6 +83,7 @@ jobs:
     uses: $/.github/workflows/__test-action-setup-node.yml
     permissions:
       contents: read
+      actions: read
 
   test-action-package-publish:
     name: Test action "package/publish"
@@ -99,28 +106,44 @@ jobs:
       id-token: write
       issues: read
       security-events: write
-      code-quality: write
 
   test-action-test:
     needs: lint
     uses: $/.github/workflows/__test-action-test.yml
     permissions:
       contents: read
+      actions: read
 
   test-action-lint:
     needs: lint
     uses: $/.github/workflows/__test-action-lint.yml
     permissions:
       contents: read
+      actions: read
 
   reports:
-    needs: [lint, test-release]
-    if: always()
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@f76a768d78723ec0ba0b1442eeeb2c1619dc7525 # unified reports (PR #683, unreleased)
+    needs:
+      - lint
+      - test-release
+      - test-action-dependencies-cache
+      - test-action-get-package-manager
+      - test-action-has-installed-dependencies
+      - test-action-package-create
+      - test-action-package-test
+      - test-action-package-discover
+      - test-action-setup-node
+      - test-action-package-publish
+      - test-workflow-continuous-integration
+      - test-action-test
+      - test-action-lint
+    if: ${{ !cancelled() }}
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@ea5900049a1704d6d2b479cc6cce37e799f532a3 # PR #683 (unreleased)
     permissions:
       contents: read
       pull-requests: write
       code-quality: write
       id-token: write
+      actions: read
+      security-events: write
     with:
       job-results: ${{ toJSON(needs) }}

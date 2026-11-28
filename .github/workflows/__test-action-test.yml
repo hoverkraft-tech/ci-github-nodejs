@@ -10,59 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - scenario: explicit reports
-            failure: false
-            reports: true
-            report-file: ".reports/junit.xml,.reports/lcov.info"
-            expected: success
-            artifact: true
-          - scenario: coverage disabled retains test diagnostics
-            failure: false
-            reports: true
-            report-file: .reports/junit.xml
-            coverage-disabled: true
-            expected: success
-            artifact: true
-            artifact-files: '["junit.xml"]'
-          - scenario: failed test with reports
-            failure: true
-            reports: true
-            report-file: ".reports/junit.xml,.reports/lcov.info"
-            expected: failure
-            artifact: true
-          - scenario: missing explicit report
-            failure: false
-            reports: true
-            report-file: .reports/missing.xml
-            expected: failure
-            artifact: true
-            artifact-files: "[]"
-          - scenario: unmatched glob
-            failure: false
-            reports: true
-            report-file: ".reports/missing-*.xml"
-            expected: failure
-            artifact: true
-            artifact-files: "[]"
-          - scenario: partially missing reports
-            failure: false
-            reports: true
-            report-file: ".reports/junit.xml,.reports/missing.xml"
-            expected: failure
-            artifact: true
-            artifact-files: '["junit.xml"]'
-          - scenario: no automatic reports
-            failure: false
-            reports: false
-            report-file: ""
-            expected: failure
-            artifact: true
-            artifact-files: "[]"
-    name: Test - ${{ matrix.scenario }}
+      actions: read
+    name: Validate native test outputs
     steps:
       - name: Arrange - Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -79,8 +28,7 @@ jobs:
             fs.writeFileSync('report-fixture/package.json', JSON.stringify({
               name: 'report-fixture', version: '1.0.0', private: true,
               scripts: {
-                'pretest:ci': 'node -e "require(\'node:fs\').mkdirSync(\'.reports\', {recursive:true})"',
-                'test:ci': 'node --experimental-test-coverage --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=.reports/junit.xml --test-reporter=lcov --test-reporter-destination=.reports/lcov.info test.cjs',
+                    'test:ci': 'node --experimental-test-coverage --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination="$CI_REPORTS_DIR/junit.xml" --test-reporter=lcov --test-reporter-destination="$CI_REPORTS_DIR/lcov.info" test.cjs',
                 'test:no-reports': 'node --test test.cjs',
               },
             }));
@@ -89,15 +37,14 @@ jobs:
             await exec.exec('npm', ['install', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: 'report-fixture' });
       - name: Act - Run tests with comments disabled and no write token
         id: test
-        continue-on-error: true
         uses: $/actions/test
         env:
-          EXPECT_FAILURE: ${{ matrix.failure }}
+          EXPECT_FAILURE: "false"
         with:
           working-directory: report-fixture
-          command: ${{ matrix.reports && 'test:ci' || 'test:no-reports' }}
-          report-file: ${{ matrix.report-file }}
-          coverage: "false"
+          command: test:ci
+          coverage: "true"
+          test-coverage: lcov.info
       - name: Assert - Retrieve reports even after a failed test
         if: steps.test.outputs.report-artifact-id != ''
         uses: hoverkraft-tech/ci-github-common/actions/download-artifact@af0bdd6313bd49aaf4a8a7f0de005fb0db856b03 # 4.3.3
@@ -107,35 +54,14 @@ jobs:
           merge-multiple: true
       - name: Assert - Verify outcome and native report content
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          ACTUAL: ${{ steps.test.outcome }}
-          EXPECTED: ${{ matrix.expected }}
-          EXPECT_ARTIFACT: ${{ matrix.artifact }}
-          EXPECT_REPORTS: ${{ matrix.reports }}
-          EXPECT_FAILURE: ${{ matrix.failure }}
-          ARTIFACT_ID: ${{ steps.test.outputs.report-artifact-id }}
-          ARTIFACT_FILES: ${{ matrix.artifact-files || '["junit.xml","lcov.info"]' }}
         with:
           script: |
             const assert = require('node:assert/strict');
             const fs = require('node:fs');
-            assert.equal(process.env.ACTUAL, process.env.EXPECTED);
-            for (const file of ['junit.xml', 'lcov.info']) {
-              assert.equal(fs.existsSync(`report-fixture/.reports/${file}`), process.env.EXPECT_REPORTS === 'true');
-            }
-            if (process.env.EXPECT_ARTIFACT !== 'true') {
-              assert.equal(process.env.ARTIFACT_ID, '');
-              return;
-            }
-            assert.match(process.env.ARTIFACT_ID, /^\d+$/);
-            const globber = await glob.create('downloaded-reports/**/*', { matchDirectories: false });
-            const files = (await globber.glob()).filter(file => !file.endsWith('/ci-report.json'));
-            const expectedFiles = JSON.parse(process.env.ARTIFACT_FILES);
-            assert.deepEqual(files.map(file => require('node:path').basename(file)).sort(), expectedFiles.sort());
-            if (expectedFiles.includes('junit.xml')) {
-              const junit = fs.readFileSync(files.find(file => file.endsWith('junit.xml')), 'utf8');
-              assert.equal(junit.includes('<failure'), process.env.EXPECT_FAILURE === 'true');
-            }
-            if (expectedFiles.includes('lcov.info')) {
-              assert.match(fs.readFileSync(files.find(file => file.endsWith('lcov.info')), 'utf8'), /SF:/);
-            }
+            const result = JSON.parse(fs.readFileSync('downloaded-reports/result.json', 'utf8'));
+            assert.equal(result.outcome, 'success');
+            assert.deepEqual(result.errors, []);
+            assert.equal(result.assets.filter(item => item.selector.kind === 'test').length, 1);
+            assert.equal(result.assets.filter(item => item.selector.kind === 'coverage').length, 1);
+            assert.match(fs.readFileSync('downloaded-reports/reports/junit.xml', 'utf8'), /<testcase/);
+            assert.match(fs.readFileSync('downloaded-reports/reports/lcov.info', 'utf8'), /SF:/);

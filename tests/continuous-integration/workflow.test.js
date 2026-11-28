@@ -29,66 +29,63 @@ test("coverage collection defaults to enabled without selecting a provider", asy
   assert.equal(disabled.outputs.coverage, false);
 });
 
-test("custom components retain their report paths and stable labels", async () => {
-  const reports = [
-    { file: "coverage/custom.xml", language: "TypeScript", label: "frontend" },
-  ];
+test("custom components retain native report paths", async () => {
   const { outputs } = await runScript("prepare", "test-options", {
-    TEST_INPUT: JSON.stringify({ coverage: true, "coverage-reports": reports }),
+    TEST_INPUT: JSON.stringify({
+      coverage: true,
+      "test-coverage": "native/coverage.xml",
+      "test-results": "native/junit.xml",
+    }),
   });
-  assert.deepEqual(JSON.parse(outputs["coverage-reports"]), reports);
+  assert.equal(outputs["test-coverage"], "native/coverage.xml");
+  assert.equal(outputs["test-results"], "native/junit.xml");
 });
 
 for (const options of [
   { comment: false },
   { "report-group": "tests" },
   { coverage: "github" },
-  { "coverage-reports": {} },
-  { "coverage-source-sha": 42 },
+  { "test-coverage": {} },
+  { "source-sha": 42 },
 ]) {
   test(`rejects retired or invalid report options ${JSON.stringify(options)}`, async () => {
     await assert.rejects(
       runScript("prepare", "test-options", {
         TEST_INPUT: JSON.stringify(options),
       }),
-      /Unknown test options|test\.(coverage|coverage-reports|coverage-source-sha)/,
+      /Unknown test options|test\.(coverage|test-coverage|source-sha)/,
     );
   });
 }
 
-test("producer planning includes lint and merged tests without repeating shard executions", async () => {
-  const reports = [
-    { file: "coverage/custom.xml", language: "TypeScript", label: "frontend" },
-  ];
-  const { outputs } = await runScript("prepare", "report-producers", {
-    CHECKS: "true",
-    LINT: "lint:ci",
-    TEST_ENABLED: "true",
-    COVERAGE: "true",
-    COVERAGE_REPORTS: JSON.stringify(reports),
-    DIRECTORY: "apps/web",
-    CONTAINER: "",
-    SOURCE_PREFIX: "",
-  });
-  assert.equal(outputs.producers.length, 2);
-  assert.deepEqual(
-    Array.from(outputs.producers, (producer) => producer.key),
-    ["lint", "test"],
+test("lint configuration rejects ambiguous options and respects disabled checks", async () => {
+  for (const input of ["", "false", "null"]) {
+    assert.equal(
+      (
+        await runScript("prepare", "lint-options", {
+          CHECKS: "true",
+          LINT_INPUT: input,
+        })
+      ).outputs["lint-enabled"],
+      false,
+    );
+  }
+  assert.equal(
+    (
+      await runScript("prepare", "lint-options", {
+        CHECKS: "true",
+        LINT_INPUT: '{"lint-results":"lint.sarif"}',
+      })
+    ).outputs["lint-enabled"],
+    true,
   );
-  assert.equal(outputs.producers[1].directory, "apps/web");
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(outputs.producers[1].coverage)),
-    reports,
+  await assert.rejects(
+    runScript("prepare", "lint-options", {
+      CHECKS: "true",
+      LINT_INPUT: '{"report-plan":"obsolete"}',
+    }),
+    /Unknown lint options/,
   );
-  const disabled = await runScript("prepare", "report-producers", {
-    CHECKS: "false",
-    LINT: "lint:ci",
-    TEST_ENABLED: "true",
-    COVERAGE: "true",
-    DIRECTORY: ".",
-    CONTAINER: "",
-  });
-  assert.equal(disabled.outputs.producers.length, 0);
 });
 
 async function runScript(job, stepId, env = {}) {
@@ -329,7 +326,7 @@ test("preserves container options, credentials and report path mappings", async 
   assert.equal(result.outputs["container-username"], "user");
   assert.equal(
     result.outputs["path-mapping"],
-    "/usr/src/app:application/frontend",
+    '{"/usr/src/app":"application/frontend"}',
   );
   assert.equal(JSON.stringify(result.outputs).includes("test-password"), false);
 });

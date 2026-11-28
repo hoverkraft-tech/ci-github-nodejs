@@ -6,7 +6,7 @@
     "lint": "echo \"lint test\"",
     "lint:ci": "echo \"lint:ci test\"",
     "build": "mkdir -p dist && echo \"build test\" > dist/test.txt",
-    "test:ci": "jest --coverage --coverageReporters=lcov --coverageReporters=cobertura --reporters=default --reporters=jest-junit"
+    "test:ci": "JEST_JUNIT_OUTPUT_DIR=\"$CI_REPORTS_DIR\" jest --coverage=\"$CI_TEST_COVERAGE\" --coverageDirectory=\"$CI_REPORTS_DIR/coverage\" --coverageReporters=lcov --reporters=default --reporters=jest-junit"
   },
   "devDependencies": {
     "jest": "^30.5.2",
@@ -17,8 +17,5 @@
   },
   "overrides": {
     "undici": ">=7.29.1"
-  },
-  "jest-junit": {
-    "outputDirectory": "coverage"
   }
 }

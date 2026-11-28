@@ -21,13 +21,13 @@
 
 ## Overview
 
-Run project lint commands and retain native reports for consolidated CI feedback.
-The common ci-reports workflow owns comments and external coverage publication.
-Forward report-plan from standalone jobs; reusable workflows do this automatically.
-Required reports remain required after command failures. This action keeps local
-diagnostics and never grants publication permissions to project code.
+Run project lint commands and validate their native reports before publication.
 
-Generate supported lint reports such as SARIF, ESLint JSON or Checkstyle XML.
+Commands receive CI_REPORTS_DIR, a fresh directory for this execution. Write
+required reports there; stale files in the project cannot satisfy the contract.
+Missing or malformed reports fail even after a successful command. Available
+diagnostics are retained after failures. Call common ci-reports once after all checks.
+Producer jobs require actions: read and contents: read, with source checked out.
 
 <!-- overview:end -->
 <!-- usage:start -->
@@ -35,7 +35,7 @@ Generate supported lint reports such as SARIF, ESLint JSON or Checkstyle XML.
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@11636b817040a2a7d61b389c28fa1b401c37a2fa # feat/native-github-coverage
+- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@35b4839d14f5abf7ce8426d8a5d718170a971ee6 # feat/native-github-coverage
   with:
     # Disable project and dependency lifecycle scripts during installation.
     # Set false to allow installation hooks, subject to the package manager's script approval settings.
@@ -54,30 +54,22 @@ Generate supported lint reports such as SARIF, ESLint JSON or Checkstyle XML.
     # Default: `false`
     container: "false"
 
-    # npm/pnpm/Yarn script command to run for linting.
-    # This should be a script defined in your `package.json`.
-    # The command should generate lint report files in a standard format.
-    #
-    # ESLint: `eslint --format json -o eslint-report.json .`
-    # Prettier: `prettier --check . | tee prettier-report.txt`
-    # Biome: `biome check --assist-enabled=false . --reporter=sarif --reporter-file=biome-report.sarif --reporter=default`
-    # Astro: `astro check | tee astro-report.txt`
-    #
+    # npm/pnpm/Yarn script to run. Generate the declared native diagnostics under CI_REPORTS_DIR, for example Biome with --reporter=sarif --reporter-file="$CI_REPORTS_DIR/lint.sarif".
     # Default: `lint:ci`
     command: lint:ci
 
-    # Optional lint report path forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action.
-    # Provide an absolute path or one relative to the working directory.
-    # Each explicit path or glob must match a file after exclusions; missing reports fail the action.
-    # When omitted, `auto:lint` detection may find no reports.
-    report-file: ""
-
-    # Optional path mapping to adjust file paths in test and coverage reports.
-    # See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.
+    # Optional JSON object mapping native report source path prefixes to repository-relative directories.
     path-mapping: ""
 
-    # Expected producer metadata supplied by reusable workflows. Leave empty for standalone use.
-    report-plan: ""
+    # Source commit tested by a prebuilt container; must equal the checked-out revision.
+    source-sha: ""
+
+    # Repository-relative directory represented by a prebuilt working-directory. Required with source-sha outside GITHUB_WORKSPACE; use a dot for the repository root.
+    source-prefix: ""
+
+    # Required native report paths relative to CI_REPORTS_DIR, one per line.
+    # Default: `lint.sarif`
+    lint-results: lint.sarif
 ```
 
 <!-- usage:end -->
@@ -85,29 +77,19 @@ Generate supported lint reports such as SARIF, ESLint JSON or Checkstyle XML.
 
 ## Inputs
 
-| **Input**               | **Description**                                                                                                                                                       | **Required** | **Default** |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
-| **`ignore-scripts`**    | Disable project and dependency lifecycle scripts during installation.                                                                                                 | **false**    | `true`      |
-|                         | Set false to allow installation hooks, subject to the package manager's script approval settings.                                                                     |              |             |
-|                         | Explicit commands are unaffected. Does not apply in container mode, which skips installation.                                                                         |              |             |
-| **`working-directory`** | Working directory where lint commands are executed.                                                                                                                   | **false**    | `.`         |
-|                         | Can be absolute or relative to the repository root.                                                                                                                   |              |             |
-| **`container`**         | Whether running in container mode (skips checkout and node setup)                                                                                                     | **false**    | `false`     |
-| **`command`**           | npm/pnpm/Yarn script command to run for linting.                                                                                                                      | **false**    | `lint:ci`   |
-|                         | This should be a script defined in your `package.json`.                                                                                                               |              |             |
-|                         | The command should generate lint report files in a standard format.                                                                                                   |              |             |
-|                         |                                                                                                                                                                       |              |             |
-|                         | ESLint: `eslint --format json -o eslint-report.json .`                                                                                                                |              |             |
-|                         | Prettier: `prettier --check . \| tee prettier-report.txt`                                                                                                             |              |             |
-|                         | Biome: `biome check --assist-enabled=false . --reporter=sarif --reporter-file=biome-report.sarif --reporter=default`                                                  |              |             |
-|                         | Astro: `astro check \| tee astro-report.txt`                                                                                                                          |              |             |
-| **`report-file`**       | Optional lint report path forwarded to the [parse-ci-reports](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) action. | **false**    | -           |
-|                         | Provide an absolute path or one relative to the working directory.                                                                                                    |              |             |
-|                         | Each explicit path or glob must match a file after exclusions; missing reports fail the action.                                                                       |              |             |
-|                         | When omitted, `auto:lint` detection may find no reports.                                                                                                              |              |             |
-| **`path-mapping`**      | Optional path mapping to adjust file paths in test and coverage reports.                                                                                              | **false**    | -           |
-|                         | See the [parse-ci-reports documentation](https://github.com/hoverkraft-tech/ci-github-common/tree/main/actions/quality/parse-ci-reports) for details.                 |              |             |
-| **`report-plan`**       | Expected producer metadata supplied by reusable workflows. Leave empty for standalone use.                                                                            | **false**    | -           |
+| **Input**               | **Description**                                                                                                                                                                   | **Required** | **Default**  |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ------------ |
+| **`ignore-scripts`**    | Disable project and dependency lifecycle scripts during installation.                                                                                                             | **false**    | `true`       |
+|                         | Set false to allow installation hooks, subject to the package manager's script approval settings.                                                                                 |              |              |
+|                         | Explicit commands are unaffected. Does not apply in container mode, which skips installation.                                                                                     |              |              |
+| **`working-directory`** | Working directory where lint commands are executed.                                                                                                                               | **false**    | `.`          |
+|                         | Can be absolute or relative to the repository root.                                                                                                                               |              |              |
+| **`container`**         | Whether running in container mode (skips checkout and node setup)                                                                                                                 | **false**    | `false`      |
+| **`command`**           | npm/pnpm/Yarn script to run. Generate the declared native diagnostics under CI_REPORTS_DIR, for example Biome with --reporter=sarif --reporter-file="$CI_REPORTS_DIR/lint.sarif". | **false**    | `lint:ci`    |
+| **`path-mapping`**      | Optional JSON object mapping native report source path prefixes to repository-relative directories.                                                                               | **false**    | -            |
+| **`source-sha`**        | Source commit tested by a prebuilt container; must equal the checked-out revision.                                                                                                | **false**    | -            |
+| **`source-prefix`**     | Repository-relative directory represented by a prebuilt working-directory. Required with source-sha outside GITHUB_WORKSPACE; use a dot for the repository root.                  | **false**    | -            |
+| **`lint-results`**      | Required native report paths relative to CI_REPORTS_DIR, one per line.                                                                                                            | **false**    | `lint.sarif` |
 
 <!-- inputs:end -->
 <!-- secrets:start -->
@@ -118,7 +100,6 @@ Generate supported lint reports such as SARIF, ESLint JSON or Checkstyle XML.
 
 | **Output**               | **Description**                                                       |
 | ------------------------ | --------------------------------------------------------------------- |
-| **`report-plan`**        | Expected report metadata. Forward from standalone jobs.               |
 | **`report-artifact-id`** | Native report bundle, including available diagnostics after failures. |
 
 <!-- outputs:end -->
