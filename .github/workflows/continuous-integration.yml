@@ -10,6 +10,8 @@
 
 # Call common ci-reports.yml once after all producer jobs with
 # job-results: toJSON(needs). No report plans or artifact IDs need forwarding.
+# Add a separate CI complete job using common actions/check-jobs, with direct
+# needs on all required producers and reporting, and if: always().
 # Producer calls require actions: read and contents: read. The reporting caller
 # grants actions: read, contents: read, pull-requests: write, code-quality: write,
 # id-token: write and security-events: write; its internal jobs narrow these.

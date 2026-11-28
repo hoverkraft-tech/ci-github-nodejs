@@ -39,7 +39,7 @@ See the [native test report guide](../../docs/usage/test-reports.md) for runner 
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/test@c87829fa8b0658a28473f8499ed4234b4a2c7cee # feat/native-github-coverage
+- uses: hoverkraft-tech/ci-github-nodejs/actions/test@d580938064613e6d666f79320109f94dc98875b7 # feat/native-github-coverage
   with:
     # Disable project and dependency lifecycle scripts during installation.
     # Set false to allow installation hooks, subject to the package manager's script approval settings.

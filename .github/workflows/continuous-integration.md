@@ -34,6 +34,8 @@ Merge shards natively; their coverage output remains separate.
 
 Call common ci-reports.yml once after all producer jobs with
 job-results: toJSON(needs). No report plans or artifact IDs need forwarding.
+Add a separate CI complete job using common actions/check-jobs, with direct
+needs on all required producers and reporting, and if: always().
 Producer calls require actions: read and contents: read. The reporting caller
 grants actions: read, contents: read, pull-requests: write, code-quality: write,
 id-token: write and security-events: write; its internal jobs narrow these.
@@ -66,7 +68,7 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@f3dbc0a49f10ca459112808a1cc31b8f4d1fbe8c # feat/native-github-coverage
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@d580938064613e6d666f79320109f94dc98875b7 # feat/native-github-coverage
     permissions:
       actions: read
       contents: read

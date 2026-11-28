@@ -73,3 +73,13 @@ For the reusable continuous-integration workflow, supply those paths inside
 its `test` JSON object. Coverage can be disabled without removing detailed test
 results. Test and coverage publication destinations remain independent of the
 number of native files.
+
+## Overall CI status
+
+Call `ci-reports` once after all producers. It validates evidence and publication;
+it can succeed while displaying failed tests. Add one required `CI complete` job
+with `if: always()`, direct `needs` on every required producer and `reports`, and
+`ci-github-common/actions/check-jobs` with `job-results: toJSON(needs)`.
+Unexpected skipped jobs fail the gate. Allow only intentionally conditional job
+IDs through `allow-skipped`. See the
+[common CI gate contract](https://github.com/hoverkraft-tech/ci-github-common/blob/85351002dc2303c4a70233197edcadb20b1cb90e/docs/usage/ci-reports.md#required-ci-verdict).

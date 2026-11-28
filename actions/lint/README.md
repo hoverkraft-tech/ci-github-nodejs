@@ -35,7 +35,7 @@ Producer jobs require actions: read and contents: read, with source checked out 
 ## Usage
 
 ```yaml
-- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@05981e2c0d4b82bd09d6154082ecdb004dd7d9f9 # feat/native-github-coverage
+- uses: hoverkraft-tech/ci-github-nodejs/actions/lint@d580938064613e6d666f79320109f94dc98875b7 # feat/native-github-coverage
   with:
     # Disable project and dependency lifecycle scripts during installation.
     # Set false to allow installation hooks, subject to the package manager's script approval settings.
