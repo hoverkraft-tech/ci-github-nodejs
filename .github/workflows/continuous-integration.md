@@ -27,9 +27,10 @@ Workflow to run Node.js checks, builds and package validation.
 One CI reporting boundary
 
 Commands write their declared native outputs into CI_REPORTS_DIR.
-Test results default to junit.xml, coverage to coverage/lcov.info and lint to
+Test results and coverage default to the same native results.json; lint defaults to
 lint.sarif. Configure test-results, test-coverage or lint-results beside the
-corresponding command when its native output differs. Merge shards natively.
+command when a runner needs separate files. See [native test reports](../../docs/usage/test-reports.md).
+Merge shards natively; their coverage output remains separate.
 
 Call common ci-reports.yml once after all producer jobs with
 job-results: toJSON(needs). No report plans or artifact IDs need forwarding.
@@ -65,7 +66,7 @@ on:
 permissions: {}
 jobs:
   continuous-integration:
-    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@05981e2c0d4b82bd09d6154082ecdb004dd7d9f9 # feat/native-github-coverage
+    uses: hoverkraft-tech/ci-github-nodejs/.github/workflows/continuous-integration.yml@f3dbc0a49f10ca459112808a1cc31b8f4d1fbe8c # feat/native-github-coverage
     permissions:
       actions: read
       contents: read
@@ -185,7 +186,7 @@ jobs:
       # Default: `true`
       dependency-review: true
 
-      # Test options: command (default test:ci), arguments, coverage (boolean, default true), test-results (default junit.xml), test-coverage (default coverage/lcov.info), shards and merge-command. Paths are relative to CI_REPORTS_DIR. Prebuilt containers also require source-sha and source-prefix. Empty disables tests.
+      # Test options: command (default test:ci), arguments, coverage (boolean, default true), test-results (default results.json), test-coverage (defaults to test-results, or coverage/lcov.info for Vitest shard merging), shards and merge-command. Paths are relative to CI_REPORTS_DIR. Prebuilt containers also require source-sha and source-prefix. Empty disables tests.
       # Default: `true`
       test: "true"
 
@@ -301,7 +302,7 @@ jobs:
 | **`dependency-review`** | Enable dependency review scan.                                                                                                                                                                                                                                                                                                                                                                      | **false**    | **boolean** | `true`              |
 |                         | Works with public repositories and private repositories with a GitHub Advanced Security license.                                                                                                                                                                                                                                                                                                    |              |             |                     |
 |                         | See <https://github.com/actions/dependency-review-action>.                                                                                                                                                                                                                                                                                                                                          |              |             |                     |
-| **`test`**              | Test options: command (default test:ci), arguments, coverage (boolean, default true), test-results (default junit.xml), test-coverage (default coverage/lcov.info), shards and merge-command. Paths are relative to CI_REPORTS_DIR. Prebuilt containers also require source-sha and source-prefix. Empty disables tests.                                                                            | **false**    | **string**  | `true`              |
+| **`test`**              | Test options: command (default test:ci), arguments, coverage (boolean, default true), test-results (default results.json), test-coverage (defaults to test-results, or coverage/lcov.info for Vitest shard merging), shards and merge-command. Paths are relative to CI_REPORTS_DIR. Prebuilt containers also require source-sha and source-prefix. Empty disables tests.                           | **false**    | **string**  | `true`              |
 | **`working-directory`** | Working directory where dependencies and application commands run.                                                                                                                                                                                                                                                                                                                                  | **false**    | **string**  | `.`                 |
 |                         | Relative paths resolve against the workspace of each application job.                                                                                                                                                                                                                                                                                                                               |              |             |                     |
 |                         | Directory existence and non-container workspace boundaries are validated in those jobs.                                                                                                                                                                                                                                                                                                             |              |             |                     |
