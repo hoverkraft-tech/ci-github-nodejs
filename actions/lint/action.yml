@@ -6,7 +6,7 @@ description: |
   required reports there; stale files in the project cannot satisfy the contract.
   Missing or malformed reports fail even after a successful command. Available
   diagnostics are retained after failures. Call common ci-reports once after all checks.
-  Producer jobs require actions: read and contents: read, with source checked out.
+  Producer jobs require actions: read and contents: read, with source checked out and Git available (including in CI containers).
 author: hoverkraft
 branding:
   icon: check-circle
