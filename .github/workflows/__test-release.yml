@@ -1,11 +1,7 @@
 name: Internal - Tests for package and release actions
 
 on:
-  workflow_call:
-    outputs:
-      report-plan:
-        description: Complete plan for every package and release action in the matrix.
-        value: ${{ jobs.configuration.outputs.report-plan }}
+  workflow_call: {}
 permissions: {}
 
 jobs:
@@ -22,12 +18,12 @@ jobs:
       packages: read
       pull-requests: write
       security-events: write
+      actions: read
     with:
       working-directory: actions/${{ matrix.action }}
       build: ""
       lint: ""
       test: '{"coverage":false}'
-      report-plan: ${{ toJSON(fromJSON(needs.configuration.outputs.selections)[matrix.key]) }}
     needs: configuration
 
   integration-tests:
@@ -273,8 +269,6 @@ jobs:
     permissions: {}
     outputs:
       matrix: ${{ steps.actions.outputs.matrix }}
-      report-plan: ${{ steps.plan.outputs.report-plan }}
-      selections: ${{ steps.plan.outputs.selections }}
     steps:
       - id: actions
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -283,9 +277,3 @@ jobs:
             const actions=['package/restore','release/prepare','release/verify','release/finalize'];
             const matrix=actions.map(action=>({action,key:action.replaceAll('/','-')}));
             core.setOutput('matrix',matrix);
-            core.setOutput('producers',matrix.map(item=>({key:item.key,type:'test',directory:'actions/'+item.action,coverage:[]})));
-      - id: plan
-        uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@ea5900049a1704d6d2b479cc6cce37e799f532a3 # PR #683 (unreleased)
-        with:
-          operation: plan
-          producers: ${{ steps.actions.outputs.producers }}

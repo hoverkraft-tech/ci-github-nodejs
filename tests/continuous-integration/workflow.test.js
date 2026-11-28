@@ -557,3 +557,31 @@ test("merging runs after successful or failed shards but not cancellation or ski
   assert.equal(canRun("test-merge", { shards: 2, cancelled: true }), false);
   assert.equal(canRun("test-merge", { shards: 2, prepare: "failure" }), false);
 });
+
+test("local reusable workflow callers only supply supported inputs and sufficient permissions", async () => {
+  const { readdirSync } = await import("node:fs");
+  const ranks = { none: 0, read: 1, write: 2 };
+  for (const file of readdirSync(
+    new URL(".github/workflows/", repository),
+  ).filter((file) => file.endsWith(".yml"))) {
+    const caller = readYaml(`.github/workflows/${file}`);
+    for (const [name, job] of Object.entries(caller.jobs || {})) {
+      if (!job.uses?.startsWith("$/.github/workflows/")) continue;
+      const callee = readYaml(job.uses.slice(2));
+      const inputs = callee.on.workflow_call?.inputs || {};
+      for (const input of Object.keys(job.with || {}))
+        assert.ok(
+          input in inputs,
+          `${file}:${name} supplies retired input ${input}`,
+        );
+      for (const child of Object.values(callee.jobs)) {
+        for (const [scope, level] of Object.entries(child.permissions || {})) {
+          assert.ok(
+            (ranks[job.permissions?.[scope]] || 0) >= ranks[level],
+            `${file}:${name} must grant ${scope}: ${level} to ${job.uses}`,
+          );
+        }
+      }
+    }
+  }
+});
