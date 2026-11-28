@@ -8,7 +8,7 @@ permissions: {}
 jobs:
   lint:
     name: linter
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@ea5900049a1704d6d2b479cc6cce37e799f532a3 # PR #683 (unreleased)
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/linter.yml@aa3aca87ac5b96b6de18991b8fdc6b1da85ba136 # PR #683 (unreleased)
     permissions:
       actions: read
       contents: read
@@ -137,7 +137,7 @@ jobs:
       - test-action-test
       - test-action-lint
     if: ${{ !cancelled() }}
-    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@ea5900049a1704d6d2b479cc6cce37e799f532a3 # PR #683 (unreleased)
+    uses: hoverkraft-tech/ci-github-common/.github/workflows/ci-reports.yml@aa3aca87ac5b96b6de18991b8fdc6b1da85ba136 # PR #683 (unreleased)
     permissions:
       contents: read
       pull-requests: write

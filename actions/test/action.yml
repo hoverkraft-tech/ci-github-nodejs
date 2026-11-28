@@ -186,7 +186,7 @@ runs:
           }));
     - id: prepare-reports
       if: inputs.shard == ''
-      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@ea5900049a1704d6d2b479cc6cce37e799f532a3 # PR #683 (unreleased)
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@aa3aca87ac5b96b6de18991b8fdc6b1da85ba136 # PR #683 (unreleased)
       with:
         operation: prepare
         definition: ${{ steps.definition.outputs.definition }}
@@ -279,7 +279,7 @@ runs:
     - id: reports
       name: Validate and retain native reports
       if: ${{ !cancelled() && steps.prepare-reports.outcome == 'success' }}
-      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@ea5900049a1704d6d2b479cc6cce37e799f532a3 # unified reports (PR #683, unreleased)
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@aa3aca87ac5b96b6de18991b8fdc6b1da85ba136 # unified reports (PR #683, unreleased)
       with:
         operation: finalize
         recording: ${{ steps.prepare-reports.outputs.recording }}
