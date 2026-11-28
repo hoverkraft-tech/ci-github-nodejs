@@ -3,9 +3,10 @@
 # One CI reporting boundary
 
 # Commands write their declared native outputs into CI_REPORTS_DIR.
-# Test results default to junit.xml, coverage to coverage/lcov.info and lint to
+# Test results and coverage default to the same native results.json; lint defaults to
 # lint.sarif. Configure test-results, test-coverage or lint-results beside the
-# corresponding command when its native output differs. Merge shards natively.
+# command when a runner needs separate files. See [native test reports](../../docs/usage/test-reports.md).
+# Merge shards natively; their coverage output remains separate.
 
 # Call common ci-reports.yml once after all producer jobs with
 # job-results: toJSON(needs). No report plans or artifact IDs need forwarding.
@@ -129,7 +130,7 @@ on:
         default: true
       test:
         description: |-
-          Test options: command (default test:ci), arguments, coverage (boolean, default true), test-results (default junit.xml), test-coverage (default coverage/lcov.info), shards and merge-command. Paths are relative to CI_REPORTS_DIR. Prebuilt containers also require source-sha and source-prefix. Empty disables tests.
+          Test options: command (default test:ci), arguments, coverage (boolean, default true), test-results (default results.json), test-coverage (defaults to test-results, or coverage/lcov.info for Vitest shard merging), shards and merge-command. Paths are relative to CI_REPORTS_DIR. Prebuilt containers also require source-sha and source-prefix. Empty disables tests.
         type: string
         required: false
         default: "true"
@@ -295,11 +296,11 @@ jobs:
               if (testOptions[key] !== undefined && typeof testOptions[key] !== 'string') throw new Error(`test.${key} must be a string.`);
               core.setOutput(key, testOptions[key] || '');
             }
-            core.setOutput('test-coverage', testOptions['test-coverage'] || 'coverage/lcov.info');
             const shards = testOptions.shards === undefined ? 1 : testOptions.shards;
             if (!Number.isInteger(shards) || shards < 1 || shards > 256) {
               throw new Error('test.shards must be an integer from 1 to 256.');
             }
+            core.setOutput('test-coverage', testOptions['test-coverage'] || (shards > 1 ? 'coverage/lcov.info' : testOptions['test-results'] || 'results.json'));
             const args = testOptions.arguments === undefined ? [] : testOptions.arguments;
             if (!Array.isArray(args) || args.some(arg => typeof arg !== 'string' || arg.includes('\0'))) {
               throw new Error('test.arguments must be an array of strings without null bytes.');
@@ -316,7 +317,7 @@ jobs:
             core.setOutput('arguments', args);
             core.setOutput('merge-command', testOptions['merge-command'] || testOptions.command || 'test:ci');
             core.setOutput('coverage', testOptions.coverage );
-            core.setOutput('test-results', testOptions['test-results'] || 'junit.xml');
+            core.setOutput('test-results', testOptions['test-results'] || 'results.json');
             core.setOutput('command', testOptions.command || 'test:ci');
 
       - id: package-config

@@ -23,6 +23,8 @@ test("coverage collection defaults to enabled without selecting a provider", asy
     TEST_INPUT: "true",
   });
   assert.equal(outputs.coverage, true);
+  assert.equal(outputs["test-results"], "results.json");
+  assert.equal(outputs["test-coverage"], "results.json");
   const disabled = await runScript("prepare", "test-options", {
     TEST_INPUT: '{"coverage":false}',
   });
@@ -499,14 +501,18 @@ test("prepares isolated shard groups and forwards script arguments", async () =>
     shard: [1, 2],
   });
   assert.equal(first.outputs.shards, 2);
+  assert.equal(first.outputs["test-coverage"], "coverage/lcov.info");
   assert.equal(first.outputs["merge-command"], "test:merge");
   assert.notEqual(first.outputs.group, second.outputs.group);
   assert.deepEqual(Array.from(first.outputs.arguments), [
     "--config",
     "config with spaces.js",
   ]);
-  const defaults = await runScript("prepare", "test-options");
+  const defaults = await runScript("prepare", "test-options", {
+    TEST_INPUT: '{"shards":1,"test-results":"custom.json"}',
+  });
   assert.equal(defaults.outputs.shards, 1);
+  assert.equal(defaults.outputs["test-coverage"], "custom.json");
   assert.equal(defaults.outputs.group, "");
   assert.equal(defaults.outputs["merge-command"], defaults.outputs.command);
 });

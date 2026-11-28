@@ -7,8 +7,10 @@ description: |
   Missing or malformed reports fail even after a successful command. Available
   diagnostics are retained after failures. Call common ci-reports once after all checks.
   Producer jobs require actions: read and contents: read, with source checked out and Git available (including in CI containers).
-  CI_TEST_COVERAGE indicates whether to instrument tests. Default reports are JUnit
-  and LCOV; configure different native paths with test-results and test-coverage.
+  CI_TEST_COVERAGE indicates whether to instrument tests. By default, results.json
+  supplies both test results and coverage using native Vitest or Jest JSON. Set
+  test-results and test-coverage to separate paths for runners such as node:test.
+  See the [native test report guide](../../docs/usage/test-reports.md) for runner and shard configuration.
 author: hoverkraft
 branding:
   icon: check-square
@@ -33,7 +35,7 @@ inputs:
     default: "false"
   command:
     description: |-
-      npm/pnpm/Yarn script to run. Write JUnit or TAP into CI_REPORTS_DIR and enable coverage when CI_TEST_COVERAGE is true. For Vitest, use --outputFile.junit="$CI_REPORTS_DIR/junit.xml" and --coverage.reportsDirectory="$CI_REPORTS_DIR/coverage".
+      npm/pnpm/Yarn script to run. Write native reports into CI_REPORTS_DIR and enable coverage when CI_TEST_COVERAGE is true. Vitest uses --reporter=json --outputFile.json="$CI_REPORTS_DIR/results.json"; Jest uses --json --outputFile="$CI_REPORTS_DIR/results.json". Both include coverageMap when instrumented. Preserve Vitest coverage on failure with coverage.reportOnFailure. JUnit and TAP remain supported for other runners.
     required: false
     default: "test:ci"
   coverage:
@@ -49,7 +51,7 @@ inputs:
       Optional Vitest shard as index/total, for example `1/2`. Requires shard-group.
       Adds native shard/blob arguments, sets CI_TEST_SHARD, and uploads a checked blob payload
       after tests, including failures. Individual reporting is disabled for shards.
-      Use reporter-specific --outputFile.junit rather than scalar --outputFile in the package script.
+      Use reporter-specific --outputFile.json rather than scalar --outputFile in the package script.
       Keep coverage collection enabled; defer configured coverage thresholds to the merge
       when CI_TEST_SHARD is nonempty. The workflow normally supplies these orchestration inputs.
     default: ""
@@ -78,11 +80,11 @@ inputs:
     description: Repository-relative directory represented by a prebuilt working-directory. Required with source-sha outside GITHUB_WORKSPACE; use a dot for the repository root.
     default: ""
   test-results:
-    description: Required native report paths relative to CI_REPORTS_DIR, one per line.
-    default: junit.xml
+    description: Required native test report paths relative to CI_REPORTS_DIR, one per line. A combined JSON report can also supply coverage.
+    default: results.json
   test-coverage:
-    description: Required native coverage paths relative to CI_REPORTS_DIR when coverage is enabled, one per line. Merge coverage shards in the framework first.
-    default: coverage/lcov.info
+    description: Required native coverage paths relative to CI_REPORTS_DIR when coverage is enabled, one per line. Defaults to test-results for combined JSON, or coverage/lcov.info when merging Vitest shards. Vitest shard merging emits coverage separately; enable lcovonly when CI_TEST_MERGE is true.
+    default: ""
 
 outputs:
   report-artifact-id:
@@ -172,7 +174,7 @@ runs:
         PATH_MAPPING: ${{ inputs.path-mapping }}
         RESULTS: ${{ inputs.test-results }}
         COVERAGE: ${{ inputs.coverage }}
-        COVERAGE_PATHS: ${{ inputs.test-coverage }}
+        COVERAGE_PATHS: ${{ inputs.test-coverage || (inputs.merge-shards != '' && 'coverage/lcov.info' || inputs.test-results) }}
         MERGE_SHARDS: ${{ inputs.merge-shards }}
       with:
         script: |
@@ -186,7 +188,7 @@ runs:
           }));
     - id: prepare-reports
       if: inputs.shard == ''
-      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@aa3aca87ac5b96b6de18991b8fdc6b1da85ba136 # PR #683 (unreleased)
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@4e18f19c4e4de697daa47d2551bb255e85ba7558 # PR #683 (unreleased)
       with:
         operation: prepare
         definition: ${{ steps.definition.outputs.definition }}
@@ -216,6 +218,7 @@ runs:
         SHARDS_FAILED: ${{ steps.validate-shards.outputs.failed }}
         CI_REPORTS_DIR: ${{ steps.prepare-reports.outputs.report-directory || steps.prepare-test.outputs.directory }}
         CI_TEST_COVERAGE: ${{ inputs.coverage }}
+        CI_TEST_MERGE: ${{ inputs.merge-shards != '' && 'true' || 'false' }}
       with:
         script: |
           const workingDirectory = process.env.WORKING_DIRECTORY;
@@ -279,7 +282,7 @@ runs:
     - id: reports
       name: Validate and retain native reports
       if: ${{ !cancelled() && steps.prepare-reports.outcome == 'success' }}
-      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@aa3aca87ac5b96b6de18991b8fdc6b1da85ba136 # unified reports (PR #683, unreleased)
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@4e18f19c4e4de697daa47d2551bb255e85ba7558 # unified reports (PR #683, unreleased)
       with:
         operation: finalize
         recording: ${{ steps.prepare-reports.outputs.recording }}

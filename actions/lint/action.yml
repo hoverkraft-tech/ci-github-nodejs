@@ -94,7 +94,7 @@ runs:
             coveragePaths: process.env.COVERAGE_PATHS, shards: process.env.MERGE_SHARDS
           }));
     - id: prepare-reports
-      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@aa3aca87ac5b96b6de18991b8fdc6b1da85ba136 # PR #683 (unreleased)
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@4e18f19c4e4de697daa47d2551bb255e85ba7558 # PR #683 (unreleased)
       with:
         operation: prepare
         definition: ${{ steps.definition.outputs.definition }}
@@ -138,7 +138,7 @@ runs:
     - id: reports
       name: Validate and retain native reports
       if: ${{ !cancelled() && steps.prepare-reports.outcome == 'success' }}
-      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@aa3aca87ac5b96b6de18991b8fdc6b1da85ba136 # unified reports (PR #683, unreleased)
+      uses: hoverkraft-tech/ci-github-common/actions/quality/record-ci-reports@4e18f19c4e4de697daa47d2551bb255e85ba7558 # unified reports (PR #683, unreleased)
       with:
         operation: finalize
         recording: ${{ steps.prepare-reports.outputs.recording }}

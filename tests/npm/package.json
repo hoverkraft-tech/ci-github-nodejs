@@ -6,14 +6,13 @@
     "lint": "echo \"lint test\"",
     "lint:ci": "echo \"lint:ci test\"",
     "build": "mkdir -p dist && echo \"build test\" > dist/test.txt",
-    "test:ci": "JEST_JUNIT_OUTPUT_DIR=\"$CI_REPORTS_DIR\" jest --coverage=\"$CI_TEST_COVERAGE\" --coverageDirectory=\"$CI_REPORTS_DIR/coverage\" --coverageReporters=lcov --reporters=default --reporters=jest-junit"
+    "test:ci": "jest --coverage=\"${CI_TEST_COVERAGE:-true}\" --coverageReporters=text --reporters=default --json --outputFile=\"${CI_REPORTS_DIR:-.reports}/results.json\""
   },
   "devDependencies": {
     "jest": "^30.5.2",
     "nx": "^24.0.6",
     "prettier": "^3.10.1",
-    "storybook": "^10.6.7",
-    "jest-junit": "17.0.0"
+    "storybook": "^10.6.7"
   },
   "overrides": {
     "undici": ">=7.29.1"

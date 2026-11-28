@@ -68,13 +68,13 @@ jobs:
           script: |
             const assert = require('node:assert/strict');
             const fs = require('node:fs');
-            const files = await (await glob.create('merged-reports/**/junit.xml', {matchDirectories:false})).glob();
+            const files = await (await glob.create('merged-reports/**/results.json', {matchDirectories:false})).glob();
             const merged = files.filter(file => fs.readFileSync(file, 'utf8').includes('enabled answer') && fs.readFileSync(file, 'utf8').includes('disabled answer'));
-            assert.equal(merged.length, 2, 'Retain one complete merged JUnit from the host and the container');
+            assert.equal(merged.length, 2, 'Retain one complete merged JSON report from the host and the container');
             for (const file of merged) {
-              const junit = fs.readFileSync(file, 'utf8');
-              assert.equal((junit.match(/<testcase /g) || []).length, 2);
-              assert.doesNotMatch(junit, /<failure/);
+              const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+              assert.equal(report.numTotalTests, 2);
+              assert.equal(report.success, true);
             }
 
   workspace-packages:
@@ -132,7 +132,7 @@ jobs:
       lint: ""
       code-ql: ""
       dependency-review: false
-      test: '{"coverage":false}'
+      test: '{"coverage":false,"test-results":"junit.xml"}'
 
   act-with-checks-disabled:
     name: Act - Disable all application checks without starting a container

@@ -191,8 +191,8 @@ test("real Vitest merging preserves inventory, coverage, thresholds and failed t
         "--config",
         "fixtures/vitest.config.mjs",
         "--reporter=default",
-        "--reporter=junit",
-        "--outputFile.junit=coverage/sharding/junit.xml",
+        "--reporter=json",
+        "--outputFile.json=coverage/sharding/results.json",
         ...args,
       ],
       {
@@ -201,6 +201,9 @@ test("real Vitest merging preserves inventory, coverage, thresholds and failed t
           ...process.env,
           CI: "true",
           CI_TEST_SHARD: "",
+          CI_TEST_MERGE: args.some((arg) => arg.startsWith("--merge-reports="))
+            ? "true"
+            : "false",
           CI_REPORTS_DIR: "",
           CI_TEST_COVERAGE: "true",
           ...env,
@@ -212,16 +215,63 @@ test("real Vitest merging preserves inventory, coverage, thresholds and failed t
   const assertSuccess = (result) =>
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const report = () =>
-    fs.readFileSync(path.join(project, "coverage/sharding/junit.xml"), "utf8");
-  const coverage = () =>
     JSON.parse(
       fs.readFileSync(
-        path.join(project, "coverage/sharding/coverage-summary.json"),
+        path.join(project, "coverage/sharding/results.json"),
+        "utf8",
       ),
-    ).total;
+    );
+  const coverage = () => {
+    const combined = report().coverageMap;
+    const count = (hits) => ({
+      total: hits.length,
+      covered: hits.filter((hit) => hit > 0).length,
+    });
+    if (combined) {
+      const lines = new Map();
+      for (const [source, file] of Object.entries(combined))
+        for (const [id, location] of Object.entries(file.statementMap)) {
+          const key = `${source}:${location.start.line}`;
+          lines.set(key, lines.get(key) || file.s[id] > 0);
+        }
+      return {
+        lines: [...lines].sort(),
+        functions: count(
+          Object.values(combined).flatMap((file) => Object.values(file.f)),
+        ),
+        branches: count(
+          Object.values(combined).flatMap((file) =>
+            Object.values(file.b).flat(),
+          ),
+        ),
+      };
+    }
+    const lcov = fs.readFileSync(
+      path.join(project, "coverage/sharding/lcov.info"),
+      "utf8",
+    );
+    const lines = [...lcov.matchAll(/^DA:(\d+),(\d+)$/gm)];
+    const source = lcov.match(/^SF:(.+)$/m)[1];
+    return {
+      lines: lines
+        .map((line) => [
+          `${path.resolve(project, source)}:${line[1]}`,
+          Number(line[2]) > 0,
+        ])
+        .sort(),
+      functions: count(
+        [...lcov.matchAll(/^FNDA:(\d+),/gm)].map((match) => Number(match[1])),
+      ),
+      branches: count(
+        [...lcov.matchAll(/^BRDA:[^,]+,[^,]+,[^,]+,([^\r\n]+)/gm)].map(
+          (match) => Number(match[1]) || 0,
+        ),
+      ),
+    };
+  };
   assertSuccess(run([]));
   const baselineCoverage = coverage();
-  assert.equal((report().match(/<testcase /g) || []).length, 2);
+  assert.equal(report().numTotalTests, 2);
   const shards = [1, 2].map((index) => {
     const shard = new TestShards({ ...configuration, shard: `${index}/2` });
     assertSuccess(run(shard.prepare([]), { CI_TEST_SHARD: `${index}/2` }));
@@ -235,7 +285,7 @@ test("real Vitest merging preserves inventory, coverage, thresholds and failed t
   });
   assert.equal(merger.validate(), false);
   assertSuccess(run([`--merge-reports=${merger.blobs}`]));
-  assert.equal((report().match(/<testcase /g) || []).length, 2);
+  assert.equal(report().numTotalTests, 2);
   assert.deepEqual(coverage(), baselineCoverage);
   const threshold = run([`--merge-reports=${merger.blobs}`], {
     TEST_COVERAGE_THRESHOLD: "101",
@@ -263,7 +313,7 @@ test("real Vitest merging preserves inventory, coverage, thresholds and failed t
   assert.equal(merger.validate(), true);
   const merged = run([`--merge-reports=${merger.blobs}`]);
   assert.notEqual(merged.status, 0);
-  assert.match(report(), /<failure/);
-  assert.equal((report().match(/<testcase /g) || []).length, 2);
+  assert.equal(report().numFailedTests, 1);
+  assert.equal(report().numTotalTests, 2);
   assert.deepEqual(coverage(), baselineCoverage);
 });

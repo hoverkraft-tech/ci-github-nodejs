@@ -44,6 +44,7 @@ jobs:
           working-directory: report-fixture
           command: test:ci
           coverage: "true"
+          test-results: junit.xml
           test-coverage: lcov.info
       - name: Assert - Retrieve reports even after a failed test
         if: steps.test.outputs.report-artifact-id != ''
